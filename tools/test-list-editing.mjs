@@ -151,6 +151,7 @@ function imageCaretCase(source, expected, blocks = [image]) {
   const result = insertImageBlocks(text, start, start, blocks);
   assert.equal(result.text, expectedText, source);
   assert.equal(result.caret, expectedCaret, `${source} should place the caret at a stable block boundary`);
+  assert.equal(result.insertedImageCount, blocks.length, `${source} should expose the inserted image count for preview caret placement`);
   assert.equal((result.text.match(/!\[[^\]]*\]\([^\n)]+\)/g) || []).length, initialImageCount + blocks.length, `${source} should keep every image token intact`);
 }
 
@@ -190,6 +191,7 @@ imageCaretCase('正文|', '正文\n\n![1](x) ![2](x) ![3](x) ![4](x) ![5](x) ![6
 const selectedTask = '- [ ] 待替换';
 const selectedTaskResult = insertImageBlocks(selectedTask, 0, selectedTask.length, [image]);
 assert.equal(selectedTaskResult.text, image, 'selecting a complete task item should not leave an orphan task marker');
+assert.equal(selectedTaskResult.imageStartIndex, 0, 'a replacement image should be the first preview image');
 
 const partialTask = '- [ ] 第一项';
 const partialStart = partialTask.indexOf('一');
@@ -201,6 +203,9 @@ const selectedBoldResult = insertImageBlocks(selectedBold, 2, 4, [image]);
 assert.equal(selectedBoldResult.text, image, 'replacing all formatted text should not leave empty Markdown delimiters');
 const partialBoldResult = insertImageBlocks(selectedBold, 2, 3, [image]);
 assert.equal(partialBoldResult.text, '**粗**\n\n' + image, 'a partial formatted selection should keep its paired delimiters intact');
+
+const imageAfterExisting = insertImageBlocks('![旧图](old.png)', '![旧图](old.png)'.length, '![旧图](old.png)'.length, [image]);
+assert.equal(imageAfterExisting.imageStartIndex, 1, 'preview caret placement should target the image after existing images');
 
 let sequence = '待办一\n步骤二\n说明三\n收尾四';
 let sequenceResult = computeBlockFormat(sequence, sequence.indexOf('待办一'), sequence.indexOf('待办一') + 3, 'task');
@@ -219,4 +224,4 @@ assert.match(sequence, /^> 说明三$/m, 'ordered list then quote should retain 
 assert.match(sequence, /^- \[ \] 收尾四$/m, 'quote then task should retain the final task structure');
 assert.doesNotMatch(sequence, /^\s*[-*+]\s+\[[ xX]\]\s*$/m, 'mixed operations should not create orphan task markers');
 
-console.log(`editing tests passed: ${cases.length + 19 + imageBoundaryCases.length + 6}`);
+console.log(`editing matrix passed: ${cases.length + 19 + imageBoundaryCases.length + 7} scenarios`);

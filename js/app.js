@@ -220,6 +220,13 @@
         n.getAttribute('title') || ''
       )
     });
+    turndownService.addRule('previewCaretPlaceholder', {
+      filter: (n) => n.nodeName === 'P'
+        && n.hasAttribute('data-md-preview-caret')
+        && !String(n.textContent || '').replace(/[\s\u200B\uFEFF]/g, '')
+        && !n.querySelector('img, table, hr, video, audio, iframe, canvas'),
+      replacement: () => ''
+    });
     turndownService.addRule('taskCheckbox', {
       filter: (n) => n.type === 'checkbox' && n.parentNode && n.parentNode.nodeName === 'LI',
       replacement: () => ''
@@ -868,6 +875,8 @@
     paragraph.style.setProperty('--app-image-row-count', String(count));
     paragraph.setAttribute('role', 'group');
     paragraph.setAttribute('aria-label', `图片组，共 ${count} 张`);
+    paragraph.setAttribute('contenteditable', 'false');
+    paragraph.dataset.mdAtomicBlock = 'image';
     images.forEach((image) => {
       image.draggable = true;
       image.classList.add('app-image-row__item');
@@ -889,7 +898,49 @@
     row.style.removeProperty('--app-image-row-count');
     row.removeAttribute('role');
     row.removeAttribute('aria-label');
+    row.removeAttribute('contenteditable');
+    delete row.dataset.mdAtomicBlock;
     markPreviewImageRow(row);
+  }
+
+  function createPreviewCaretParagraph() {
+    const paragraph = document.createElement('p');
+    paragraph.className = 'app-preview-caret-paragraph';
+    paragraph.dataset.mdPreviewCaret = 'true';
+    paragraph.setAttribute('aria-label', '图片后的正文');
+    paragraph.appendChild(document.createElement('br'));
+    return paragraph;
+  }
+
+  function ensurePreviewCaretParagraphAfter(block) {
+    if (!block || !els.previewEditor.contains(block)) return null;
+    const next = block.nextElementSibling;
+    if (next?.matches?.('p[data-md-preview-caret]')) return next;
+    const paragraph = createPreviewCaretParagraph();
+    block.after(paragraph);
+    return paragraph;
+  }
+
+  function ensurePreviewTrailingAtomicCaret() {
+    const last = els.previewEditor.lastElementChild;
+    if (!last?.matches?.('.app-image-row, table, pre, hr')) return null;
+    return ensurePreviewCaretParagraphAfter(last);
+  }
+
+  function promotePreviewCaretParagraphs() {
+    els.previewEditor.querySelectorAll('p[data-md-preview-caret]').forEach((paragraph) => {
+      if (!previewNodeHasContent(paragraph)) return;
+      paragraph.classList.remove('app-preview-caret-paragraph');
+      paragraph.removeAttribute('data-md-preview-caret');
+      paragraph.removeAttribute('aria-label');
+    });
+  }
+
+  function prunePreviewCaretParagraphs() {
+    els.previewEditor.querySelectorAll('p[data-md-preview-caret]').forEach((paragraph) => {
+      if (paragraph.previousElementSibling?.matches?.('.app-image-row, table, pre, hr')) return;
+      paragraph.remove();
+    });
   }
 
   function clearPreviewImageDropIndicators() {
@@ -938,6 +989,7 @@
 
   function commitPreviewImageOrder() {
     if (!turndownService) return false;
+    prunePreviewCaretParagraphs();
     const trailingNewlines = (getCurrentMarkdown().match(/\n*$/) || [''])[0];
     const markdown = turndownService.turndown(els.previewEditor.innerHTML)
       .replace(/\n*$/, trailingNewlines);
@@ -1092,6 +1144,7 @@
     const md = getCurrentMarkdown();
     if (typeof marked !== 'undefined') els.previewEditor.innerHTML = marked.parse(markdownForPreview(md));
     preparePreviewImageRows();
+    ensurePreviewTrailingAtomicCaret();
     const previewDoc = currentDoc();
     previewImagesReady = previewDoc ? resolvePreviewImages(previewDoc, imageToken) : Promise.resolve();
     prepareTaskCheckboxes();
@@ -2447,7 +2500,25 @@
     const rows = [];
     for (let index = 0; index < blocks.length; index += 6) rows.push(blocks.slice(index, index + 6).join(' '));
     const insertion = prefix + rows.join('\n\n') + suffix;
-    return { text: before + insertion + after, caret: before.length + insertion.length };
+    const imageStartIndex = (before.match(/!\[[^\]\n]*\]\([^\n)]+\)/g) || []).length;
+    return {
+      text: before + insertion + after,
+      caret: before.length + insertion.length,
+      imageStartIndex,
+      insertedImageCount: blocks.length
+    };
+  }
+
+  function placePreviewCaretAfterInsertedImages(result) {
+    const images = [...els.previewEditor.querySelectorAll('img')];
+    const targetIndex = result.imageStartIndex + result.insertedImageCount - 1;
+    const row = images[targetIndex]?.closest?.('.app-image-row');
+    if (!row) return false;
+    const paragraph = ensurePreviewCaretParagraphAfter(row);
+    if (!paragraph) return false;
+    placePreviewCaret(paragraph, 0);
+    lastEditSurface = 'preview';
+    return true;
   }
 
   function applyImageBlocks(anchor, blocks) {
@@ -2457,7 +2528,9 @@
     const result = insertImageBlocks(located.markdown, located.start, located.end, blocks);
     setCurrentMarkdown(result.text);
     renderPreview();
-    if (anchor.surface === 'source' && state.viewMode !== 'preview') {
+    if (anchor.surface === 'preview') {
+      placePreviewCaretAfterInsertedImages(result);
+    } else if (state.viewMode !== 'preview') {
       els.sourceEditor.focus();
       setProgrammaticSourceSelection(result.caret, result.caret);
     }
@@ -2531,6 +2604,7 @@
     capture.className = 'editor-preview app-export-capture';
     capture.innerHTML = els.previewEditor.innerHTML;
     capture.querySelectorAll('.app-comment-anchor, .app-comment-draft').forEach((anchor) => anchor.replaceWith(...anchor.childNodes));
+    capture.querySelectorAll('[data-md-preview-caret]').forEach((paragraph) => paragraph.remove());
     capture.querySelectorAll('.app-block-comment-anchor, .app-comment-block-target, .app-comment-locate').forEach((block) => {
       block.classList.remove('app-block-comment-anchor', 'app-comment-block-target', 'app-comment-locate', 'is-active');
       block.removeAttribute('data-comment-ids');
@@ -6791,6 +6865,7 @@
     }
     previewEditing = true;
     try {
+      promotePreviewCaretParagraphs();
       let md = turndownService.turndown(els.previewEditor.innerHTML);
       if (opts.collapseEmptyBlock) md = normalizePreviewStructuralMarkdown(md);
       const inputSource = Object.prototype.hasOwnProperty.call(opts, 'inputSource')

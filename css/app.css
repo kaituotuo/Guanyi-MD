@@ -746,6 +746,12 @@ html[data-theme="dark"] .app-link-menu__item { color: var(--ui-color-text-primar
   width: auto; max-width: 100%; max-height: 520px; margin-inline: auto;
   aspect-ratio: auto; object-fit: contain;
 }
+.editor-preview .app-preview-caret-paragraph {
+  box-sizing: border-box;
+  min-height: 1.8em;
+  margin: 0.35em 0 0;
+}
+.app-export-capture .app-preview-caret-paragraph { display: none; }
 .editor-preview .app-image-row > img[draggable="true"] {
   cursor: grab; user-select: none; -webkit-user-drag: element;
   transition: opacity .15s ease, box-shadow .15s ease;
