@@ -1,19 +1,26 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const v8 = require('node:v8');
+const { MeilisearchHttpError, MeilisearchProcess } = require('./meilisearch-process.cjs');
 
-const INDEX_SCHEMA_VERSION = 3;
+const INDEX_SCHEMA_VERSION = 4;
+const INDEX_UID = `guanyi_content_v${INDEX_SCHEMA_VERSION}`;
+const INDEX_SETTINGS_VERSION = 1;
+const EMBEDDER_NAME = 'bgeZh';
 const MODEL_ID = 'Xenova/bge-small-zh-v1.5';
 const MODEL_REVISION = '75c43b069aac4d136ba6bc1122f995fedcfd2781';
 const MODEL_SHA256 = 'b9837c19ce154ff0726d398ee77abbc03a7faf0476c6f93016c84e531be7ebb5';
 const MODEL_DIMENSIONS = 512;
 const QUERY_PREFIX = '为这个句子生成表示以用于检索相关文章：';
 const MAX_DOCUMENTS = 500;
-const MAX_CHUNKS_PER_DOCUMENT = 4096;
-const MAX_CHUNK_LENGTH = 1600;
-const MAX_SNIPPET_LENGTH = 1200;
-const EMBEDDING_BATCH_SIZE = 8;
+const MAX_UNITS_PER_DOCUMENT = 1_000_000;
+const MAX_TEXT_LENGTH = 20_000;
+const MAX_SEMANTIC_TEXT_LENGTH = 1_600;
+const MAX_SNIPPET_LENGTH = 1_200;
+const EMBEDDING_BATCH_SIZE = 16;
+const DOCUMENT_BATCH_SIZE = 32;
+const HYBRID_SEMANTIC_RATIO = 0.58;
+const MIN_RANKING_SCORE = 0.2;
 const SEMANTIC_QUERY_STOP_TERMS = new Set([
   '什么', '怎么', '如何', '为何', '为什么', '哪里', '哪儿', '哪个', '哪些',
   '是谁', '谁的', '是否', '是不是', '有没有', '请问', '一下'
@@ -33,9 +40,7 @@ function semanticQueryTerms(rawQuery) {
   for (const sequence of value.match(/[\u3400-\u9fff]+/g) || []) {
     const maximum = Math.min(6, sequence.length);
     for (let length = maximum; length >= 2; length -= 1) {
-      for (let start = 0; start + length <= sequence.length; start += 1) {
-        terms.add(sequence.slice(start, start + length));
-      }
+      for (let start = 0; start + length <= sequence.length; start += 1) terms.add(sequence.slice(start, start + length));
     }
   }
   return [...terms].filter((term) => term.length >= 2 && !SEMANTIC_QUERY_STOP_TERMS.has(term));
@@ -55,7 +60,7 @@ function matchedQueryTerms(terms, rawText) {
 }
 
 function lexicalBoostForTerms(terms) {
-  return Math.min(0.28, (terms || []).reduce((score, term) => score + Math.max(0.065, (term.length - 1) * 0.065), 0));
+  return Math.min(0.24, (terms || []).reduce((score, term) => score + Math.max(0.055, (term.length - 1) * 0.055), 0));
 }
 
 function focusedSnippet(rawText, terms, limit = 360) {
@@ -73,12 +78,12 @@ function focusedSnippet(rawText, terms, limit = 360) {
   return `${left ? '…' : ''}${text.slice(left, right).trim()}${right < text.length ? '…' : ''}`;
 }
 
-function meanNormalizedVector(entries) {
+function meanNormalizedVector(vectors) {
   const vector = new Float32Array(MODEL_DIMENSIONS);
   let count = 0;
-  for (const entry of entries || []) {
-    if (!entry.vector || entry.vector.length !== MODEL_DIMENSIONS) continue;
-    for (let index = 0; index < MODEL_DIMENSIONS; index += 1) vector[index] += entry.vector[index];
+  for (const source of vectors || []) {
+    if (!source || source.length !== MODEL_DIMENSIONS) continue;
+    for (let index = 0; index < MODEL_DIMENSIONS; index += 1) vector[index] += source[index];
     count += 1;
   }
   if (!count) return null;
@@ -92,74 +97,68 @@ function meanNormalizedVector(entries) {
   return vector;
 }
 
-function aggregateEntry(document, entries, granularity, heading, aggregateValue) {
-  const vector = meanNormalizedVector(entries);
-  if (!vector) return null;
+function recordId(docId, unitId) {
+  return crypto.createHash('sha256').update(`${docId}\0${unitId}`).digest('hex');
+}
+
+function emptyMetadata() {
   return {
-    docId: document.id,
-    title: document.title,
-    path: document.path,
-    chunkIndex: -1,
-    start: Math.min(...entries.map((entry) => entry.start)),
-    end: Math.max(...entries.map((entry) => entry.end)),
-    snippet: '',
-    heading: heading || '',
-    chapter: granularity === 'chapter' ? aggregateValue : '',
-    section: granularity === 'section' ? aggregateValue : '',
-    granularity,
-    aggregate: true,
-    aggregateKind: granularity,
-    aggregateValue: aggregateValue || document.id,
-    lexicalText: [document.title, document.path, heading].filter(Boolean).join('\n'),
-    vector
+    schemaVersion: INDEX_SCHEMA_VERSION,
+    settingsVersion: INDEX_SETTINGS_VERSION,
+    updatedAt: 0,
+    engineVersion: '',
+    documents: {}
   };
 }
 
-function aggregateDocumentEntries(document, entries) {
-  const aggregates = [];
-  const groupAndAppend = (field, granularity) => {
-    const groups = new Map();
-    entries.forEach((entry) => {
-      const value = String(entry[field] || '').trim();
-      if (!value) return;
-      if (!groups.has(value)) groups.set(value, []);
-      groups.get(value).push(entry);
-    });
-    groups.forEach((groupEntries, value) => {
-      const aggregate = aggregateEntry(document, groupEntries, granularity, value, value);
-      if (aggregate) aggregates.push(aggregate);
-    });
-  };
-  groupAndAppend('section', 'section');
-  groupAndAppend('chapter', 'chapter');
-  const documentAggregate = aggregateEntry(document, entries, 'document', document.title, document.id);
-  if (documentAggregate) aggregates.push(documentAggregate);
-  return aggregates;
+function meiliString(value) {
+  return JSON.stringify(String(value || ''));
+}
+
+class VectorAccumulator {
+  constructor() {
+    this.sums = new Map();
+  }
+
+  add(key, vector) {
+    if (!key || !vector) return;
+    let entry = this.sums.get(key);
+    if (!entry) {
+      entry = { vector: new Float32Array(MODEL_DIMENSIONS), count: 0 };
+      this.sums.set(key, entry);
+    }
+    for (let index = 0; index < MODEL_DIMENSIONS; index += 1) entry.vector[index] += vector[index];
+    entry.count += 1;
+  }
+
+  normalized(key) {
+    const entry = this.sums.get(key);
+    if (!entry?.count) return null;
+    return meanNormalizedVector([entry.vector]);
+  }
 }
 
 class SemanticSearchService {
-  constructor({ modelDir, indexFile }) {
+  constructor({ modelDir, binaryPath, dataDir, metadataFile, engine }) {
     this.modelDir = modelDir;
-    this.indexFile = indexFile;
+    this.binaryPath = binaryPath;
+    this.dataDir = dataDir;
+    this.metadataFile = metadataFile || (dataDir ? path.join(dataDir, 'guanyi-index-metadata.json') : null);
+    this.engine = engine || new MeilisearchProcess({
+      binaryPath,
+      dataDir: path.join(dataDir, 'meilisearch-db'),
+      keyFile: path.join(dataDir, 'master-key')
+    });
+    this.client = null;
+    this.engineVersion = '';
     this.extractor = null;
     this.loadingModel = null;
-    this.indexLoaded = false;
-    this.index = this.emptyIndex();
-    this.operation = Promise.resolve();
     this.modelVerified = false;
-  }
-
-  emptyIndex() {
-    return {
-      schemaVersion: INDEX_SCHEMA_VERSION,
-      modelId: MODEL_ID,
-      modelRevision: MODEL_REVISION,
-      modelSha256: MODEL_SHA256,
-      dimensions: MODEL_DIMENSIONS,
-      updatedAt: 0,
-      documentFingerprints: {},
-      entries: []
-    };
+    this.metadataLoaded = false;
+    this.metadata = emptyMetadata();
+    this.resetIndex = false;
+    this.indexReady = false;
+    this.operation = Promise.resolve();
   }
 
   modelFile() {
@@ -173,26 +172,6 @@ class SemanticSearchService {
     if (hash !== MODEL_SHA256) throw new Error('本地语义模型校验失败，请重新安装观绎 MD');
     this.modelVerified = true;
     return true;
-  }
-
-  async ensureIndexLoaded() {
-    if (this.indexLoaded) return;
-    this.indexLoaded = true;
-    if (!this.indexFile) return;
-    try {
-      const serialized = await fs.promises.readFile(this.indexFile);
-      const saved = v8.deserialize(serialized);
-      const valid = saved
-        && saved.schemaVersion === INDEX_SCHEMA_VERSION
-        && saved.modelId === MODEL_ID
-        && saved.modelSha256 === MODEL_SHA256
-        && saved.dimensions === MODEL_DIMENSIONS
-        && saved.documentFingerprints
-        && Array.isArray(saved.entries);
-      if (valid) this.index = saved;
-    } catch (error) {
-      if (error?.code !== 'ENOENT') console.warn('语义索引读取失败，将重新建立', error);
-    }
   }
 
   async ensureModel(progress) {
@@ -221,9 +200,7 @@ class SemanticSearchService {
   async embed(texts, progress, completed, total) {
     const extractor = await this.ensureModel(progress);
     const output = await extractor(texts, { pooling: 'cls', normalize: true });
-    if (!output?.data || output.dims?.at(-1) !== MODEL_DIMENSIONS) {
-      throw new Error('本地语义模型返回了无法识别的向量');
-    }
+    if (!output?.data || output.dims?.at(-1) !== MODEL_DIMENSIONS) throw new Error('本地语义模型返回了无法识别的向量');
     const vectors = [];
     for (let index = 0; index < texts.length; index += 1) {
       const start = index * MODEL_DIMENSIONS;
@@ -240,24 +217,32 @@ class SemanticSearchService {
 
   sanitizeDocuments(rawDocuments) {
     if (!Array.isArray(rawDocuments)) return [];
-    return rawDocuments.slice(0, MAX_DOCUMENTS).map((document) => ({
-      id: clampText(document?.id, 240),
-      fingerprint: clampText(document?.fingerprint, 160),
-      title: clampText(document?.title, 240),
-      path: clampText(document?.path, 1000),
-      chunks: Array.isArray(document?.chunks)
-        ? document.chunks.slice(0, MAX_CHUNKS_PER_DOCUMENT).map((chunk) => ({
-          text: clampText(chunk?.text, MAX_CHUNK_LENGTH),
-          snippet: clampText(chunk?.snippet, MAX_SNIPPET_LENGTH),
-          heading: clampText(chunk?.heading, 240),
-          chapter: clampText(chunk?.chapter, 240),
-          section: clampText(chunk?.section, 320),
-          granularity: ['sentence', 'paragraph', 'passage'].includes(chunk?.granularity) ? chunk.granularity : 'passage',
-          start: Math.max(0, Number(chunk?.start) || 0),
-          end: Math.max(0, Number(chunk?.end) || 0)
-        })).filter((chunk) => chunk.text.trim())
-        : []
-    })).filter((document) => document.id && document.fingerprint && document.chunks.length);
+    return rawDocuments.slice(0, MAX_DOCUMENTS).map((document) => {
+      const rawUnits = Array.isArray(document?.units) ? document.units : document?.chunks;
+      const units = Array.isArray(rawUnits) ? rawUnits.slice(0, MAX_UNITS_PER_DOCUMENT).map((unit, index) => ({
+        unitId: clampText(unit?.unitId || `legacy-${index}`, 240),
+        text: clampText(unit?.text, MAX_TEXT_LENGTH),
+        semanticText: clampText(unit?.semanticText || unit?.text, MAX_SEMANTIC_TEXT_LENGTH),
+        snippet: clampText(unit?.snippet || unit?.text, MAX_SNIPPET_LENGTH),
+        heading: clampText(unit?.heading, 500),
+        chapter: clampText(unit?.chapter, 300),
+        section: clampText(unit?.section, 500),
+        chapterId: clampText(unit?.chapterId, 240),
+        sectionId: clampText(unit?.sectionId, 240),
+        paragraphId: clampText(unit?.paragraphId, 240),
+        sentenceId: clampText(unit?.sentenceId, 240),
+        granularity: ['sentence', 'paragraph', 'section', 'chapter'].includes(unit?.granularity) ? unit.granularity : 'paragraph',
+        start: Math.max(0, Number(unit?.start) || 0),
+        end: Math.max(0, Number(unit?.end) || 0)
+      })).filter((unit) => unit.unitId && unit.text.trim() && unit.end >= unit.start) : [];
+      return {
+        id: clampText(document?.id, 240),
+        fingerprint: clampText(document?.fingerprint, 160),
+        title: clampText(document?.title, 240),
+        path: clampText(document?.path, 1_000),
+        units
+      };
+    }).filter((document) => document.id && document.fingerprint && document.units.some((unit) => unit.granularity === 'sentence'));
   }
 
   runExclusive(task) {
@@ -266,139 +251,314 @@ class SemanticSearchService {
     return next;
   }
 
-  async persistIndex() {
-    if (!this.indexFile) return;
-    await fs.promises.mkdir(path.dirname(this.indexFile), { recursive: true });
-    await fs.promises.writeFile(this.indexFile, v8.serialize(this.index));
+  async loadMetadata() {
+    if (this.metadataLoaded) return;
+    this.metadataLoaded = true;
+    if (!this.metadataFile) return;
+    try {
+      const saved = JSON.parse(await fs.promises.readFile(this.metadataFile, 'utf8'));
+      const valid = saved
+        && saved.schemaVersion === INDEX_SCHEMA_VERSION
+        && saved.settingsVersion === INDEX_SETTINGS_VERSION
+        && saved.documents
+        && typeof saved.documents === 'object';
+      if (valid) this.metadata = saved;
+      else this.resetIndex = true;
+    } catch (error) {
+      this.resetIndex = true;
+      if (error?.code !== 'ENOENT') console.warn('本地搜索元数据无效，将重新建立索引', error);
+    }
+  }
+
+  async persistMetadata() {
+    if (!this.metadataFile) return;
+    await fs.promises.mkdir(path.dirname(this.metadataFile), { recursive: true });
+    const temporary = `${this.metadataFile}.tmp`;
+    await fs.promises.writeFile(temporary, `${JSON.stringify(this.metadata, null, 2)}\n`);
+    await fs.promises.rename(temporary, this.metadataFile);
+  }
+
+  async ensureIndex(progress) {
+    await this.loadMetadata();
+    if (this.indexReady && this.client) return this.client;
+    safeProgress(progress, { phase: 'engine', message: '正在启动本地搜索服务' });
+    const client = await this.engine.start();
+    this.client = client;
+    const version = await client.version();
+    this.engineVersion = version?.pkgVersion || version?.commitSha || '';
+    if (this.resetIndex) {
+      try { await client.waitTask(await client.deleteIndex(INDEX_UID)); }
+      catch (error) {
+        const missing = error instanceof MeilisearchHttpError
+          && (error.status === 404 || error.code === 'index_not_found');
+        if (!missing) throw error;
+      }
+      this.metadata = emptyMetadata();
+      this.resetIndex = false;
+    }
+    let createdIndex = false;
+    try {
+      await client.waitTask(await client.createIndex(INDEX_UID, 'id'));
+      createdIndex = true;
+    } catch (error) {
+      if (!(error instanceof MeilisearchHttpError) || error.code !== 'index_already_exists') throw error;
+    }
+    const expectedRecords = Object.values(this.metadata.documents)
+      .reduce((sum, document) => sum + (document.recordCount || 0), 0);
+    const stats = await client.indexStats(INDEX_UID);
+    if ((createdIndex && expectedRecords) || Number(stats?.numberOfDocuments) !== expectedRecords) {
+      await client.waitTask(await client.deleteIndex(INDEX_UID));
+      await client.waitTask(await client.createIndex(INDEX_UID, 'id'));
+      this.metadata = emptyMetadata();
+    }
+    await client.waitTask(await client.updateSettings(INDEX_UID, {
+      searchableAttributes: ['title', 'path', 'heading', 'text'],
+      displayedAttributes: [
+        'id', 'docId', 'fingerprint', 'title', 'path', 'unitId', 'granularity',
+        'start', 'end', 'snippet', 'text', 'heading', 'chapter', 'section',
+        'chapterId', 'sectionId', 'paragraphId', 'sentenceId'
+      ],
+      filterableAttributes: ['docId', 'granularity', 'chapterId', 'sectionId', 'paragraphId'],
+      rankingRules: ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
+      embedders: { [EMBEDDER_NAME]: { source: 'userProvided', dimensions: MODEL_DIMENSIONS } }
+    }));
+    this.metadata.engineVersion = this.engineVersion;
+    await this.persistMetadata();
+    this.indexReady = true;
+    safeProgress(progress, { phase: 'engine-ready', message: '本地搜索服务已就绪' });
+    return client;
   }
 
   async status() {
-    await this.ensureIndexLoaded();
+    await this.loadMetadata();
     let modelAvailable = false;
+    let engineAvailable = false;
     try { modelAvailable = fs.statSync(this.modelFile()).isFile(); } catch (_error) { /* Report below. */ }
+    try { engineAvailable = fs.statSync(this.binaryPath).isFile(); } catch (_error) { /* Report below. */ }
     return {
-      available: modelAvailable,
+      available: modelAvailable && engineAvailable,
       modelReady: !!this.extractor,
+      engine: 'Meilisearch',
+      engineReady: !!this.client,
+      engineVersion: this.engineVersion || this.metadata.engineVersion || '',
       modelId: MODEL_ID,
       modelRevision: MODEL_REVISION,
       modelSha256: MODEL_SHA256,
       dimensions: MODEL_DIMENSIONS,
-      indexedDocuments: Object.keys(this.index.documentFingerprints).length,
-      indexedChunks: this.index.entries.length,
-      updatedAt: this.index.updatedAt || 0
+      indexedDocuments: Object.keys(this.metadata.documents).length,
+      indexedChunks: Object.values(this.metadata.documents).reduce((sum, document) => sum + (document.recordCount || 0), 0),
+      updatedAt: this.metadata.updatedAt || 0
     };
+  }
+
+  recordFor(document, unit, vector) {
+    return {
+      id: recordId(document.id, unit.unitId),
+      docId: document.id,
+      fingerprint: document.fingerprint,
+      title: document.title,
+      path: document.path,
+      unitId: unit.unitId,
+      granularity: unit.granularity,
+      start: unit.start,
+      end: unit.end,
+      snippet: unit.snippet,
+      text: unit.text,
+      heading: unit.heading,
+      chapter: unit.chapter,
+      section: unit.section,
+      chapterId: unit.chapterId,
+      sectionId: unit.sectionId,
+      paragraphId: unit.paragraphId,
+      sentenceId: unit.sentenceId,
+      _vectors: { [EMBEDDER_NAME]: Array.from(vector) }
+    };
+  }
+
+  async addRecordBatches(client, records) {
+    for (let offset = 0; offset < records.length; offset += DOCUMENT_BATCH_SIZE) {
+      await client.waitTask(await client.addDocuments(INDEX_UID, records.slice(offset, offset + DOCUMENT_BATCH_SIZE)));
+    }
+  }
+
+  async indexOneDocument(client, document, progress, completed, total) {
+    const previous = this.metadata.documents[document.id];
+    if (previous?.recordCount) await client.waitTask(await client.deleteDocumentsByFilter(INDEX_UID, `docId = ${meiliString(document.id)}`));
+    delete this.metadata.documents[document.id];
+    await this.persistMetadata();
+
+    const sentences = document.units.filter((unit) => unit.granularity === 'sentence');
+    const accumulators = {
+      paragraph: new VectorAccumulator(),
+      section: new VectorAccumulator(),
+      chapter: new VectorAccumulator()
+    };
+    let recordCount = 0;
+    const sentenceRecordBuffer = [];
+    for (let offset = 0; offset < sentences.length; offset += EMBEDDING_BATCH_SIZE) {
+      const batch = sentences.slice(offset, offset + EMBEDDING_BATCH_SIZE);
+      const vectors = await this.embed(batch.map((unit) => unit.semanticText), progress, completed + offset, total);
+      const records = batch.map((unit, index) => {
+        const vector = vectors[index];
+        accumulators.paragraph.add(unit.paragraphId, vector);
+        accumulators.section.add(unit.sectionId, vector);
+        accumulators.chapter.add(unit.chapterId, vector);
+        const record = this.recordFor(document, unit, vector);
+        recordCount += 1;
+        return record;
+      });
+      sentenceRecordBuffer.push(...records);
+      if (sentenceRecordBuffer.length >= DOCUMENT_BATCH_SIZE) {
+        await this.addRecordBatches(client, sentenceRecordBuffer.splice(0));
+      }
+    }
+    await this.addRecordBatches(client, sentenceRecordBuffer);
+
+    const parentRecords = [];
+    for (const unit of document.units.filter((candidate) => candidate.granularity !== 'sentence')) {
+      const key = unit.granularity === 'paragraph' ? unit.paragraphId
+        : unit.granularity === 'section' ? unit.sectionId
+          : unit.chapterId;
+      const vector = accumulators[unit.granularity]?.normalized(key);
+      if (!vector) continue;
+      const record = this.recordFor(document, unit, vector);
+      parentRecords.push(record);
+      recordCount += 1;
+    }
+    await this.addRecordBatches(client, parentRecords);
+    this.metadata.documents[document.id] = {
+      fingerprint: document.fingerprint,
+      recordCount,
+      updatedAt: Date.now()
+    };
+    this.metadata.updatedAt = Date.now();
+    await this.persistMetadata();
+    return sentences.length;
   }
 
   indexDocuments(rawDocuments, options = {}, progress) {
     return this.runExclusive(async () => {
-      await this.ensureIndexLoaded();
+      const client = await this.ensureIndex(progress);
       const documents = this.sanitizeDocuments(rawDocuments);
       const activeIds = new Set(documents.map((document) => document.id));
       const force = !!options.force;
-      const previousEntryCount = this.index.entries.length;
-      const previousDocumentCount = Object.keys(this.index.documentFingerprints).length;
+
+      for (const [docId, saved] of Object.entries(this.metadata.documents)) {
+        if (activeIds.has(docId)) continue;
+        if (saved.recordCount) await client.waitTask(await client.deleteDocumentsByFilter(INDEX_UID, `docId = ${meiliString(docId)}`));
+        delete this.metadata.documents[docId];
+      }
+
       const stale = documents.filter((document) => force
-        || this.index.documentFingerprints[document.id] !== document.fingerprint);
-      const staleIds = new Set(stale.map((document) => document.id));
-      this.index.entries = this.index.entries.filter((entry) => activeIds.has(entry.docId) && !staleIds.has(entry.docId));
-      Object.keys(this.index.documentFingerprints).forEach((docId) => {
-        if (!activeIds.has(docId) || staleIds.has(docId)) delete this.index.documentFingerprints[docId];
-      });
-
-      const pending = stale.flatMap((document) => document.chunks.map((chunk, chunkIndex) => ({
-        docId: document.id,
-        fingerprint: document.fingerprint,
-        title: document.title,
-        path: document.path,
-        chunkIndex,
-        ...chunk
-      })));
-
-      if (pending.length) {
-        safeProgress(progress, { phase: 'indexing', completed: 0, total: pending.length, message: `准备建立 ${pending.length} 个文本片段的索引` });
-        for (let offset = 0; offset < pending.length; offset += EMBEDDING_BATCH_SIZE) {
-          const batch = pending.slice(offset, offset + EMBEDDING_BATCH_SIZE);
-          const vectors = await this.embed(batch.map((entry) => entry.text), progress, offset, pending.length);
-          batch.forEach((entry, index) => {
-            const { text, fingerprint, ...metadata } = entry;
-            this.index.entries.push({ ...metadata, aggregate: false, lexicalText: text, vector: vectors[index] });
-            this.index.documentFingerprints[entry.docId] = fingerprint;
-          });
-        }
-        stale.forEach((document) => {
-          const baseEntries = this.index.entries.filter((entry) => entry.docId === document.id && !entry.aggregate);
-          this.index.entries.push(...aggregateDocumentEntries(document, baseEntries));
-        });
+        || this.metadata.documents[document.id]?.fingerprint !== document.fingerprint);
+      const total = stale.reduce((sum, document) => sum + document.units.filter((unit) => unit.granularity === 'sentence').length, 0);
+      let completed = 0;
+      if (total) {
+        safeProgress(progress, { phase: 'indexing', completed: 0, total, message: `准备建立 ${total} 个句子的分层索引` });
+        for (const document of stale) completed += await this.indexOneDocument(client, document, progress, completed, total);
       }
-
-      const changed = pending.length
-        || staleIds.size
-        || previousEntryCount !== this.index.entries.length
-        || previousDocumentCount !== Object.keys(this.index.documentFingerprints).length;
-      if (changed) {
-        this.index.updatedAt = Date.now();
-        await this.persistIndex();
-      }
-      safeProgress(progress, { phase: 'ready', message: '本地语义索引已就绪' });
+      this.metadata.updatedAt = Date.now();
+      await this.persistMetadata();
+      safeProgress(progress, { phase: 'ready', message: '本地分层索引已就绪' });
       return this.status();
     });
   }
 
+  searchParameters(query, queryVector, limit, filter, rankingScoreThreshold = MIN_RANKING_SCORE) {
+    return {
+      q: query,
+      vector: Array.from(queryVector),
+      hybrid: { embedder: EMBEDDER_NAME, semanticRatio: HYBRID_SEMANTIC_RATIO },
+      filter,
+      limit,
+      rankingScoreThreshold,
+      showRankingScore: true,
+      showRankingScoreDetails: true,
+      attributesToRetrieve: [
+        'id', 'docId', 'title', 'path', 'unitId', 'granularity', 'start', 'end',
+        'snippet', 'text', 'heading', 'chapter', 'section', 'chapterId', 'sectionId',
+        'paragraphId', 'sentenceId'
+      ]
+    };
+  }
+
+  hierarchyFilter(hit) {
+    const filters = [`granularity = ${meiliString('sentence')}`, `docId = ${meiliString(hit.docId)}`];
+    if (hit.granularity === 'paragraph') filters.push(`paragraphId = ${meiliString(hit.paragraphId)}`);
+    else if (hit.granularity === 'section') filters.push(`sectionId = ${meiliString(hit.sectionId)}`);
+    else if (hit.granularity === 'chapter') filters.push(`chapterId = ${meiliString(hit.chapterId)}`);
+    return filters.join(' AND ');
+  }
+
+  materialize(candidate, evidence, queryTerms) {
+    const visibleText = [evidence.title, evidence.path, evidence.heading, evidence.text, evidence.snippet].filter(Boolean).join('\n');
+    const highlightTerms = matchedQueryTerms(queryTerms, visibleText);
+    const fields = [];
+    if (matchedQueryTerms(queryTerms, evidence.title).length) fields.push('name');
+    if (matchedQueryTerms(queryTerms, evidence.path).length) fields.push('path');
+    if (matchedQueryTerms(queryTerms, `${evidence.text}\n${evidence.snippet}`).length) fields.push('content');
+    fields.push('semantic');
+    const rankingScore = Number(candidate._rankingScore) || 0;
+    const lexicalBoost = lexicalBoostForTerms(highlightTerms);
+    return {
+      docId: evidence.docId,
+      title: evidence.title,
+      path: evidence.path,
+      start: Number(evidence.start) || 0,
+      end: Number(evidence.end) || 0,
+      snippet: focusedSnippet(evidence.snippet || evidence.text, highlightTerms),
+      heading: evidence.heading || candidate.heading || '',
+      chapter: evidence.chapter || candidate.chapter || '',
+      section: evidence.section || candidate.section || '',
+      granularity: 'sentence',
+      matchedGranularity: candidate.granularity || 'sentence',
+      highlightTerms,
+      fields,
+      semanticScore: rankingScore,
+      lexicalBoost,
+      score: rankingScore + lexicalBoost
+    };
+  }
+
   search(rawQuery, rawLimit, progress) {
     return this.runExclusive(async () => {
-      await this.ensureIndexLoaded();
       const query = clampText(rawQuery, 500).trim();
       if (!query) return [];
-      if (!this.index.entries.length) throw new Error('尚未建立本地语义索引');
-      safeProgress(progress, { phase: 'searching', message: '正在进行本地语义检索' });
+      const client = await this.ensureIndex(progress);
+      if (!Object.keys(this.metadata.documents).length) throw new Error('尚未建立本地语义索引');
+      safeProgress(progress, { phase: 'searching', message: '正在统一检索关键词与相关内容' });
       const [queryVector] = await this.embed([`${QUERY_PREFIX}${query}`], progress, 0, 1);
-      const queryTerms = semanticQueryTerms(query);
-      const scoredEntries = [];
-      for (const entry of this.index.entries) {
-        const vector = entry.vector;
-        if (!vector || vector.length !== MODEL_DIMENSIONS) continue;
-        let semanticScore = 0;
-        for (let index = 0; index < MODEL_DIMENSIONS; index += 1) semanticScore += queryVector[index] * vector[index];
-        const highlightTerms = matchedQueryTerms(queryTerms, entry.lexicalText || `${entry.title}\n${entry.path}\n${entry.heading}\n${entry.snippet}`);
-        const lexicalBoost = lexicalBoostForTerms(highlightTerms);
-        scoredEntries.push({ entry, semanticScore, lexicalBoost, highlightTerms, score: semanticScore + lexicalBoost });
+      const limit = Math.max(1, Math.min(50, Number(rawLimit) || 15));
+      const primary = await client.search(INDEX_UID, this.searchParameters(query, queryVector, Math.max(60, limit * 4)));
+      const candidates = Array.isArray(primary?.hits) ? primary.hits : [];
+      const hierarchyCandidates = candidates.filter((hit) => hit.granularity !== 'sentence').slice(0, Math.max(20, limit * 2));
+      if (hierarchyCandidates.length) {
+        const evidenceResponse = await client.multiSearch(hierarchyCandidates.map((hit) => ({
+          indexUid: INDEX_UID,
+          ...this.searchParameters(query, queryVector, 1, this.hierarchyFilter(hit), 0.05)
+        })));
+        (evidenceResponse?.results || []).forEach((result, index) => {
+          const evidence = result?.hits?.[0];
+          if (evidence) hierarchyCandidates[index].evidence = evidence;
+        });
       }
 
-      const belongsToAggregate = (candidate, aggregate) => {
-        if (candidate.entry.aggregate || candidate.entry.docId !== aggregate.entry.docId) return false;
-        if (aggregate.entry.aggregateKind === 'document') return true;
-        if (aggregate.entry.aggregateKind === 'chapter') return candidate.entry.chapter === aggregate.entry.aggregateValue;
-        if (aggregate.entry.aggregateKind === 'section') return candidate.entry.section === aggregate.entry.aggregateValue;
-        return false;
-      };
-      const materialize = (candidate) => {
-        let evidence = candidate;
-        if (candidate.entry.aggregate) {
-          evidence = scoredEntries.filter((item) => belongsToAggregate(item, candidate))
-            .sort((a, b) => b.score - a.score)[0] || candidate;
-        }
-        const highlightTerms = [...new Set([...candidate.highlightTerms, ...evidence.highlightTerms])];
-        const { vector: _vector, lexicalText: _lexicalText, ...metadata } = evidence.entry;
-        return {
-          ...metadata,
-          heading: evidence.entry.heading || candidate.entry.heading || '',
-          snippet: focusedSnippet(evidence.entry.snippet, highlightTerms),
-          granularity: evidence.entry.granularity || 'passage',
-          matchedGranularity: candidate.entry.granularity || evidence.entry.granularity || 'passage',
-          semanticScore: candidate.semanticScore,
-          lexicalBoost: candidate.lexicalBoost,
-          highlightTerms,
-          score: candidate.score
-        };
-      };
-      const bestByDocument = new Map();
-      for (const candidate of scoredEntries) {
-        const previous = bestByDocument.get(candidate.entry.docId);
-        if (!previous || candidate.score > previous.score) bestByDocument.set(candidate.entry.docId, candidate);
+      const queryTerms = semanticQueryTerms(query);
+      const materialized = [];
+      for (const candidate of candidates) {
+        if (candidate.granularity === 'sentence') materialized.push(this.materialize(candidate, candidate, queryTerms));
+        else if (candidate.evidence) materialized.push(this.materialize(candidate, candidate.evidence, queryTerms));
       }
-      const limit = Math.max(1, Math.min(30, Number(rawLimit) || 12));
-      const results = [...bestByDocument.values()].sort((a, b) => b.score - a.score).slice(0, limit).map(materialize);
-      safeProgress(progress, { phase: 'ready', message: '本地语义检索完成' });
+      const bestByAnchor = new Map();
+      materialized.forEach((result) => {
+        const key = `${result.docId}:${result.start}:${result.end}`;
+        const previous = bestByAnchor.get(key);
+        if (!previous || result.score > previous.score) bestByAnchor.set(key, result);
+      });
+      const results = [...bestByAnchor.values()]
+        .sort((a, b) => b.score - a.score || a.start - b.start)
+        .slice(0, limit);
+      safeProgress(progress, { phase: 'ready', message: '本地统一搜索完成' });
       return results;
     });
   }
@@ -406,11 +566,16 @@ class SemanticSearchService {
   async dispose() {
     try { await this.extractor?.dispose?.(); } catch (_error) { /* Process is exiting. */ }
     this.extractor = null;
+    await this.engine.dispose();
   }
 }
 
 module.exports = {
   SemanticSearchService,
+  INDEX_SCHEMA_VERSION,
+  INDEX_UID,
+  INDEX_SETTINGS_VERSION,
+  EMBEDDER_NAME,
   MODEL_ID,
   MODEL_REVISION,
   MODEL_SHA256,
@@ -421,5 +586,5 @@ module.exports = {
   lexicalBoostForTerms,
   focusedSnippet,
   meanNormalizedVector,
-  aggregateDocumentEntries
+  recordId
 };

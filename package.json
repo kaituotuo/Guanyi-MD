@@ -1,6 +1,6 @@
 {
   "name": "guanyi-md",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "观绎 MD｜俯仰观物，绎述我心。",
   "main": "desktop/main.cjs",
   "author": "Guanyi MD",
@@ -8,12 +8,13 @@
   "private": true,
   "scripts": {
     "build:icons": "node tools/generate-app-icons.mjs",
+    "fetch:meilisearch": "node tools/fetch-meilisearch.mjs",
     "test:list-editing": "node tools/test-list-editing.mjs",
     "test:semantic-search": "node tools/test-semantic-search.mjs",
     "desktop": "electron .",
-    "build:mac": "npm run build:icons && electron-builder --mac dmg --arm64",
-    "build:win": "npm run build:icons && electron-builder --win nsis --x64",
-    "build:desktop": "npm run build:mac && npm run build:win",
+    "build:mac": "node tools/build-desktop.mjs --mac",
+    "build:win": "node tools/build-desktop.mjs --win",
+    "build:desktop": "node tools/build-desktop.mjs --all",
     "release:patch": "npm version patch --no-git-tag-version && npm run build:desktop"
   },
   "devDependencies": {
@@ -24,6 +25,13 @@
     "appId": "com.guanyi.md",
     "productName": "观绎 MD",
     "asar": true,
+    "electronDownload": {
+      "force": false,
+      "checksums": {
+        "electron-v43.4.0-darwin-arm64.zip": "827f9f182566f46846377575b51c547b9926b111637313a373b6f717462aebac",
+        "electron-v43.4.0-win32-x64.zip": "ef0709cfa719739acce73de6f9b684304baf38c6454376638a70d34a7cecffe0"
+      }
+    },
     "directories": {
       "output": "release",
       "buildResources": "build-resources"
@@ -68,6 +76,16 @@
       "icon": "build-resources/icon.icns",
       "identity": "-",
       "hardenedRuntime": false,
+      "extraResources": [
+        {
+          "from": "runtime/meilisearch/v1.53.1/mac-arm64/meilisearch",
+          "to": "runtime/meilisearch/meilisearch"
+        },
+        {
+          "from": "runtime/meilisearch/licenses",
+          "to": "runtime/meilisearch/licenses"
+        }
+      ],
       "target": [
         {
           "target": "dmg",
@@ -102,6 +120,16 @@
     "win": {
       "icon": "build-resources/icon-1024.png",
       "executableName": "Guanyi-MD",
+      "extraResources": [
+        {
+          "from": "runtime/meilisearch/v1.53.1/win-x64/meilisearch.exe",
+          "to": "runtime/meilisearch/meilisearch.exe"
+        },
+        {
+          "from": "runtime/meilisearch/licenses",
+          "to": "runtime/meilisearch/licenses"
+        }
+      ],
       "target": [
         {
           "target": "nsis",

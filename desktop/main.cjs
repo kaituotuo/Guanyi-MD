@@ -3,11 +3,13 @@ const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
 const { SemanticSearchService } = require('./semantic-search.cjs');
 
 const PRODUCT_NAME = '观绎 MD';
+const MEILISEARCH_VERSION = '1.53.1';
 const APP_URL_PROTOCOLS = new Set(['file:']);
 const EXTERNAL_URL_PROTOCOLS = new Set(['http:', 'https:']);
 
 let mainWindow = null;
 let semanticSearch = null;
+let quittingAfterSearchShutdown = false;
 
 function semanticModelDirectory() {
   return app.isPackaged
@@ -15,10 +17,24 @@ function semanticModelDirectory() {
     : path.join(__dirname, '..', 'models', 'bge-small-zh-v1.5');
 }
 
+function meilisearchBinaryPath() {
+  const executable = process.platform === 'win32' ? 'meilisearch.exe' : 'meilisearch';
+  if (app.isPackaged) return path.join(process.resourcesPath, 'runtime', 'meilisearch', executable);
+  const platformDirectory = process.platform === 'darwin' && process.arch === 'arm64'
+    ? 'mac-arm64'
+    : process.platform === 'win32' && process.arch === 'x64'
+      ? 'win-x64'
+      : `${process.platform}-${process.arch}`;
+  return path.join(__dirname, '..', 'runtime', 'meilisearch', `v${MEILISEARCH_VERSION}`, platformDirectory, executable);
+}
+
 function installSemanticSearchHandlers() {
+  const searchDataDirectory = path.join(app.getPath('userData'), 'search', 'meilisearch-v4');
   semanticSearch = new SemanticSearchService({
     modelDir: semanticModelDirectory(),
-    indexFile: path.join(app.getPath('userData'), 'search', 'bge-small-zh-v1.5-index.bin')
+    binaryPath: meilisearchBinaryPath(),
+    dataDir: searchDataDirectory,
+    metadataFile: path.join(searchDataDirectory, 'guanyi-index-metadata.json')
   });
   const progressFor = (event) => (payload) => {
     if (!event.sender.isDestroyed()) event.sender.send('guanyi-semantic:progress', payload);
@@ -169,5 +185,10 @@ if (!app.requestSingleInstanceLock()) {
     if (process.platform !== 'darwin') app.quit();
   });
 
-  app.on('before-quit', () => { semanticSearch?.dispose(); });
+  app.on('before-quit', (event) => {
+    if (!semanticSearch || quittingAfterSearchShutdown) return;
+    event.preventDefault();
+    quittingAfterSearchShutdown = true;
+    semanticSearch.dispose().finally(() => app.quit());
+  });
 }

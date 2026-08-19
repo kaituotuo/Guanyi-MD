@@ -51,8 +51,8 @@ node tools/dev-server.mjs --port 9929
 
 构建产物位于 `release/`：
 
-- macOS Apple Silicon（M1 / M2 / M3 / M4 等）：`Guanyi-MD-1.0.1-mac-arm64.dmg`
-- Windows Intel / AMD 64 位：`Guanyi-MD-Setup-1.0.1-win-x64.exe`
+- macOS Apple Silicon（M1 / M2 / M3 / M4 等）：`Guanyi-MD-1.0.8-mac-arm64.dmg`
+- Windows Intel / AMD 64 位：`Guanyi-MD-Setup-1.0.8-win-x64.exe`
 
 macOS 版使用 ad-hoc 本地签名，Windows 版未使用商业代码签名证书；两者均未发布到应用商店。在未加入 Apple Developer 签名与公证、Windows Authenticode 签名前，首次安装时系统可能显示开发者信任提示。
 
@@ -64,6 +64,8 @@ npm run build:mac
 npm run build:win
 ```
 
+构建脚本会将 Electron 与 Electron Builder 的下载缓存统一保存在项目内的 `.cache/`，避免重复下载，也不依赖 macOS / Windows 不同的 shell 环境变量写法。
+
 发布新的补丁版本时使用 `npm run release:patch`。该命令会先将版本号递增一位（例如 `1.0.1` → `1.0.2`），再构建 macOS 与 Windows 安装包；普通 `build:*` 命令只重建当前版本，不修改版本号。
 
 ## 核心能力
@@ -73,7 +75,7 @@ npm run build:win
 - 本地选择、URL、拖拽和剪贴板图片插入；等高画廊每行支持 1–6 张，可拖动图片跨行插入或调整顺序，目录文档使用 `assets/<文档名>/` 相对路径
 - 本地文档打开、拖拽导入、保存、重命名和目录扫描；目录默认扫描 5 层，支持 `.md`、`.markdown` 和 `.txt`，单份文档不超过 20 MB，自动识别 UTF-8、UTF-16 与 GBK/GB18030 文本
 - 单一搜索入口自动匹配最近文档、文件名、目录名和 Markdown/TXT 正文，并在桌面版自动补充语义相关结果；无需选择搜索模式，支持结果高亮、键盘选择和 `Ctrl/Cmd+Shift+F` 快捷入口
-- 桌面版本地搜索内置 `bge-small-zh-v1.5` INT8 ONNX 模型，模型推理与向量索引均在本机完成；索引按文档指纹增量更新，模型不可用时仍保留文件名、目录和正文匹配
+- 桌面版本地搜索内置 `bge-small-zh-v1.5` INT8 ONNX 模型与 Meilisearch `v1.53.1`；自动融合文件名、目录、正文关键词和语义相关性，支持句子、段落、小节、章节四级召回并精确定位证据句
 - 文档大纲、阅读进度、批注与伴随文件
 - 用户主动触发的 AI 辅助阅读
 - 统一导出入口，可选 Markdown、PDF 和 PNG 长图
@@ -92,6 +94,7 @@ npm run build:win
 ├── js/docs-data.js         # 内置文档
 ├── docs/                   # 内置文档与产品研发说明
 ├── models/                 # 桌面版本地语义模型
+├── runtime/meilisearch/   # 固定版本的 macOS / Windows 本地搜索引擎
 ├── tools/                  # 本地服务与单文件同步工具
 ├── vendor/                 # 离线第三方依赖及许可证
 └── release/                # DMG、EXE 与解包验收目录
@@ -118,6 +121,6 @@ node tools/sync-single-file.mjs
 - 文档与偏好默认保存在当前浏览器。
 - 本地文件和目录仅在用户主动选择后读取。
 - 搜索范围仅包含用户已添加或已选择的文档与目录，不会扫描整台电脑。
-- 桌面语义搜索使用随应用安装的本地模型；文档分片、向量和索引不经过网络，也不会上传到模型服务。
+- 桌面语义搜索使用随应用安装的本地模型与 Meilisearch sidecar；服务仅绑定本机回环地址并关闭遥测，文档分片、查询、向量和索引不经过互联网，也不会上传到模型服务。
 - 模型请求只在用户主动生成辅助阅读时发送当前文档。
 - API Key 不会写入 Markdown、批注伴随文件或导出内容。

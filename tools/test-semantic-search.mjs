@@ -1,152 +1,224 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFile } from 'node:fs/promises';
+import { readFile, rm, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const temporaryRoot = path.join(projectRoot, '.tmp-test', 'semantic-search');
+await rm(temporaryRoot, { recursive: true, force: true });
+
 const appSource = await readFile(path.join(projectRoot, 'js/app.js'), 'utf8');
 const helperStart = appSource.indexOf('function plainTextSectionHeading(');
 const helperEnd = appSource.indexOf('\n  async function semanticDocumentsForIndex', helperStart);
-assert.notEqual(helperStart, -1, 'semantic chunk helpers should exist in js/app.js');
-assert.notEqual(helperEnd, -1, 'semantic chunk helpers should end before semanticDocumentsForIndex');
+const sentenceBoundsStart = appSource.indexOf('function searchSentenceBounds(');
+const sentenceBoundsEnd = appSource.indexOf('\n  function formatSearchRecency', sentenceBoundsStart);
+assert.notEqual(helperStart, -1, 'semantic hierarchy helpers should exist in js/app.js');
+assert.notEqual(helperEnd, -1, 'semantic hierarchy helpers should end before semanticDocumentsForIndex');
+assert.notEqual(sentenceBoundsStart, -1, 'keyword sentence-boundary helper should exist in js/app.js');
 
 const {
   plainTextHeadingKind,
-  searchGranularityForBlock,
+  sentenceRangesForSearch,
+  searchSentenceBounds,
   chunkMarkdownForSearch
 } = vm.runInNewContext(`(() => {
-  const SEMANTIC_CHUNK_TARGET = 420;
-  const SEMANTIC_CHUNK_OVERLAP = 80;
-  const SEMANTIC_MAX_CHUNKS_PER_DOCUMENT = 4096;
+  const SEMANTIC_SENTENCE_MAX_LENGTH = 620;
+  const SEMANTIC_MAX_UNITS_PER_DOCUMENT = 1000000;
+  ${appSource.slice(sentenceBoundsStart, sentenceBoundsEnd)}
   ${appSource.slice(helperStart, helperEnd)}
-  return { plainTextHeadingKind, searchGranularityForBlock, chunkMarkdownForSearch };
+  return { plainTextHeadingKind, sentenceRangesForSearch, searchSentenceBounds, chunkMarkdownForSearch };
 })()`);
 
 const {
   SemanticSearchService,
+  INDEX_UID,
+  EMBEDDER_NAME,
   MODEL_DIMENSIONS,
-  aggregateDocumentEntries,
+  meanNormalizedVector,
+  recordId,
   semanticQueryTerms,
   matchedQueryTerms
 } = require('../desktop/semantic-search.cjs');
 
 assert.equal(plainTextHeadingKind('第四十六回 用奇谋孔明借箭'), 'chapter');
 assert.equal(plainTextHeadingKind('第三节 人物关系'), 'section');
-assert.equal(searchGranularityForBlock('只有一句话。', 1), 'sentence');
-assert.equal(searchGranularityForBlock('第一句。第二句。', 1), 'paragraph');
-assert.equal(searchGranularityForBlock('第一段。\n\n第二段。', 2), 'passage');
+assert.deepEqual(
+  [...sentenceRangesForSearch('第一句。第二句！')].map((range) => '第一句。第二句！'.slice(range.start, range.end)),
+  ['第一句。', '第二句！']
+);
+assert.deepEqual(
+  { ...searchSentenceBounds('前一句。黄盖受刑，乃苦肉计也。后一句。', 4, 6) },
+  { start: 4, end: 15 },
+  'literal keyword hits should expand to the exact containing sentence'
+);
 
 const hierarchyFixture = [
   '第四十六回 用奇谋孔明借箭 献密计黄盖受刑',
   '',
-  '周瑜传令。',
-  '',
-  '黄盖上前说话。众将在旁观看。',
-  '',
-  '苦肉计由此开始。',
+  '周瑜传令。黄盖上前说话。',
   '',
   '第一节 受刑',
   '',
-  '周瑜大怒，喝令左右将黄盖拖翻，脊杖五十。',
-  '',
-  '黄盖受刑，乃苦肉计也。'
+  '周瑜大怒，喝令左右将黄盖拖翻，脊杖五十。黄盖受刑，乃苦肉计也。'
 ].join('\n');
-const hierarchyChunks = chunkMarkdownForSearch(hierarchyFixture);
-const granularities = new Set(hierarchyChunks.map((chunk) => chunk.granularity));
-assert.ok(granularities.has('sentence'), 'single-sentence blocks should be indexed');
-assert.ok(granularities.has('paragraph'), 'multi-sentence paragraphs should be indexed');
-assert.ok(granularities.has('passage'), 'adjacent paragraphs should also form passage-level chunks');
+const hierarchyUnits = chunkMarkdownForSearch(hierarchyFixture);
+const granularities = new Set(hierarchyUnits.map((unit) => unit.granularity));
+assert.deepEqual([...granularities].sort(), ['chapter', 'paragraph', 'section', 'sentence']);
+const hierarchySentences = hierarchyUnits.filter((unit) => unit.granularity === 'sentence');
+assert.equal(hierarchySentences.length, 4);
+hierarchySentences.forEach((unit) => {
+  assert.equal(hierarchyFixture.slice(unit.start, unit.end), unit.text, 'sentence offsets must select exact source text');
+  assert.ok(unit.paragraphId && unit.chapterId && unit.sentenceId, 'sentence hierarchy ids must be complete');
+});
 assert.ok(
-  hierarchyChunks.some((chunk) => chunk.chapter.startsWith('第四十六回') && !chunk.section),
-  'a classical chapter should not be duplicated as a section'
+  hierarchySentences.find((unit) => unit.text.includes('黄盖上前'))?.semanticText.includes('周瑜传令'),
+  'sentence embeddings should include adjacent sentence context'
 );
-assert.ok(
-  hierarchyChunks.some((chunk) => chunk.section.includes('第四十六回') && chunk.section.includes('第一节')),
-  'a classical section should retain its parent chapter path'
-);
+const sectionUnit = hierarchyUnits.find((unit) => unit.granularity === 'section');
+assert.ok(sectionUnit?.heading.includes('第四十六回') && sectionUnit.heading.includes('第一节'));
+assert.ok(hierarchySentences.filter((unit) => unit.sectionId === sectionUnit.unitId).length >= 2);
+const chapterUnit = hierarchyUnits.find((unit) => unit.granularity === 'chapter');
+assert.ok(chapterUnit && hierarchySentences.every((unit) => unit.chapterId === chapterUnit.unitId));
 
-const markdownChunks = chunkMarkdownForSearch('# 上卷\n\n## 第一节\n\n小节正文。');
-assert.equal(markdownChunks[0].chapter, '上卷');
-assert.equal(markdownChunks[0].section, '上卷 / 第一节');
+const markdownUnits = chunkMarkdownForSearch('# 上卷\n\n## 第一节\n\n小节正文。\n\n### 其一\n\n更细正文。');
+assert.ok(markdownUnits.some((unit) => unit.granularity === 'chapter' && unit.chapter === '上卷'));
+assert.ok(markdownUnits.some((unit) => unit.granularity === 'section' && unit.section === '上卷 / 第一节'));
+assert.ok(markdownUnits.some((unit) => unit.granularity === 'section' && unit.section === '上卷 / 第一节 / 其一'));
 
 const lateChapters = Array.from({ length: 220 }, (_value, index) => [
   `第${index + 1}回 测试章节`,
   '',
   index === 219 ? '周瑜下令让军士杖打黄盖，用的是苦肉计。' : `这是第${index + 1}回的普通正文。`
 ].join('\n')).join('\n\n');
-const lateChunks = chunkMarkdownForSearch(lateChapters);
-assert.ok(lateChunks.length > 160, 'long books should retain content beyond the former 160-chunk limit');
-assert.ok(lateChunks.some((chunk) => chunk.snippet.includes('黄盖')), 'late-book evidence should be indexed');
+const lateUnits = chunkMarkdownForSearch(lateChapters);
+assert.ok(lateUnits.some((unit) => unit.granularity === 'sentence' && unit.text.includes('黄盖')), 'late-book sentences must not be truncated');
+assert.equal(lateUnits.filter((unit) => unit.granularity === 'chapter').length, 220);
 
 function unitVector(index) {
   const vector = new Float32Array(MODEL_DIMENSIONS);
-  vector[index] = 1;
+  vector[index % MODEL_DIMENSIONS] = 1;
   return vector;
 }
 
-const aggregateDocument = { id: 'book', title: '测试书', path: '测试书.md' };
-const aggregateBaseEntries = hierarchyChunks.map((chunk, index) => ({
-  docId: aggregateDocument.id,
-  title: aggregateDocument.title,
-  path: aggregateDocument.path,
-  chunkIndex: index,
-  aggregate: false,
-  lexicalText: chunk.text,
-  vector: unitVector(index % 4),
-  ...chunk
-}));
-const aggregates = aggregateDocumentEntries(aggregateDocument, aggregateBaseEntries);
-const aggregateKinds = new Set(aggregates.map((entry) => entry.granularity));
-assert.ok(aggregateKinds.has('section'), 'section vectors should be aggregated');
-assert.ok(aggregateKinds.has('chapter'), 'chapter vectors should be aggregated');
-assert.ok(aggregateKinds.has('document'), 'whole-book vectors should be aggregated');
-assert.equal(
-  aggregates.filter((entry) => entry.granularity === 'section' && entry.section.startsWith('第四十六回')).length,
-  1,
-  'chapter-only content should not create a duplicate section aggregate'
-);
-
-const mockService = new SemanticSearchService({ modelDir: '', indexFile: null });
-mockService.indexLoaded = true;
-mockService.embed = async () => [unitVector(0)];
-mockService.index.entries = [
-  {
-    docId: 'mock-book', title: '模拟书', path: '模拟书.md', chunkIndex: 0,
-    start: 120, end: 148, snippet: '具体的原文证据在这里。', heading: '第一章', chapter: '第一章', section: '',
-    granularity: 'sentence', aggregate: false, lexicalText: '具体的原文证据在这里。', vector: unitVector(1)
-  },
-  {
-    docId: 'mock-book', title: '模拟书', path: '模拟书.md', chunkIndex: -1,
-    start: 120, end: 148, snippet: '', heading: '第一章', chapter: '第一章', section: '',
-    granularity: 'chapter', aggregate: true, aggregateKind: 'chapter', aggregateValue: '第一章',
-    lexicalText: '第一章', vector: unitVector(0)
-  }
-];
-const [materializedAggregate] = await mockService.search('章节主题', 5);
-assert.equal(materializedAggregate.matchedGranularity, 'chapter');
-assert.equal(materializedAggregate.granularity, 'sentence');
-assert.equal(materializedAggregate.start, 120, 'aggregate hits should return concrete evidence offsets');
-assert.ok(materializedAggregate.snippet.includes('原文证据'));
-
+const averaged = meanNormalizedVector([unitVector(0), unitVector(1)]);
+assert.ok(Math.abs(averaged[0] - Math.SQRT1_2) < 1e-5);
+assert.ok(Math.abs(averaged[1] - Math.SQRT1_2) < 1e-5);
+assert.equal(recordId('book', 'sentence-1'), recordId('book', 'sentence-1'));
+assert.notEqual(recordId('book', 'sentence-1'), recordId('book', 'sentence-2'));
 const yellowCoverTerms = semanticQueryTerms('谁打了黄盖');
 assert.ok(matchedQueryTerms(yellowCoverTerms, '周瑜命人杖打黄盖').includes('黄盖'));
-const xirenTerms = semanticQueryTerms('袭人的名字来历');
-assert.ok(matchedQueryTerms(xirenTerms, '花气袭人知昼暖').includes('袭人'));
 
-function semanticDocument(id, title, content, revision = 'v1') {
-  const chunks = chunkMarkdownForSearch(content).map((chunk) => ({
-    ...chunk,
-    text: `${title}\n${title}.md\n${chunk.text}`
-  }));
-  return { id, title, path: `${title}.md`, fingerprint: `${id}-fixture-${revision}`, chunks };
+class FakeMeilisearchClient {
+  constructor() {
+    this.nextTask = 1;
+    this.documents = new Map();
+    this.settings = null;
+    this.addCalls = 0;
+    this.deleteCalls = 0;
+    this.searchHits = [];
+    this.evidenceHits = [];
+  }
+
+  task() { return { taskUid: this.nextTask++ }; }
+  version() { return Promise.resolve({ pkgVersion: '1.53.1-test' }); }
+  createIndex() { return Promise.resolve(this.task()); }
+  deleteIndex() { this.documents.clear(); return Promise.resolve(this.task()); }
+  indexStats() { return Promise.resolve({ numberOfDocuments: this.documents.size }); }
+  updateSettings(_uid, settings) { this.settings = settings; return Promise.resolve(this.task()); }
+  addDocuments(_uid, documents) {
+    this.addCalls += 1;
+    documents.forEach((document) => this.documents.set(document.id, structuredClone(document)));
+    return Promise.resolve(this.task());
+  }
+  deleteDocuments(_uid, ids) {
+    this.deleteCalls += 1;
+    ids.forEach((id) => this.documents.delete(id));
+    return Promise.resolve(this.task());
+  }
+  deleteDocumentsByFilter(_uid, filter) {
+    this.deleteCalls += 1;
+    const docId = JSON.parse(filter.slice(filter.indexOf('=') + 1).trim());
+    for (const [id, document] of this.documents) {
+      if (document.docId === docId) this.documents.delete(id);
+    }
+    return Promise.resolve(this.task());
+  }
+  waitTask(task) { return Promise.resolve({ ...task, status: 'succeeded' }); }
+  search() { return Promise.resolve({ hits: structuredClone(this.searchHits) }); }
+  multiSearch({ length }) {
+    return Promise.resolve({ results: Array.from({ length }, (_value, index) => ({ hits: this.evidenceHits[index] ? [structuredClone(this.evidenceHits[index])] : [] })) });
+  }
 }
 
+class FakeEngine {
+  constructor(client) { this.client = client; this.disposed = false; }
+  start() { return Promise.resolve(this.client); }
+  dispose() { this.disposed = true; return Promise.resolve(); }
+}
+
+function semanticDocument(id, title, content, revision = 'v1') {
+  const docPath = `${title}.md`;
+  const units = chunkMarkdownForSearch(content).map((unit) => ({
+    ...unit,
+    semanticText: `${title}\n${docPath}\n${unit.semanticText}`.slice(0, 1600)
+  }));
+  return { id, title, path: docPath, fingerprint: `${id}-${revision}`, units };
+}
+
+const fakeClient = new FakeMeilisearchClient();
+const fakeEngine = new FakeEngine(fakeClient);
+const fakeService = new SemanticSearchService({
+  modelDir: path.join(projectRoot, 'models', 'bge-small-zh-v1.5'),
+  binaryPath: path.join(projectRoot, 'package.json'),
+  dataDir: path.join(temporaryRoot, 'fake'),
+  engine: fakeEngine
+});
+fakeService.embed = async (texts) => texts.map((_text, index) => unitVector(index));
+const fakeDocument = semanticDocument('three-kingdoms', '三国演义', hierarchyFixture);
+await fakeService.indexDocuments([fakeDocument], { force: true });
+assert.equal(fakeClient.settings.embedders[EMBEDDER_NAME].source, 'userProvided');
+assert.equal(fakeClient.settings.embedders[EMBEDDER_NAME].dimensions, MODEL_DIMENSIONS);
+assert.ok(fakeClient.settings.filterableAttributes.includes('sentenceId') === false, 'sentenceId is an anchor, not a filter dimension');
+const fakeRecords = [...fakeClient.documents.values()];
+assert.deepEqual([...new Set(fakeRecords.map((record) => record.granularity))].sort(), ['chapter', 'paragraph', 'section', 'sentence']);
+assert.ok(fakeRecords.every((record) => record._vectors[EMBEDDER_NAME].length === MODEL_DIMENSIONS));
+const addCallsAfterFirstIndex = fakeClient.addCalls;
+await fakeService.indexDocuments([fakeDocument], { force: false });
+assert.equal(fakeClient.addCalls, addCallsAfterFirstIndex, 'unchanged documents should not be embedded or written again');
+
+const updatedFakeDocument = semanticDocument('three-kingdoms', '三国演义', '第一回 新章\n\n更新后的句子。', 'v2');
+await fakeService.indexDocuments([updatedFakeDocument], { force: false });
+assert.ok(fakeClient.deleteCalls > 0, 'changed documents should delete stale records');
+assert.ok([...fakeClient.documents.values()].every((record) => !record.text.includes('脊杖五十')));
+
+const fakeSentenceRecords = [...fakeClient.documents.values()].filter((record) => record.granularity === 'sentence');
+const fakeChapterRecord = [...fakeClient.documents.values()].find((record) => record.granularity === 'chapter');
+fakeClient.searchHits = [
+  { ...fakeSentenceRecords[0], _rankingScore: 0.72 },
+  { ...fakeChapterRecord, _rankingScore: 0.88 }
+];
+fakeClient.evidenceHits = [{ ...fakeSentenceRecords[0], _rankingScore: 0.7 }];
+const fakeSearchResults = await fakeService.search('更新了什么', 10);
+assert.equal(fakeSearchResults.length, 1, 'hierarchy and direct hits for the same sentence should be deduplicated');
+assert.equal(fakeSearchResults[0].start, fakeSentenceRecords[0].start);
+assert.equal(fakeSearchResults[0].matchedGranularity, 'chapter');
+
+await fakeService.indexDocuments([], { force: false });
+assert.equal(fakeClient.documents.size, 0, 'removed documents should leave no stale Meilisearch records');
+await fakeService.dispose();
+assert.equal(fakeEngine.disposed, true);
+
+const binaryPath = path.join(projectRoot, 'runtime', 'meilisearch', 'v1.53.1', 'mac-arm64', 'meilisearch');
+const binaryStats = await stat(binaryPath);
+assert.ok(binaryStats.size > 10_000_000, 'official Meilisearch binary should be completely downloaded before integration tests');
+
 const realService = new SemanticSearchService({
-  modelDir: path.join(projectRoot, 'models/bge-small-zh-v1.5'),
-  indexFile: null
+  modelDir: path.join(projectRoot, 'models', 'bge-small-zh-v1.5'),
+  binaryPath,
+  dataDir: path.join(temporaryRoot, 'real')
 });
 const initialDocuments = [
   semanticDocument('three-kingdoms', '三国演义', [
@@ -157,50 +229,72 @@ const initialDocuments = [
   semanticDocument('red-chamber', '红楼梦', [
     '第二十三回 西厢记妙词通戏语 牡丹亭艳曲警芳心',
     '',
-    '宝玉说道：“古人有诗云，花气袭人知昼暖。因她本姓花，便改名袭人。”'
+    '宝玉说道：“古人有诗云，花气袭人知昼暖。因她本姓花，便改名袭人。”',
+    '',
+    '袭人听后，仍旧照料宝玉起居。'
   ].join('\n')),
   semanticDocument('astronomy', '天文笔记', '# 星空\n\n春夜观测星宿，记录月相和行星运行。')
 ];
+
 try {
   await realService.indexDocuments(initialDocuments, { force: true });
+  const status = await realService.status();
+  assert.equal(status.engine, 'Meilisearch');
+  assert.equal(status.engineVersion, '1.53.1');
+  assert.equal(status.indexedDocuments, 3);
+  assert.equal(realService.engine.client.host.hostname, '127.0.0.1', 'the search sidecar must only use loopback');
+  const masterKeyPath = path.join(temporaryRoot, 'real', 'master-key');
+  const masterKey = (await readFile(masterKeyPath, 'utf8')).trim();
+  assert.equal((await stat(masterKeyPath)).mode & 0o777, 0o600, 'the local master key must be private on macOS');
+  assert.ok(realService.engine.child.spawnargs.includes('--no-analytics'));
+  assert.ok(!realService.engine.child.spawnargs.join(' ').includes(masterKey), 'the master key must not appear in process arguments');
 
-  const yellowCoverResults = await realService.search('谁打了黄盖', 10);
+  const yellowCoverResults = await realService.search('谁打了黄盖', 12);
   assert.equal(yellowCoverResults[0]?.docId, 'three-kingdoms');
   assert.ok(yellowCoverResults[0]?.heading.includes('第四十六回'));
   assert.ok(yellowCoverResults[0]?.highlightTerms.includes('黄盖'));
+  assert.equal(initialDocuments[0].units.find((unit) => unit.start === yellowCoverResults[0].start)?.granularity, 'sentence');
 
-  const xirenResults = await realService.search('袭人的名字来历', 10);
+  const xirenResults = await realService.search('袭人的名字来历', 12);
   assert.equal(xirenResults[0]?.docId, 'red-chamber');
-  assert.ok(xirenResults[0]?.heading.includes('第二十三回'));
+  assert.ok(xirenResults[0]?.snippet.includes('花气袭人') || xirenResults[0]?.snippet.includes('改名袭人'));
   assert.ok(xirenResults[0]?.highlightTerms.includes('袭人'));
 
-  const beeDocument = semanticDocument(
-    'bee-notes',
-    '蜂群观察',
-    '# 蜂群协作\n\n工蜂通过舞蹈向同伴传递花源的方向和距离。'
-  );
-  await realService.indexDocuments([...initialDocuments, beeDocument], { force: false });
-  const beeResults = await realService.search('蜜蜂怎样告诉同伴花在哪里', 10);
-  assert.equal(beeResults[0]?.docId, 'bee-notes', 'a newly added, previously unseen document should be searchable');
-  assert.ok(beeResults[0]?.snippet.includes('舞蹈'), 'semantic retrieval may match a paraphrase without inventing highlight text');
-  assert.equal((await realService.status()).indexedDocuments, 4);
+  const exactSentenceResults = await realService.search('脊杖五十', 12);
+  assert.equal(exactSentenceResults[0]?.docId, 'three-kingdoms');
+  assert.ok(exactSentenceResults[0]?.snippet.includes('脊杖五十'));
+  const repeatedSentenceResults = await realService.search('袭人', 12);
+  assert.ok(new Set(repeatedSentenceResults.filter((result) => result.docId === 'red-chamber').map((result) => result.start)).size >= 2, 'one document should return multiple sentence anchors');
 
-  const updatedBeeDocument = semanticDocument(
-    'bee-notes',
-    '蜂群观察',
-    '# 蜂群越冬\n\n冬季蜂群聚拢成团，通过振翅产热维持蜂巢温度。',
-    'v2'
-  );
+  const beeDocument = semanticDocument('bee-notes', '蜂群观察', '# 蜂群协作\n\n工蜂通过舞蹈向同伴传递花源的方向和距离。');
+  await realService.indexDocuments([...initialDocuments, beeDocument], { force: false });
+  const beeResults = await realService.search('蜜蜂怎样告诉同伴花在哪里', 12);
+  assert.equal(beeResults[0]?.docId, 'bee-notes');
+  assert.ok(beeResults[0]?.snippet.includes('舞蹈'));
+
+  const updatedBeeDocument = semanticDocument('bee-notes', '蜂群观察', '# 蜂群越冬\n\n冬季蜂群聚拢成团，通过振翅产热维持蜂巢温度。', 'v2');
   await realService.indexDocuments([...initialDocuments, updatedBeeDocument], { force: false });
-  const updatedBeeEntries = realService.index.entries.filter((entry) => entry.docId === 'bee-notes');
-  assert.ok(updatedBeeEntries.some((entry) => entry.lexicalText?.includes('越冬')));
-  assert.ok(updatedBeeEntries.every((entry) => !entry.lexicalText?.includes('舞蹈')), 'changed content should replace stale vectors');
+  const winterResults = await realService.search('蜜蜂冬天怎样保暖', 12);
+  assert.equal(winterResults[0]?.docId, 'bee-notes');
+  assert.ok(winterResults[0]?.snippet.includes('振翅产热'));
 
   await realService.indexDocuments(initialDocuments, { force: false });
-  assert.ok(realService.index.entries.every((entry) => entry.docId !== 'bee-notes'), 'removed documents should leave no stale vectors');
   assert.equal((await realService.status()).indexedDocuments, 3);
 } finally {
   await realService.dispose();
 }
 
-console.log(`semantic search tests passed: ${lateChunks.length} long-book chunks, generic index lifecycle and real local model verified`);
+const restartService = new SemanticSearchService({
+  modelDir: path.join(projectRoot, 'models/bge-small-zh-v1.5'),
+  binaryPath,
+  dataDir: path.join(temporaryRoot, 'real')
+});
+restartService.embed = async () => { throw new Error('unchanged persistent indexes must not re-embed documents'); };
+try {
+  await restartService.indexDocuments(initialDocuments, { force: false });
+  assert.equal((await restartService.status()).indexedDocuments, 3, 'a clean restart should reuse the persistent index');
+} finally {
+  await restartService.dispose();
+}
+
+console.log(`semantic search tests passed: ${hierarchySentences.length} exact sentences, ${lateUnits.length} long-book units, Meilisearch hierarchy and lifecycle verified`);

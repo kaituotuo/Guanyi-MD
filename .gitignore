@@ -3,5 +3,8 @@
 .npm-cache/
 node_modules/
 release/
+.tmp-test/
+runtime/meilisearch/v*/mac-arm64/meilisearch
+runtime/meilisearch/v*/win-x64/meilisearch.exe
 *.log
 *.tmp

@@ -55,10 +55,9 @@
   }];
   const SEARCH_DEBOUNCE = 180;
   const SEARCH_RESULT_LIMIT = 50;
-  const SEMANTIC_RESULT_LIMIT = 15;
-  const SEMANTIC_CHUNK_TARGET = 420;
-  const SEMANTIC_CHUNK_OVERLAP = 80;
-  const SEMANTIC_MAX_CHUNKS_PER_DOCUMENT = 4096;
+  const SEMANTIC_RESULT_LIMIT = 24;
+  const SEMANTIC_SENTENCE_MAX_LENGTH = 620;
+  const SEMANTIC_MAX_UNITS_PER_DOCUMENT = 1000000;
 
   const state = { docs: [], directories: [], currentDocId: null, viewMode: 'split', splitRatio: 0.5, theme: 'light', myDocsCollapsed: false };
   let saveTimer = null, renderTimer = null, syncScrollLock = false;
@@ -3577,6 +3576,15 @@
     return `${left ? '…' : ''}${content.slice(left, right).replace(/\s+/g, ' ').trim()}${right < content.length ? '…' : ''}`;
   }
 
+  function searchSentenceBounds(content, matchStart, matchEnd) {
+    if (!content || matchStart < 0) return { start: -1, end: -1 };
+    const exact = sentenceRangesForSearch(content).find((range) => range.start <= matchStart && range.end >= matchEnd);
+    if (exact) return exact;
+    const lineStart = Math.max(0, content.lastIndexOf('\n', matchStart - 1) + 1);
+    const nextNewline = content.indexOf('\n', matchEnd);
+    return { start: lineStart, end: nextNewline < 0 ? content.length : nextNewline };
+  }
+
   function formatSearchRecency(timestamp) {
     const time = Number(timestamp) || 0;
     if (!time) return '尚未打开';
@@ -3668,8 +3676,11 @@
       const phraseInPath = normalizedQuery && pathLower.includes(normalizedQuery);
       const phraseInContent = normalizedQuery && contentLower.includes(normalizedQuery);
       const matchedTerm = phraseInContent ? normalizedQuery : tokens.find((term) => contentLower.includes(term));
-      const start = matchedTerm ? contentLower.indexOf(matchedTerm) : -1;
-      const end = start >= 0 ? start + matchedTerm.length : -1;
+      const matchedStart = matchedTerm ? contentLower.indexOf(matchedTerm) : -1;
+      const matchedEnd = matchedStart >= 0 ? matchedStart + matchedTerm.length : -1;
+      const sentenceBounds = searchSentenceBounds(content, matchedStart, matchedEnd);
+      const start = sentenceBounds.start;
+      const end = sentenceBounds.end;
       const fields = [];
       if (titleMatch) fields.push('name');
       if (pathMatch) fields.push('path');
@@ -3682,7 +3693,7 @@
         docId: doc.id,
         title,
         path: docPath,
-        snippet: start >= 0 ? searchSnippet(content, start, end) : '',
+        snippet: start >= 0 ? content.slice(start, end).replace(/\s+/g, ' ').trim() : '',
         quote: start >= 0 ? content.slice(start, end) : '',
         fields,
         start,
@@ -3710,37 +3721,85 @@
     return /^第[〇零一二三四五六七八九十百千万两\d]+节/.test(heading) ? 'section' : 'chapter';
   }
 
-  function searchGranularityForBlock(body, blockCount) {
-    if (blockCount > 1) return 'passage';
-    const sentences = String(body || '').match(/[^。！？!?；;]+[。！？!?；;]?/g) || [];
-    return sentences.filter((sentence) => sentence.trim()).length <= 1 ? 'sentence' : 'paragraph';
+  function sentenceRangesForSearch(text) {
+    const source = String(text || '');
+    const ranges = [];
+    const expression = /[^。！？!?；;\n]+(?:[。！？!?；;]+[”’」』》）】〕〗〙〛〞〟"']*)?/g;
+    let match;
+    while ((match = expression.exec(source))) {
+      const leading = match[0].search(/\S/);
+      if (leading < 0) continue;
+      const trailing = match[0].match(/\s*$/)?.[0].length || 0;
+      const start = match.index + leading;
+      const end = match.index + match[0].length - trailing;
+      for (let pieceStart = start; pieceStart < end; pieceStart += SEMANTIC_SENTENCE_MAX_LENGTH) {
+        ranges.push({ start: pieceStart, end: Math.min(end, pieceStart + SEMANTIC_SENTENCE_MAX_LENGTH) });
+      }
+    }
+    return ranges;
   }
 
   function chunkMarkdownForSearch(markdown) {
     const content = String(markdown || '').replace(/\r\n?/g, '\n');
     if (!content.trim()) return [];
-    const lines = content.split('\n');
     const headings = [];
-    const blocks = [];
-    let blockStart = -1, blockEnd = -1, blockHeading = '', blockChapter = '', blockSection = '', offset = 0;
+    const paragraphs = [];
+    const chapterDefinitions = new Map();
+    const sectionDefinitions = new Map();
+    let currentChapter = { id: 'chapter-root', title: '', start: 0 };
+    let currentSection = null;
+    let chapterSequence = 0, sectionSequence = 0, paragraphSequence = 0, sentenceSequence = 0;
+    let paragraphStart = -1, paragraphEnd = -1, offset = 0;
 
-    function flushBlock() {
-      if (blockStart < 0) return;
-      const body = content.slice(blockStart, blockEnd).trim();
-      if (body) blocks.push({
-        body,
-        start: blockStart,
-        end: blockEnd,
-        heading: blockHeading,
-        chapter: blockChapter,
-        section: blockSection,
-        blockCount: 1
-      });
-      blockStart = -1;
-      blockEnd = -1;
+    function headingPath() {
+      return [currentChapter.title, currentSection?.title].filter(Boolean).join(' / ');
     }
 
-    lines.forEach((line) => {
+    function flushParagraph() {
+      if (paragraphStart < 0) return;
+      const raw = content.slice(paragraphStart, paragraphEnd);
+      const leading = raw.search(/\S/);
+      const trailing = raw.match(/\s*$/)?.[0].length || 0;
+      if (leading >= 0) {
+        const start = paragraphStart + leading;
+        const end = paragraphEnd - trailing;
+        const body = content.slice(start, end);
+        if (body) paragraphs.push({
+          id: `paragraph-${++paragraphSequence}`,
+          body,
+          start,
+          end,
+          heading: headingPath(),
+          chapter: currentChapter.title,
+          section: currentSection?.title || '',
+          chapterId: currentChapter.id,
+          sectionId: currentSection?.id || ''
+        });
+      }
+      paragraphStart = -1;
+      paragraphEnd = -1;
+    }
+
+    function beginChapter(title, start) {
+      const chapter = { id: `chapter-${++chapterSequence}`, title, start };
+      chapterDefinitions.set(chapter.id, chapter);
+      currentChapter = chapter;
+      currentSection = null;
+    }
+
+    function beginSection(title, start) {
+      const section = {
+        id: `section-${++sectionSequence}`,
+        title,
+        start,
+        chapterId: currentChapter.id,
+        chapter: currentChapter.title
+      };
+      sectionDefinitions.set(section.id, section);
+      currentSection = section;
+    }
+
+    content.split('\n').forEach((line) => {
       const lineStart = offset;
       const lineEnd = lineStart + line.length;
       offset = lineEnd + 1;
@@ -3748,89 +3807,113 @@
       const textHeading = markdownHeading ? '' : plainTextSectionHeading(line);
       const textHeadingKind = textHeading ? plainTextHeadingKind(textHeading) : '';
       if (markdownHeading || textHeading) {
-        flushBlock();
+        flushParagraph();
         if (markdownHeading) {
           const level = markdownHeading[1].length;
           headings.length = level - 1;
           headings[level - 1] = markdownHeading[2].replace(/\s+#+\s*$/, '');
-          if (level === 1) {
-            blockChapter = headings[0];
-            blockSection = '';
-          } else {
-            blockSection = headings.slice(1).filter(Boolean).join(' / ');
-          }
-        } else if (textHeadingKind === 'section') {
-          headings.length = 1;
-          headings[1] = textHeading;
-          blockSection = textHeading;
+          if (level === 1) beginChapter(headings[0], lineStart);
+          else beginSection(headings.slice(1).filter(Boolean).join(' / '), lineStart);
+        } else if (textHeadingKind === 'chapter') {
+          headings.length = 0;
+          headings[0] = textHeading;
+          beginChapter(textHeading, lineStart);
         } else {
           headings.length = 1;
-          headings[0] = textHeading;
-          blockChapter = textHeading;
-          blockSection = '';
+          headings[1] = textHeading;
+          beginSection(textHeading, lineStart);
         }
-        blockHeading = [blockChapter, blockSection].filter(Boolean).join(' / ');
         return;
       }
-      if (!line.trim()) { flushBlock(); return; }
-      if (blockStart < 0) {
-        blockStart = lineStart;
-        blockChapter = headings[0] || blockChapter;
-        blockHeading = [blockChapter, blockSection].filter(Boolean).join(' / ');
-      }
-      blockEnd = lineEnd;
+      if (!line.trim()) { flushParagraph(); return; }
+      if (paragraphStart < 0) paragraphStart = lineStart;
+      paragraphEnd = lineEnd;
     });
-    flushBlock();
+    flushParagraph();
+    if (!paragraphs.length) return [];
 
-    const searchableBlocks = [...blocks];
-    const passages = [];
-    blocks.forEach((block) => {
-      const previous = passages.at(-1);
-      if (previous
-        && previous.heading === block.heading
-        && previous.body.length + block.body.length + 2 <= SEMANTIC_CHUNK_TARGET) {
-        previous.body += `\n\n${block.body}`;
-        previous.end = block.end;
-        previous.blockCount += block.blockCount;
-      } else {
-        passages.push({ ...block });
-      }
-    });
-    passages.filter((block) => block.blockCount > 1).forEach((block) => searchableBlocks.push(block));
-    searchableBlocks.sort((a, b) => a.start - b.start || a.blockCount - b.blockCount);
+    const sentenceUnits = [];
+    const paragraphUnits = [];
+    for (const paragraph of paragraphs) {
+      const ranges = sentenceRangesForSearch(paragraph.body);
+      const sentences = ranges.map((range) => ({
+        id: `sentence-${++sentenceSequence}`,
+        start: paragraph.start + range.start,
+        end: paragraph.start + range.end,
+        text: paragraph.body.slice(range.start, range.end)
+      }));
+      if (!sentences.length) continue;
+      sentences.forEach((sentence, index) => {
+        const context = [sentences[index - 1]?.text, sentence.text, sentences[index + 1]?.text].filter(Boolean).join('\n');
+        sentenceUnits.push({
+          unitId: sentence.id,
+          sentenceId: sentence.id,
+          paragraphId: paragraph.id,
+          sectionId: paragraph.sectionId,
+          chapterId: paragraph.chapterId,
+          granularity: 'sentence',
+          start: sentence.start,
+          end: sentence.end,
+          text: sentence.text,
+          semanticText: [paragraph.heading, context].filter(Boolean).join('\n'),
+          snippet: sentence.text,
+          heading: paragraph.heading,
+          chapter: paragraph.chapter,
+          section: paragraph.section ? [paragraph.chapter, paragraph.section].filter(Boolean).join(' / ') : ''
+        });
+      });
+      paragraphUnits.push({
+        unitId: paragraph.id,
+        sentenceId: '',
+        paragraphId: paragraph.id,
+        sectionId: paragraph.sectionId,
+        chapterId: paragraph.chapterId,
+        granularity: 'paragraph',
+        start: paragraph.start,
+        end: paragraph.end,
+        text: paragraph.body,
+        semanticText: [paragraph.heading, paragraph.body].filter(Boolean).join('\n'),
+        snippet: paragraph.body,
+        heading: paragraph.heading,
+        chapter: paragraph.chapter,
+        section: paragraph.section ? [paragraph.chapter, paragraph.section].filter(Boolean).join(' / ') : ''
+      });
+    }
 
-    const chunks = [];
-    searchableBlocks.forEach((block) => {
-      if (block.body.length <= SEMANTIC_CHUNK_TARGET) {
-        chunks.push({
-          text: [block.heading, block.body].filter(Boolean).join('\n'),
-          snippet: block.body.trim(),
-          heading: block.heading,
-          chapter: block.chapter,
-          section: block.section ? [block.chapter, block.section].filter(Boolean).join(' / ') : '',
-          granularity: searchGranularityForBlock(block.body, block.blockCount),
-          start: block.start,
-          end: block.end
-        });
-        return;
-      }
-      const step = SEMANTIC_CHUNK_TARGET - SEMANTIC_CHUNK_OVERLAP;
-      for (let segmentStart = 0; segmentStart < block.body.length; segmentStart += step) {
-        const body = block.body.slice(segmentStart, segmentStart + SEMANTIC_CHUNK_TARGET);
-        chunks.push({
-          text: [block.heading, body].filter(Boolean).join('\n'),
-          snippet: body.trim(),
-          heading: block.heading,
-          chapter: block.chapter,
-          section: block.section ? [block.chapter, block.section].filter(Boolean).join(' / ') : '',
-          granularity: 'passage',
-          start: block.start + segmentStart,
-          end: Math.min(block.end, block.start + segmentStart + body.length)
-        });
-        if (segmentStart + SEMANTIC_CHUNK_TARGET >= block.body.length) break;
-      }
+    const parentUnit = (definition, granularity, groupedParagraphs) => {
+      const start = Math.min(...groupedParagraphs.map((paragraph) => paragraph.start));
+      const end = Math.max(...groupedParagraphs.map((paragraph) => paragraph.end));
+      const chapter = granularity === 'chapter' ? definition.title : definition.chapter;
+      const section = granularity === 'section' ? [definition.chapter, definition.title].filter(Boolean).join(' / ') : '';
+      const heading = granularity === 'chapter' ? definition.title : section;
+      return {
+        unitId: definition.id,
+        sentenceId: '',
+        paragraphId: '',
+        sectionId: granularity === 'section' ? definition.id : '',
+        chapterId: granularity === 'chapter' ? definition.id : definition.chapterId,
+        granularity,
+        start,
+        end,
+        text: definition.title || heading || '正文',
+        semanticText: heading,
+        snippet: groupedParagraphs.map((paragraph) => paragraph.body).join(' ').slice(0, 1200),
+        heading,
+        chapter,
+        section
+      };
+    };
+    const sectionUnits = [...sectionDefinitions.values()].flatMap((definition) => {
+      const grouped = paragraphs.filter((paragraph) => paragraph.sectionId === definition.id);
+      return grouped.length ? [parentUnit(definition, 'section', grouped)] : [];
     });
-    return chunks.slice(0, SEMANTIC_MAX_CHUNKS_PER_DOCUMENT);
+    const chapterIds = new Set(paragraphs.map((paragraph) => paragraph.chapterId));
+    if (chapterIds.has('chapter-root')) chapterDefinitions.set('chapter-root', currentChapter.id === 'chapter-root' ? currentChapter : { id: 'chapter-root', title: '', start: 0 });
+    const chapterUnits = [...chapterDefinitions.values()].flatMap((definition) => {
+      const grouped = paragraphs.filter((paragraph) => paragraph.chapterId === definition.id);
+      return grouped.length ? [parentUnit(definition, 'chapter', grouped)] : [];
+    });
+    return [...sentenceUnits, ...paragraphUnits, ...sectionUnits, ...chapterUnits].slice(0, SEMANTIC_MAX_UNITS_PER_DOCUMENT);
   }
 
   async function semanticDocumentsForIndex(token) {
@@ -3850,12 +3933,12 @@
         documents.push(cached.document);
         continue;
       }
-      const chunks = chunkMarkdownForSearch(content).map((chunk) => ({
-        ...chunk,
-        text: `${doc.name}\n${docPath}\n${chunk.text}`.slice(0, 1500)
+      const units = chunkMarkdownForSearch(content).map((unit) => ({
+        ...unit,
+        semanticText: `${doc.name}\n${docPath}\n${unit.semanticText}`.slice(0, 1600)
       }));
-      if (!chunks.length) continue;
-      const document = { id: doc.id, fingerprint, title: doc.name, path: docPath, chunks };
+      if (!units.length) continue;
+      const document = { id: doc.id, fingerprint, title: doc.name, path: docPath, units };
       semanticDocumentCache.set(doc.id, { fingerprint, document });
       documents.push(document);
       if (index % 12 === 11) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -3923,7 +4006,8 @@
       }
       if (result.snippet) {
         const snippet = document.createElement('span');
-        snippet.className = 'app-search-result__snippet';
+        const semanticOnly = result.fields?.includes('semantic') && !(result.highlightTerms || []).length;
+        snippet.className = `app-search-result__snippet${semanticOnly ? ' is-semantic-evidence' : ''}`;
         appendHighlightedText(snippet, result.snippet, tokens);
         main.appendChild(snippet);
       }
@@ -3967,11 +4051,23 @@
   }
 
   function mergeSearchResults(keywordResults, semanticResults) {
-    const keywordIds = new Set(keywordResults.map((result) => result.docId));
-    return [
-      ...keywordResults,
-      ...semanticResults.filter((result) => !keywordIds.has(result.docId))
-    ].slice(0, SEARCH_RESULT_LIMIT);
+    const merged = new Map();
+    [...keywordResults, ...semanticResults].forEach((result) => {
+      const key = `${result.docId}:${Number(result.start) || 0}:${Number(result.end) || 0}`;
+      const previous = merged.get(key);
+      if (!previous) {
+        merged.set(key, result);
+        return;
+      }
+      merged.set(key, {
+        ...previous,
+        ...result,
+        fields: [...new Set([...(previous.fields || []), ...(result.fields || [])])],
+        highlightTerms: [...new Set([...(previous.highlightTerms || []), ...(result.highlightTerms || [])])],
+        score: Math.max(Number(previous.score) || 0, Number(result.score) || 0)
+      });
+    });
+    return [...merged.values()].slice(0, SEARCH_RESULT_LIMIT);
   }
 
   async function runUnifiedSearch(query, token) {
@@ -4010,7 +4106,7 @@
           highlightTerms: Array.isArray(match.highlightTerms) ? match.highlightTerms : [],
           granularity: match.granularity || 'passage',
           matchedGranularity: match.matchedGranularity || match.granularity || 'passage',
-          fields: ['semantic'],
+          fields: Array.isArray(match.fields) && match.fields.length ? match.fields : ['semantic'],
           start: Number(match.start) || 0,
           end: Number(match.end) || 0,
           score: Number(match.score) || 0
@@ -4087,7 +4183,7 @@
         start += relativeStart;
         end = Math.min(markdown.length, start + matchedTerm.length);
       } else {
-        end = Math.min(markdown.length, Math.max(start + 80, Math.min(end, start + 180)));
+        end = Math.min(markdown.length, Math.max(start + 1, end));
       }
     }
     if (result.quote && !markdown.slice(start, Math.max(start + 1, end)).includes(result.quote)) {
@@ -7024,9 +7120,10 @@
       semanticQueryFragments,
       resultHighlightTerms,
       searchSnippet,
+      searchSentenceBounds,
       plainTextSectionHeading,
       plainTextHeadingKind,
-      searchGranularityForBlock,
+      sentenceRangesForSearch,
       chunkMarkdownForSearch,
       recentSearchResults,
       keywordSearchDocuments,

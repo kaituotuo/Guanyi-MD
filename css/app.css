@@ -1438,6 +1438,12 @@ html.is-split-resizing * { cursor: col-resize !important; user-select: none !imp
   font-weight: 600;
 }
 .app-search-result__snippet { color: var(--ui-color-text-secondary); }
+.app-search-result__snippet.is-semantic-evidence {
+  padding-left: 7px;
+  border-left: 2px solid var(--ui-color-public-normal);
+  color: var(--ui-color-text-primary);
+  font-weight: 560;
+}
 .app-search-result__meta { display: flex; align-items: flex-start; gap: 5px; padding-top: 1px; }
 .app-search-result__tag {
   display: inline-flex;

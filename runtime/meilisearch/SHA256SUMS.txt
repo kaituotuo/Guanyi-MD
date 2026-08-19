@@ -1,0 +1,3 @@
+Meilisearch v1.53.1
+0fc7bd9aa9369cd1c8fc748e10f0ec402c555d988f44746195e8e90e461dff35  runtime/meilisearch/v1.53.1/mac-arm64/meilisearch
+1c242ec430f222346c26eb0971bea5d70f748d5ed10cd7b1c40fb00df51aca86  runtime/meilisearch/v1.53.1/win-x64/meilisearch.exe
