@@ -4839,11 +4839,226 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     return { markdown, start: mapPosition(anchor.start), end: mapPosition(anchor.end) };
   }
 
+  function imageInsertionLines(markdown) {
+    const text = String(markdown || '');
+    let offset = 0;
+    return text.split('\n').map((raw, index, lines) => {
+      const line = { raw, start: offset, end: offset + raw.length };
+      offset += raw.length + (index < lines.length - 1 ? 1 : 0);
+      return line;
+    });
+  }
+
+  function imageInsertionLineAt(lines, position, isEnd = false) {
+    const safePosition = Math.max(0, position - (isEnd && position > 0 ? 1 : 0));
+    return lines.find((line) => safePosition >= line.start && safePosition <= line.end)
+      || lines[lines.length - 1];
+  }
+
+  function imageStructuralLine(raw) {
+    const line = String(raw || '');
+    const kinds = [];
+    let contentStart = 0;
+    while (contentStart < line.length) {
+      const rest = line.slice(contentStart);
+      const patterns = [
+        ['quote', /^[ \t]*>[ \t]?/],
+        ['task', /^[ \t]*[-*+][ \t]+\[[ xX]\](?:[ \t]+|$)/],
+        ['ul', /^[ \t]*[-*+][ \t]+/],
+        ['ol', /^[ \t]*\d+[.)][ \t]+/],
+        ['heading', /^[ \t]{0,3}#{1,6}(?:[ \t]+|$)/]
+      ];
+      const matched = patterns.find(([, pattern]) => pattern.test(rest));
+      if (!matched) break;
+      const marker = rest.match(matched[1])[0];
+      kinds.push(matched[0]);
+      contentStart += marker.length;
+    }
+    if (!kinds.length) return null;
+    return {
+      kinds,
+      contentStart,
+      empty: !line.slice(contentStart).trim()
+    };
+  }
+
+  function isImageOnlyMarkdownLine(raw) {
+    return /^[ \t]*(?:!\[[^\]\n]*\]\([^\n]+?\)[ \t]*)+$/.test(String(raw || ''));
+  }
+
+  function imageInlineMarkdownLine(raw) {
+    const line = String(raw || '');
+    const formatted = /\[[^\]\n]*\]\([^\n)]+\)|\*\*[^\n]*?\*\*|__[^\n]*?__|~~[^\n]*?~~|`+[^\n]*?`+|\*[^*\n]+\*|_[^_\n]+_/.test(line);
+    if (!formatted) return null;
+    const visible = line
+      .replace(/!\[[^\]\n]*\]\([^\n)]+\)/g, '')
+      .replace(/\[([^\]\n]*)\]\([^\n)]+\)/g, '$1')
+      .replace(/\*\*|__|~~|`+|\*|_/g, '');
+    return {
+      contentStart: (line.match(/^[ \t]*/) || [''])[0].length,
+      empty: !visible.trim()
+    };
+  }
+
+  function isHorizontalRuleMarkdownLine(raw) {
+    const compact = String(raw || '').trim().replace(/[ \t]/g, '');
+    return /^(?:\*{3,}|-{3,}|_{3,})$/.test(compact);
+  }
+
+  function imageFenceBlocks(markdown, lines) {
+    const blocks = [];
+    let open = null;
+    lines.forEach((line) => {
+      const marker = line.raw.match(/^[ \t]{0,3}(`{3,}|~{3,})/);
+      if (!marker) return;
+      if (!open) {
+        open = {
+          start: line.start,
+          marker: marker[1][0],
+          markerLength: marker[1].length,
+          markerRanges: [{ start: line.start, end: line.end }]
+        };
+        return;
+      }
+      const isClosing = marker[1][0] === open.marker
+        && marker[1].length >= open.markerLength
+        && !line.raw.slice(marker[0].length).trim();
+      if (!isClosing) return;
+      blocks.push({
+        start: open.start,
+        end: line.end,
+        markerRanges: [...open.markerRanges, { start: line.start, end: line.end }]
+      });
+      open = null;
+    });
+    if (open) blocks.push({ start: open.start, end: String(markdown || '').length, markerRanges: open.markerRanges });
+    return blocks;
+  }
+
+  function isTableDividerLine(raw) {
+    const cells = String(raw || '').trim().replace(/^\|/, '').replace(/\|$/, '').split('|');
+    return cells.length >= 2 && cells.every((cell) => /^[ \t]*:?-{3,}:?[ \t]*$/.test(cell));
+  }
+
+  function isTableCandidateLine(raw) {
+    return !!String(raw || '').trim() && String(raw || '').includes('|');
+  }
+
+  function imageTableBlockAt(lines, position) {
+    const line = imageInsertionLineAt(lines, position);
+    const index = lines.indexOf(line);
+    if (index < 0 || !isTableCandidateLine(line.raw)) return null;
+    let first = index;
+    let last = index;
+    while (first > 0 && isTableCandidateLine(lines[first - 1].raw)) first -= 1;
+    while (last < lines.length - 1 && isTableCandidateLine(lines[last + 1].raw)) last += 1;
+    const tableLines = lines.slice(first, last + 1);
+    if (!tableLines.some((item) => isTableDividerLine(item.raw))) return null;
+    return { start: tableLines[0].start, end: tableLines[tableLines.length - 1].end, lines: tableLines };
+  }
+
+  function imageProtectedSelection(markdown, start, end) {
+    if (end <= start) return null;
+    const lines = imageInsertionLines(markdown);
+    const firstLine = imageInsertionLineAt(lines, start);
+    const lastLine = imageInsertionLineAt(lines, end, true);
+    let protectedStart = firstLine.start;
+    let protectedEnd = lastLine.end;
+    let protectedSyntax = false;
+    const overlaps = (from, to) => start < to && end > from;
+
+    const fences = imageFenceBlocks(markdown, lines);
+    fences.forEach((block) => {
+      if (block.markerRanges.some((range) => overlaps(range.start, range.end))) {
+        protectedSyntax = true;
+        protectedStart = Math.min(protectedStart, block.start);
+        protectedEnd = Math.max(protectedEnd, block.end);
+      }
+    });
+
+    lines.forEach((line) => {
+      if (!overlaps(line.start, line.end)) return;
+      const structural = imageStructuralLine(line.raw);
+      const inline = imageInlineMarkdownLine(line.raw);
+      const selectedPart = String(markdown || '').slice(Math.max(start, line.start), Math.min(end, line.end));
+      const localStart = Math.max(0, start - line.start);
+      const localEnd = Math.min(line.raw.length, end - line.start);
+      const inlineRemainder = inline
+        ? line.raw.slice(0, localStart) + line.raw.slice(localEnd)
+        : '';
+      const selectionHitsPrefix = structural
+        && overlaps(line.start, line.start + structural.contentStart);
+      const selectionHitsInlineMarker = inline && /[*_~`\[\]()]/.test(selectedPart);
+      const selectionEmptiesInline = inline && imageInlineMarkdownLine(inlineRemainder)?.empty;
+      if (selectionHitsPrefix || selectionHitsInlineMarker || selectionEmptiesInline || isImageOnlyMarkdownLine(line.raw) || isHorizontalRuleMarkdownLine(line.raw)) {
+        protectedSyntax = true;
+      }
+      const table = imageTableBlockAt(lines, line.start);
+      if (table) {
+        if (selectedPart.includes('|') || isTableDividerLine(line.raw)) {
+          protectedSyntax = true;
+          protectedStart = Math.min(protectedStart, table.start);
+          protectedEnd = Math.max(protectedEnd, table.end);
+        }
+      }
+    });
+
+    return protectedSyntax ? { start: protectedStart, end: protectedEnd } : null;
+  }
+
+  function normalizeImageInsertion(markdown, start, end) {
+    let text = String(markdown || '');
+    let safeStart = Math.max(0, Math.min(text.length, Number(start) || 0));
+    let safeEnd = Math.max(safeStart, Math.min(text.length, Number(end) || safeStart));
+    const protectedSelection = imageProtectedSelection(text, safeStart, safeEnd);
+    if (protectedSelection) {
+      return { markdown: text, start: protectedSelection.start, end: protectedSelection.end };
+    }
+    if (safeEnd > safeStart) {
+      text = text.slice(0, safeStart) + text.slice(safeEnd);
+      safeEnd = safeStart;
+    }
+
+    const lines = imageInsertionLines(text);
+    const fence = imageFenceBlocks(text, lines)
+      .find((block) => safeStart >= block.start && safeStart <= block.end);
+    if (fence) {
+      const position = safeStart <= fence.start ? fence.start : fence.end;
+      return { markdown: text, start: position, end: position };
+    }
+
+    const table = imageTableBlockAt(lines, safeStart);
+    if (table) {
+      const position = safeStart <= table.start ? table.start : table.end;
+      return { markdown: text, start: position, end: position };
+    }
+
+    const line = imageInsertionLineAt(lines, safeStart);
+    const structural = imageStructuralLine(line.raw);
+    if (structural?.empty) return { markdown: text, start: line.start, end: line.end };
+    if (structural) {
+      const position = safeStart <= line.start + structural.contentStart ? line.start : line.end;
+      return { markdown: text, start: position, end: position };
+    }
+    if (isImageOnlyMarkdownLine(line.raw) || isHorizontalRuleMarkdownLine(line.raw)) {
+      const position = safeStart <= line.start ? line.start : line.end;
+      return { markdown: text, start: position, end: position };
+    }
+    const inline = imageInlineMarkdownLine(line.raw);
+    if (inline?.empty) return { markdown: text, start: line.start, end: line.end };
+    if (inline) {
+      const position = safeStart <= line.start + inline.contentStart ? line.start : line.end;
+      return { markdown: text, start: position, end: position };
+    }
+    return { markdown: text, start: safeStart, end: safeEnd };
+  }
+
   function insertImageBlocks(markdown, start, end, blocks) {
-    const before = markdown.slice(0, start);
-    const after = markdown.slice(end);
-    const prefix = before && !before.endsWith('\n') ? '\n\n' : '';
-    const suffix = after && !after.startsWith('\n') ? '\n\n' : '';
+    const normalized = normalizeImageInsertion(markdown, start, end);
+    const before = normalized.markdown.slice(0, normalized.start);
+    const after = normalized.markdown.slice(normalized.end);
+    const prefix = !before ? '' : before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n';
+    const suffix = !after ? '' : after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n';
     const rows = [];
     for (let index = 0; index < blocks.length; index += 6) rows.push(blocks.slice(index, index + 6).join(' '));
     const insertion = prefix + rows.join('\n\n') + suffix;
@@ -9713,6 +9928,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       markdownImageSyntax,
       normalizedHttpImageUrl,
       isSupportedImageFile,
+      normalizeImageInsertion,
       insertImageBlocks,
       preparePreviewImageRows,
       captureImageInsertion,
