@@ -1,0 +1,127 @@
+{
+  "name": "guanyi-md",
+  "version": "1.0.7",
+  "description": "观绎 MD｜俯仰观物，绎述我心。",
+  "main": "desktop/main.cjs",
+  "author": "Guanyi MD",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "build:icons": "node tools/generate-app-icons.mjs",
+    "test:list-editing": "node tools/test-list-editing.mjs",
+    "test:semantic-search": "node tools/test-semantic-search.mjs",
+    "desktop": "electron .",
+    "build:mac": "npm run build:icons && electron-builder --mac dmg --arm64",
+    "build:win": "npm run build:icons && electron-builder --win nsis --x64",
+    "build:desktop": "npm run build:mac && npm run build:win",
+    "release:patch": "npm version patch --no-git-tag-version && npm run build:desktop"
+  },
+  "devDependencies": {
+    "electron": "43.4.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.guanyi.md",
+    "productName": "观绎 MD",
+    "asar": true,
+    "directories": {
+      "output": "release",
+      "buildResources": "build-resources"
+    },
+    "files": [
+      "index.html",
+      "assets/**/*",
+      "vendor/**/*",
+      "desktop/**/*",
+      "build-resources/icon-512.png",
+      "package.json",
+      "!node_modules/.guanyi-packaging-check/**/*",
+      "!node_modules/onnxruntime-web/**/*",
+      "!node_modules/onnxruntime-node/script/**/*",
+      "!node_modules/adm-zip/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/onnxruntime-node/bin/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "models",
+        "to": "models",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "md",
+          "markdown"
+        ],
+        "name": "Markdown 文档",
+        "description": "Markdown 文档",
+        "role": "Editor"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build-resources/icon.icns",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "观绎 MD ${version}",
+      "artifactName": "Guanyi-MD-${version}-mac-arm64.${ext}",
+      "backgroundColor": "#f6f4f1",
+      "window": {
+        "width": 560,
+        "height": 380
+      },
+      "contents": [
+        {
+          "x": 160,
+          "y": 190,
+          "type": "file"
+        },
+        {
+          "x": 400,
+          "y": 190,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "icon": "build-resources/icon-1024.png",
+      "executableName": "Guanyi-MD",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "Guanyi-MD-Setup-${version}-win-x64.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "观绎 MD",
+      "deleteAppDataOnUninstall": false
+    }
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.2.0"
+  }
+}
