@@ -93,6 +93,8 @@
   let searchTimer = null, searchRunToken = 0;
   let searchModalPreviousFocus = null, activeSearchResults = [], activeSearchResultIndex = -1;
   let activeSearchQuery = '', activeSearchNavigation = null;
+  let contentFindPreviousFocus = null;
+  const contentFindState = { query: '', replacement: '', matches: [], index: -1 };
   let removeSemanticProgressListener = null;
   const els = {};
 
@@ -142,6 +144,16 @@
     els.searchSummaryStatus = $('search-summary-status');
     els.semanticSearchStatus = $('semantic-search-status');
     els.btnSearchClose = $('btn-search-close');
+    els.btnFindReplace = $('btn-find-replace');
+    els.contentFindModal = $('content-find-modal');
+    els.contentFindInput = $('content-find-input');
+    els.contentReplaceInput = $('content-replace-input');
+    els.contentFindCount = $('content-find-count');
+    els.btnContentFindPrev = $('btn-content-find-prev');
+    els.btnContentFindNext = $('btn-content-find-next');
+    els.btnContentReplace = $('btn-content-replace');
+    els.btnContentReplaceAll = $('btn-content-replace-all');
+    els.btnContentFindClose = $('btn-content-find-close');
     els.openDocInfo = $('open-doc-info');
     els.openDocTip = $('open-doc-tip');
     els.btnExport = $('btn-export');
@@ -505,6 +517,7 @@
     scheduleSave();
     updateStatus();
     updateEditChrome();
+    if (els.contentFindModal && !els.contentFindModal.hidden) refreshContentFindState({ preserveIndex: true });
   }
 
   function applyHistory(direction) {
@@ -1168,6 +1181,7 @@
     updateOutline();
     refreshCollaborationUI();
     applySearchNavigationHighlight();
+    applyContentFindHighlight();
     requestAnimationFrame(updateReadingProgress);
     if (started !== null && typeof performance !== 'undefined') {
       const elapsed = performance.now() - started;
@@ -5011,6 +5025,211 @@
     window.addEventListener('beforeunload', () => removeSemanticProgressListener?.());
   }
 
+  function contentFindMatches(markdown, query) {
+    const source = String(markdown || '');
+    const needle = String(query || '');
+    if (!needle) return [];
+    const matches = [];
+    const expression = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    let match;
+    while ((match = expression.exec(source))) {
+      matches.push({ start: match.index, end: match.index + match[0].length });
+      if (!match[0].length) expression.lastIndex += 1;
+    }
+    return matches;
+  }
+
+  function replaceContentMatches(markdown, query, replacement) {
+    const source = String(markdown || '');
+    const needle = String(query || '');
+    if (!needle) return { text: source, count: 0 };
+    const matches = contentFindMatches(source, needle);
+    const expression = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    return { text: source.replace(expression, () => String(replacement ?? '')), count: matches.length };
+  }
+
+  function clearContentFindHighlights() {
+    els.previewEditor?.querySelectorAll('mark.app-content-find-match').forEach((mark) => {
+      mark.replaceWith(...mark.childNodes);
+    });
+    els.previewEditor?.querySelectorAll('.app-content-find-target').forEach((target) => {
+      target.classList.remove('app-content-find-target');
+    });
+    els.previewEditor?.normalize();
+  }
+
+  function applyContentFindHighlight(options = {}) {
+    clearContentFindHighlights();
+    if (!els.contentFindModal || els.contentFindModal.hidden || !contentFindState.query || state.viewMode === 'source') return null;
+    const expression = new RegExp(contentFindState.query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig');
+    const walker = document.createTreeWalker(els.previewEditor, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!node.nodeValue || node.parentElement?.closest('script, style, textarea, mark, [data-md-preview-caret]')) continue;
+      expression.lastIndex = 0;
+      if (expression.test(node.nodeValue)) textNodes.push(node);
+    }
+    const marks = [];
+    textNodes.forEach((textNode) => {
+      const value = textNode.nodeValue;
+      const fragment = document.createDocumentFragment();
+      expression.lastIndex = 0;
+      let cursor = 0, match;
+      while ((match = expression.exec(value))) {
+        if (match.index > cursor) fragment.appendChild(document.createTextNode(value.slice(cursor, match.index)));
+        const mark = document.createElement('mark');
+        mark.className = 'app-content-find-match';
+        mark.textContent = match[0];
+        marks.push(mark);
+        fragment.appendChild(mark);
+        cursor = match.index + match[0].length;
+      }
+      if (!cursor) return;
+      if (cursor < value.length) fragment.appendChild(document.createTextNode(value.slice(cursor)));
+      textNode.replaceWith(fragment);
+    });
+    const primary = marks[contentFindState.index] || marks[0] || null;
+    if (primary) {
+      primary.classList.add('is-primary');
+      const target = primary.closest('h1, h2, h3, h4, h5, h6, p, li, blockquote, pre, table');
+      target?.classList.add('app-content-find-target');
+      if (options.scroll) primary.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }
+    return primary;
+  }
+
+  function updateContentFindControls() {
+    const count = contentFindState.matches.length;
+    const index = count ? Math.min(contentFindState.index + 1, count) : 0;
+    if (els.contentFindCount) els.contentFindCount.textContent = count ? `${index}/${count}` : '0/0';
+    [els.btnContentFindPrev, els.btnContentFindNext, els.btnContentReplace, els.btnContentReplaceAll]
+      .filter(Boolean).forEach((button) => { button.disabled = !count; });
+  }
+
+  function refreshContentFindState(options = {}) {
+    const previousIndex = contentFindState.index;
+    contentFindState.query = els.contentFindInput?.value || '';
+    contentFindState.replacement = els.contentReplaceInput?.value || '';
+    contentFindState.matches = contentFindMatches(getCurrentMarkdown(), contentFindState.query);
+    contentFindState.index = contentFindState.matches.length
+      ? (options.preserveIndex ? Math.min(previousIndex, contentFindState.matches.length - 1) : 0)
+      : -1;
+    updateContentFindControls();
+    applyContentFindHighlight({ scroll: !!options.scroll });
+  }
+
+  function navigateContentFind(direction, options = {}) {
+    if (!contentFindState.matches.length) return;
+    contentFindState.index = (contentFindState.index + direction + contentFindState.matches.length) % contentFindState.matches.length;
+    const match = contentFindState.matches[contentFindState.index];
+    updateContentFindControls();
+    if (state.viewMode !== 'preview') {
+      els.sourceEditor.focus({ preventScroll: true });
+      setProgrammaticSourceSelection(match.start, match.end);
+      const lineHeight = parseFloat(getComputedStyle(els.sourceEditor).lineHeight) || 22;
+      const line = getCurrentMarkdown().slice(0, match.start).split('\n').length - 1;
+      els.sourceEditor.scrollTop = Math.max(0, line * lineHeight - els.sourceEditor.clientHeight / 3);
+      els.sourceEditor.classList.add('is-content-find-locating');
+      setTimeout(() => els.sourceEditor.classList.remove('is-content-find-locating'), 850);
+    }
+    applyContentFindHighlight({ scroll: state.viewMode === 'preview' || !!options.scrollPreview });
+  }
+
+  function replaceContentFindCurrent() {
+    const match = contentFindState.matches[contentFindState.index];
+    if (!match) return;
+    const markdown = getCurrentMarkdown();
+    const next = markdown.slice(0, match.start) + contentFindState.replacement + markdown.slice(match.end);
+    setCurrentMarkdown(next);
+    renderPreview();
+    refreshContentFindState({ preserveIndex: true, scroll: true });
+    tip('已替换当前匹配');
+  }
+
+  function replaceContentFindAll() {
+    if (!contentFindState.matches.length) return;
+    const replaced = contentFindState.matches.length;
+    const result = replaceContentMatches(getCurrentMarkdown(), contentFindState.query, contentFindState.replacement);
+    setCurrentMarkdown(result.text);
+    renderPreview();
+    refreshContentFindState({ scroll: true });
+    tip(`已替换全部 ${replaced} 处匹配`);
+  }
+
+  function setContentFindTab(tab) {
+    const replace = tab === 'replace';
+    document.querySelectorAll('[data-content-find-tab]').forEach((button) => {
+      const active = button.dataset.contentFindTab === tab;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', String(active));
+    });
+    if (els.contentReplaceInput?.parentElement) els.contentReplaceInput.parentElement.hidden = !replace;
+    if (els.btnContentReplace) els.btnContentReplace.hidden = !replace;
+    if (els.btnContentReplaceAll) els.btnContentReplaceAll.hidden = !replace;
+  }
+
+  function openContentFind(tab = 'find') {
+    contentFindPreviousFocus = document.activeElement;
+    const selected = state.viewMode === 'preview'
+      ? window.getSelection()?.toString() || ''
+      : els.sourceEditor.selectionStart !== els.sourceEditor.selectionEnd
+        ? els.sourceEditor.value.slice(els.sourceEditor.selectionStart, els.sourceEditor.selectionEnd)
+        : '';
+    if (selected && selected.length <= 120 && !els.contentFindInput.value) els.contentFindInput.value = selected;
+    setContentFindTab(tab);
+    setModalOpen(els.contentFindModal, true);
+    els.btnFindReplace?.setAttribute('aria-expanded', 'true');
+    refreshContentFindState();
+    requestAnimationFrame(() => {
+      els.contentFindInput.focus();
+      els.contentFindInput.select();
+    });
+  }
+
+  function closeContentFind() {
+    clearContentFindHighlights();
+    setModalOpen(els.contentFindModal, false);
+    els.btnFindReplace?.setAttribute('aria-expanded', 'false');
+    contentFindState.query = '';
+    contentFindState.matches = [];
+    contentFindState.index = -1;
+    contentFindPreviousFocus?.focus?.();
+  }
+
+  function bindContentFind() {
+    els.btnFindReplace?.addEventListener('click', () => openContentFind('find'));
+    els.btnContentFindClose?.addEventListener('click', closeContentFind);
+    els.contentFindModal?.addEventListener('click', (event) => {
+      if (event.target === els.contentFindModal) closeContentFind();
+      const tab = event.target.closest('[data-content-find-tab]');
+      if (tab) { event.preventDefault(); setContentFindTab(tab.dataset.contentFindTab); }
+    });
+    els.contentFindInput?.addEventListener('input', () => refreshContentFindState());
+    els.contentReplaceInput?.addEventListener('input', () => {
+      contentFindState.replacement = els.contentReplaceInput.value;
+      updateContentFindControls();
+    });
+    els.btnContentFindPrev?.addEventListener('click', () => navigateContentFind(-1, { scrollPreview: true }));
+    els.btnContentFindNext?.addEventListener('click', () => navigateContentFind(1, { scrollPreview: true }));
+    els.btnContentReplace?.addEventListener('click', replaceContentFindCurrent);
+    els.btnContentReplaceAll?.addEventListener('click', replaceContentFindAll);
+    els.contentFindModal?.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') { event.preventDefault(); closeContentFind(); return; }
+      if (event.key === 'Enter' && event.target === els.contentFindInput) {
+        event.preventDefault(); navigateContentFind(event.shiftKey ? -1 : 1, { scrollPreview: true });
+      }
+    });
+    document.addEventListener('keydown', (event) => {
+      if (isImeCompositionEvent(event) || !(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      const key = event.key.toLowerCase();
+      if (key === 'f' || key === 'h') {
+        event.preventDefault();
+        openContentFind(key === 'h' ? 'replace' : 'find');
+      }
+    });
+  }
+
   function docStatus(doc) {
     if (!isDirectoryDoc(doc)) return null;
     const labels = {
@@ -7855,6 +8074,7 @@
     bindSplitResizer();
     bindDocList();
     bindDocumentSearch();
+    bindContentFind();
     bindDirectoryManager();
     bindConflictControls();
     bindModalFocusTrap();
@@ -7903,6 +8123,8 @@
       semanticQueryFragments,
       resultHighlightTerms,
       searchSnippet,
+      contentFindMatches,
+      replaceContentMatches,
       searchSentenceBounds,
       plainTextSectionHeading,
       plainTextHeadingKind,

@@ -1541,6 +1541,33 @@ html[data-theme="dark"] .editor-preview mark.app-search-match.is-primary {
 .app-search-footer > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor-source.is-search-locating { box-shadow: inset 3px 0 var(--ui-color-public-normal); }
 .editor-source.is-search-locating::selection { color: #71190d; background: rgba(255, 91, 62, .38); }
+.app-content-find-backdrop { padding-top: min(13vh, 110px); align-items: flex-start; }
+.app-content-find-modal { width: min(640px, 100%); }
+.app-content-find-modal__header { padding-bottom: 11px; }
+.app-content-find__tabs { display: flex; gap: 24px; padding: 0 20px; border-bottom: 1px solid var(--ui-color-line-light); }
+.app-content-find__tab { min-height: 42px; padding: 0 2px; border: 0; border-bottom: 2px solid transparent; color: var(--ui-color-text-secondary); background: transparent; font: inherit; font-size: 14px; cursor: pointer; }
+.app-content-find__tab:hover { color: var(--ui-color-text-primary); }
+.app-content-find__tab.is-active { border-bottom-color: var(--ui-color-public-normal); color: var(--ui-color-text-brand); font-weight: 650; }
+.app-content-find__body { display: grid; gap: 13px; padding: 18px 20px 16px; }
+.app-content-find__field { display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 10px; color: var(--ui-color-text-secondary); font-size: 13px; }
+.app-content-find__field[hidden], .app-content-find__footer button[hidden] { display: none; }
+.app-content-find__field > input,
+.app-content-find__input-wrap { min-width: 0; height: 42px; border: 1px solid var(--ui-color-line-regular); border-radius: 7px; background: var(--ui-color-background-container); }
+.app-content-find__field > input { width: 100%; padding: 0 12px; color: var(--ui-color-text-primary); font: inherit; outline: none; }
+.app-content-find__input-wrap { display: flex; align-items: center; gap: 8px; padding-left: 12px; }
+.app-content-find__input-wrap:focus-within,
+.app-content-find__field > input:focus { border-color: var(--ui-color-line-public); box-shadow: 0 0 0 3px var(--ui-color-state-pressed-brand); background: var(--ui-color-background-top); }
+.app-content-find__input-wrap input { min-width: 0; flex: 1; height: 100%; padding: 0; border: 0; outline: 0; color: var(--ui-color-text-primary); background: transparent; font: inherit; }
+.app-content-find__input-wrap output { min-width: 44px; padding-right: 10px; color: var(--ui-color-text-secondary); font-size: 12px; text-align: right; }
+.app-content-find__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px 16px; border-top: 1px solid var(--ui-color-line-light); }
+.app-content-find__nav, .app-content-find__actions { display: flex; gap: 8px; }
+.app-content-find__footer .app-button { min-width: 86px; }
+.editor-source.is-content-find-locating { box-shadow: inset 3px 0 var(--ui-color-public-normal); }
+.editor-source.is-content-find-locating::selection { color: #71190d; background: rgba(255, 91, 62, .38); }
+.editor-preview mark.app-content-find-match { padding: 0 .1em; border-radius: 2px; color: #8c2717; background: rgba(255, 177, 65, .28); box-shadow: inset 0 -1px rgba(198, 107, 13, .28); }
+.editor-preview mark.app-content-find-match.is-primary { color: #71190d; background: rgba(255, 91, 62, .4); box-shadow: 0 0 0 2px rgba(239, 62, 35, .22); }
+html[data-theme="dark"] .editor-preview mark.app-content-find-match { color: #ffd9a1; background: rgba(224, 151, 43, .3); }
+html[data-theme="dark"] .editor-preview mark.app-content-find-match.is-primary { color: #fff1ed; background: rgba(255, 91, 62, .46); }
 .app-collab-drawer {
   top: 56px;
   width: 360px;
@@ -1593,4 +1620,9 @@ html.is-desktop-client .app-drawer-mask { top: 0; }
   .app-search-summary { padding-inline: 14px; }
   .app-search-results { max-height: calc(100vh - 330px); padding-inline: 8px; }
   .app-search-footer { padding-inline: 14px; }
+  .app-content-find-backdrop { padding: 10px; align-items: flex-end; }
+  .app-content-find__tabs { padding-inline: 14px; }
+  .app-content-find__body { padding-inline: 14px; }
+  .app-content-find__footer { padding-inline: 14px; }
+  .app-content-find__field { grid-template-columns: 50px minmax(0, 1fr); }
 }

@@ -57,7 +57,24 @@ assert.match(semanticSearchFailureText(new Error('目录权限不足')), /目录
 const cssSource = await readFile(new URL('../css/app.css', import.meta.url), 'utf8');
 const indexSource = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 assert.match(cssSource, /mark\.app-search-match\.is-primary/, 'primary article highlight styling should exist');
+assert.match(cssSource, /mark\.app-content-find-match\.is-primary/, 'find/replace primary highlight styling should exist');
+const contentFindStart = appSource.indexOf('function contentFindMatches(');
+const contentFindEnd = appSource.indexOf('\n  function clearContentFindHighlights', contentFindStart);
+assert.notEqual(contentFindStart, -1, 'content find matcher should exist');
+assert.notEqual(contentFindEnd, -1, 'content find matcher should end before highlight rendering');
+const contentFindMatches = vm.runInNewContext(`(() => { ${appSource.slice(contentFindStart, contentFindEnd)}; return contentFindMatches; })()`);
+const plainMatches = (text, query) => JSON.parse(JSON.stringify(contentFindMatches(text, query)));
+assert.deepEqual(plainMatches('甲乙甲乙', '甲'), [{ start: 0, end: 1 }, { start: 2, end: 3 }]);
+assert.deepEqual(plainMatches('内容没有命中', '不存在'), []);
+assert.deepEqual(plainMatches('Abc aBC', 'abc'), [{ start: 0, end: 3 }, { start: 4, end: 7 }], 'find should be case-insensitive');
+const replaceFindStart = appSource.indexOf('function contentFindMatches(');
+const replaceFindEnd = appSource.indexOf('\n  function clearContentFindHighlights', replaceFindStart);
+const replaceContentMatches = vm.runInNewContext(`(() => { ${appSource.slice(replaceFindStart, replaceFindEnd)}; return replaceContentMatches; })()`);
+assert.deepEqual(JSON.parse(JSON.stringify(replaceContentMatches('甲乙甲', '甲', '丙'))), { text: '丙乙丙', count: 2 });
+assert.deepEqual(JSON.parse(JSON.stringify(replaceContentMatches('甲乙', '不存在', '丙'))), { text: '甲乙', count: 0 });
+assert.match(indexSource, /id="btn-find-replace"[^>]+Ctrl\/Cmd\+F/, 'find/replace should be available from the editor toolbar');
+assert.match(indexSource, /id="btn-content-replace-all"/, 'replace-all action should exist');
 assert.match(indexSource, /gicon-collapse-all[^\n]+M1\.5 3\.25h6\.75/, 'collapse icon should use the list-and-arrow design');
 assert.match(indexSource, /gicon-expand-all[^\n]+M12 2\.5V13/, 'expand icon should use the list-and-arrow design');
 
-console.log('search navigation tests passed: source anchors, evidence terms, icon states and article highlights verified');
+console.log('search navigation tests passed: source anchors, evidence terms, find/replace matching, icon states and article highlights verified');
