@@ -110,17 +110,28 @@ assert.deepEqual(
 );
 
 assert.match(indexSource, /id="image-edit-popover"[^>]+role="dialog"/, 'selected images should expose an edit popover');
+assert.match(indexSource, /class="app-image-edit-toolbar"[^>]+role="toolbar"/, 'selected images should expose a contextual image toolbar');
+assert.match(indexSource, /data-image-tool="resize"[\s\S]+data-image-tool="align"[\s\S]+data-image-tool="description"/, 'image toolbar should expose resize, alignment and description tools');
+assert.match(indexSource, /id="btn-image-crop"[\s\S]+id="btn-image-download"/, 'image toolbar should expose direct crop and download tools');
+assert.match(indexSource, /id="gicon-resize"/, 'resize tool should use a defined icon');
+assert.match(indexSource, /id="gicon-description"/, 'description tool should use a defined icon');
+assert.doesNotMatch(indexSource, /href="#gicon-(?:expand|text)"/, 'image toolbar should not reference missing legacy icons');
 assert.match(indexSource, /id="image-size-range"[^>]+min="25"[^>]+max="100"/, 'image rows should support bounded resizing');
 assert.match(indexSource, /data-image-align="left"[\s\S]+data-image-align="center"[\s\S]+data-image-align="right"/, 'all alignment choices should exist');
 assert.match(indexSource, /id="image-description-input"/, 'image description editing should exist');
 assert.match(indexSource, /id="btn-image-download"/, 'image download should exist');
 assert.match(indexSource, /id="image-crop-canvas"/, 'image crop canvas should exist');
 assert.match(cssSource, /img\.is-image-selected[\s\S]+outline: 2px solid/, 'selected images should have visible feedback');
+assert.match(cssSource, /\.app-image-edit-popover \{[\s\S]+width: min\(760px, calc\(100vw - 24px\)\)/, 'image toolbar should use a spacious desktop card');
+assert.match(cssSource, /\.app-image-tool \{[\s\S]+height: 56px[\s\S]+border: 2px solid/, 'image toolbar actions should have large outlined targets');
+assert.match(cssSource, /\.app-image-edit-popover\[data-image-panel-open="true"\][\s\S]+display: grid/, 'image detail panels should only occupy space when opened');
 assert.match(cssSource, /\.app-image-row\[data-image-width\]/, 'persisted image width should affect preview layout');
 assert.match(cssSource, /\.app-image-row > img \{[\s\S]+object-fit: contain;/, 'equal-height image rows should show the complete image');
 assert.match(appSource, /function captureImageInsertion\([\s\S]+flushPendingPreviewCommit\(\);[\s\S]+previewMarkdownSelection/, 'pending preview line breaks should be committed before locating an image');
 assert.match(appSource, /function imageInsertionSelectionAfterPreviewBlock\([\s\S]+previousElementSibling[\s\S]+markdownToPlain/, 'empty preview blocks should anchor insertion after the preceding text block');
 assert.match(appSource, /function canStoreImageBesideDocument\([\s\S]+isLocalFileDoc\(doc\)[\s\S]+doc\.fileHandle/, 'saved local files should store images beside the document');
+assert.match(appSource, /function toggleImageEditPanel\([\s\S]+closeImageEditPanels\(\)[\s\S]+aria-expanded/, 'image toolbar buttons should toggle one auxiliary panel at a time');
+assert.match(appSource, /querySelectorAll\('\[data-image-tool\]'\)[\s\S]+toggleImageEditPanel/, 'image toolbar controls should be wired to their panels');
 assert.match(appSource, /function imageAssetLocation\([\s\S]+selectParentDirectory\(doc\)/, 'local file assets should request and retain parent-directory access');
 assert.match(appSource, /function scheduleImageSizeCommit\([\s\S]+setTimeout\([\s\S]+180\)/, 'slider input should persist even when change is interrupted');
 assert.match(appSource, /const metadata = imageRowMetadataFor\(paragraph\);[\s\S]+applyImageRowPresentation\(row, metadata\);/, 'overflow image rows should inherit presentation metadata');

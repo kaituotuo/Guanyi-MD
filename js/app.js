@@ -1231,6 +1231,36 @@
     els.imageEditPopover.style.top = `${Math.round(Math.max(viewportGap, top))}px`;
   }
 
+  function closeImageEditPanels() {
+    if (!els.imageEditPopover) return;
+    els.imageEditPopover.querySelectorAll('[data-image-panel]').forEach((panel) => { panel.hidden = true; });
+    els.imageEditPopover.querySelectorAll('[data-image-tool]').forEach((button) => {
+      button.setAttribute('aria-expanded', 'false');
+      button.classList.remove('is-active');
+    });
+    delete els.imageEditPopover.dataset.imagePanelOpen;
+  }
+
+  function toggleImageEditPanel(panelName) {
+    if (!els.imageEditPopover || !panelName) return;
+    const target = [...els.imageEditPopover.querySelectorAll('[data-image-panel]')]
+      .find((panel) => panel.dataset.imagePanel === panelName);
+    if (!target) return;
+    const shouldOpen = target.hidden;
+    closeImageEditPanels();
+    if (!shouldOpen) {
+      requestAnimationFrame(positionImageEditPopover);
+      return;
+    }
+    target.hidden = false;
+    const trigger = [...els.imageEditPopover.querySelectorAll('[data-image-tool]')]
+      .find((button) => button.dataset.imageTool === panelName);
+    trigger?.setAttribute('aria-expanded', 'true');
+    trigger?.classList.add('is-active');
+    els.imageEditPopover.dataset.imagePanelOpen = 'true';
+    requestAnimationFrame(positionImageEditPopover);
+  }
+
   function syncImageEditControls() {
     if (!selectedPreviewImage?.isConnected) return;
     const row = selectedImageRow();
@@ -1262,6 +1292,7 @@
     selectedPreviewImage = null;
     selectedPreviewImageIndex = -1;
     selectedPreviewImageDocId = null;
+    closeImageEditPanels();
     if (els.imageEditPopover) els.imageEditPopover.hidden = true;
     if (options.restoreFocus) previous?.focus?.({ preventScroll: true });
   }
@@ -1276,6 +1307,7 @@
     selectedPreviewImageDocId = state.currentDocId;
     image.classList.add('is-image-selected');
     image.setAttribute('aria-selected', 'true');
+    closeImageEditPanels();
     if (els.imageEditPopover) els.imageEditPopover.hidden = false;
     syncImageEditControls();
     requestAnimationFrame(positionImageEditPopover);
@@ -1349,6 +1381,9 @@
     });
     els.imageEditPopover?.addEventListener('click', (event) => event.stopPropagation());
     els.btnImageEditClose?.addEventListener('click', () => clearSelectedPreviewImage({ restoreFocus: true }));
+    els.imageEditPopover?.querySelectorAll('[data-image-tool]').forEach((button) => {
+      button.addEventListener('click', () => toggleImageEditPanel(button.dataset.imageTool));
+    });
     els.imageSizeRange?.addEventListener('input', () => {
       const settings = selectedImageRowSettings();
       setImageRowMetadata(selectedImageRow(), { ...settings, width: Number(els.imageSizeRange.value) });
@@ -1377,8 +1412,14 @@
     els.imageDescriptionInput?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') { event.preventDefault(); saveSelectedImageDescription(); }
     });
-    els.btnImageDownload?.addEventListener('click', downloadSelectedPreviewImage);
-    els.btnImageCrop?.addEventListener('click', openSelectedImageCrop);
+    els.btnImageDownload?.addEventListener('click', () => {
+      closeImageEditPanels();
+      downloadSelectedPreviewImage();
+    });
+    els.btnImageCrop?.addEventListener('click', () => {
+      closeImageEditPanels();
+      openSelectedImageCrop();
+    });
     document.addEventListener('click', (event) => {
       if (!selectedPreviewImage) return;
       if (els.imageEditPopover?.contains(event.target) || event.target.closest?.('.app-image-row > img')) return;

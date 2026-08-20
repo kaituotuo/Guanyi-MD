@@ -735,51 +735,103 @@ html[data-theme="dark"] .theme-icon--sun { display: inline-flex; }
 html[data-theme="dark"] .app-link-menu__item { color: var(--ui-color-text-primary); }
 .app-image-edit-popover {
   position: fixed; z-index: 1420;
-  width: min(380px, calc(100vw - 16px)); overflow: hidden;
-  border: 1px solid var(--ui-color-line-regular); border-radius: 8px;
+  width: min(760px, calc(100vw - 24px)); max-height: min(90vh, 560px); overflow: hidden;
+  border: 1px solid var(--ui-color-line-regular); border-radius: 12px;
   color: var(--ui-color-text-primary); background: var(--ui-color-background-top);
   box-shadow: var(--ui-shadow-raised);
 }
 .app-image-edit-popover[hidden] { display: none; }
 .app-image-edit-popover__header {
-  min-height: 42px; padding: 6px 8px 6px 12px;
+  min-height: 76px; padding: 14px 16px 13px 24px;
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid var(--ui-color-line-light);
 }
-.app-image-edit-popover__header strong { font-size: 13px; }
-.app-image-edit-popover__body { padding: 10px 12px 12px; display: grid; gap: 10px; }
-.app-image-edit-actions { display: flex; gap: 6px; }
-.app-image-edit-actions .app-button { min-height: 30px; }
-.app-image-edit-actions .ui-icon,
-.app-image-edit-actions .ui-icon > svg { width: 16px; height: 16px; }
+.app-image-edit-popover__header strong {
+  font-size: 22px; line-height: 1.25; font-weight: 650; letter-spacing: 0;
+}
+.app-image-edit-popover__header .app-icon-button {
+  width: 42px; height: 42px; border-radius: 8px;
+}
+.app-image-edit-popover__header .app-icon-button .ui-icon,
+.app-image-edit-popover__header .app-icon-button .ui-icon > svg { width: 26px; height: 26px; }
+.app-image-edit-toolbar {
+  display: flex; align-items: stretch; gap: 10px; padding: 10px 14px 12px;
+  background: var(--ui-color-background-top);
+}
+.app-image-tool {
+  min-width: 118px; height: 56px; padding: 0 18px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: 2px solid var(--ui-color-line-strong); border-radius: 6px;
+  color: var(--ui-color-text-primary); background: var(--ui-color-fill-light);
+  font: inherit; font-size: 19px; font-weight: 550; line-height: 1; white-space: nowrap;
+  cursor: pointer; transition: color .14s ease, border-color .14s ease, background .14s ease, transform .1s ease;
+}
+.app-image-tool .ui-icon,
+.app-image-tool .ui-icon > svg { width: 26px; height: 26px; flex: 0 0 26px; }
+.app-image-tool .gicon__ink { stroke-width: 2.05px; }
+.app-image-tool .gicon__accent { stroke-width: 2.3px; }
+.app-image-tool:hover {
+  border-color: var(--ui-color-line-public); color: var(--ui-color-text-brand);
+  background: var(--ui-color-state-pressed-brand);
+}
+.app-image-tool:active { transform: translateY(1px); }
+.app-image-tool[aria-expanded="true"] {
+  border-color: var(--ui-color-public-normal); color: var(--ui-color-text-brand);
+  background: var(--ui-color-state-pressed-brand);
+}
+.app-image-tool:focus-visible {
+  outline: 3px solid var(--ui-focus-ring); outline-offset: 2px;
+}
+.app-image-edit-popover__body {
+  display: none; padding: 14px 18px 16px; border-top: 1px solid var(--ui-color-line-light);
+}
+.app-image-edit-popover[data-image-panel-open="true"] .app-image-edit-popover__body {
+  display: grid; gap: 10px;
+}
+.app-image-edit-panel[hidden] { display: none; }
+.app-image-edit-panel { min-width: 0; }
 .app-image-edit-field {
   min-width: 0; display: grid; grid-template-columns: 62px minmax(0, 1fr);
-  align-items: center; gap: 8px; color: var(--ui-color-text-secondary); font-size: 12px;
+  align-items: center; gap: 10px; color: var(--ui-color-text-secondary); font-size: 13px;
 }
 .app-image-edit-field--size { grid-template-columns: 62px minmax(90px, 1fr) 42px 48px; }
-.app-image-edit-field input[type="range"] { width: 100%; accent-color: var(--ui-color-public-normal); }
+.app-image-edit-field input[type="range"] { width: 100%; accent-color: var(--ui-color-public-normal); cursor: pointer; }
 .app-image-edit-field output { color: var(--ui-color-text-primary); text-align: right; font-variant-numeric: tabular-nums; }
 .app-image-edit-field > input[type="text"] {
-  width: 100%; min-width: 0; height: 32px; padding: 0 9px;
-  border: 1px solid var(--ui-color-line-regular); border-radius: 6px; outline: none;
+  width: 100%; min-width: 0; height: 36px; padding: 0 10px;
+  border: 1px solid var(--ui-color-line-regular); border-radius: 7px; outline: none;
   color: var(--ui-color-text-primary); background: var(--ui-color-background-container); font: inherit;
 }
 .app-image-edit-field > input[type="text"]:focus { border-color: var(--ui-color-line-public); box-shadow: 0 0 0 3px var(--ui-color-state-pressed-brand); }
 .app-image-edit-field--description { grid-template-columns: 62px minmax(0, 1fr) 48px; }
 .app-image-align-control {
-  width: max-content; display: inline-flex; padding: 2px;
-  border: 1px solid var(--ui-color-line-regular); border-radius: 6px;
+  width: max-content; display: inline-flex; padding: 3px;
+  border: 1px solid var(--ui-color-line-regular); border-radius: 7px;
   background: var(--ui-color-background-container);
 }
 .app-image-align-control button {
-  width: 30px; height: 28px; padding: 0; border: 0; border-radius: 4px;
+  width: 42px; height: 36px; padding: 0; border: 0; border-radius: 5px;
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--ui-color-text-secondary); background: transparent; cursor: pointer;
 }
 .app-image-align-control button:hover { color: var(--ui-color-text-brand); background: var(--ui-color-state-hover); }
 .app-image-align-control button.is-active { color: var(--ui-color-text-brand); background: var(--ui-color-state-pressed-brand); }
 .app-image-align-control .ui-icon,
-.app-image-align-control .ui-icon > svg { width: 16px; height: 16px; }
+.app-image-align-control .ui-icon > svg { width: 22px; height: 22px; }
+.app-image-align-control .ui-icon { width: 22px; height: 22px; flex-basis: 22px; }
+
+@media (max-width: 640px) {
+  .app-image-edit-popover { width: calc(100vw - 16px); border-radius: 10px; }
+  .app-image-edit-popover__header { min-height: 64px; padding: 10px 12px 10px 16px; }
+  .app-image-edit-popover__header strong { font-size: 18px; }
+  .app-image-edit-popover__header .app-icon-button { width: 36px; height: 36px; }
+  .app-image-edit-toolbar { gap: 6px; padding: 8px; }
+  .app-image-tool { min-width: 0; flex: 1 1 0; height: 48px; padding: 0 5px; gap: 4px; font-size: 15px; }
+  .app-image-tool .ui-icon, .app-image-tool .ui-icon > svg { width: 21px; height: 21px; flex-basis: 21px; }
+  .app-image-edit-popover__body { padding: 12px; }
+  .app-image-edit-field--size,
+  .app-image-edit-field--description { grid-template-columns: 56px minmax(0, 1fr) auto; }
+}
 .editor-preview strong { font-weight: 600; }
 .editor-preview table { border-collapse: collapse; width: 100%; margin: 1em 0; }
 .editor-preview th, .editor-preview td { border: 1px solid var(--ui-color-line-regular, rgba(13,13,13,0.12)); padding: 8px 12px; }
@@ -1817,6 +1869,8 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
       <symbol id="gicon-delete" viewBox="0 0 16 16"><path class="gicon__accent gicon__accent--strong" d="M2 4.2h12M5 1.7h6"/><path class="gicon__ink" d="m3.5 4.2.85 9a1.15 1.15 0 0 0 1.15 1.05h5a1.15 1.15 0 0 0 1.15-1.05l.85-9M6.25 7v4.25M9.75 7v4.25"/></symbol>
       <symbol id="gicon-confirm" viewBox="0 0 16 16"><circle class="gicon__ink" cx="8" cy="8" r="6.25"/><path class="gicon__accent" d="m4.5 8 2.25 2.25 4.75-4.75"/></symbol>
       <symbol id="gicon-cancel" viewBox="0 0 16 16"><rect class="gicon__ink" x="1.75" y="1.75" width="12.5" height="12.5" rx="1.5"/><path class="gicon__accent" d="m5 5 6 6M11 5l-6 6"/></symbol>
+      <symbol id="gicon-resize" viewBox="0 0 16 16"><path class="gicon__ink gicon__ink--strong" d="M5.75 2H2v3.75M10.25 2H14v3.75M14 10.25V14h-3.75M2 10.25V14h3.75"/><path class="gicon__accent gicon__accent--strong" d="m2.5 2.5 3.2 3.2M13.5 2.5l-3.2 3.2M13.5 13.5l-3.2-3.2M2.5 13.5l3.2-3.2"/></symbol>
+      <symbol id="gicon-description" viewBox="0 0 16 16"><path class="gicon__ink" d="M3 1.75h6l3.5 3.5v8A1.25 1.25 0 0 1 11.25 14h-8A1.25 1.25 0 0 1 2 12.75V3A1.25 1.25 0 0 1 3.25 1.75ZM9 1.75v3.5h3.5"/><path class="gicon__accent gicon__accent--strong" d="M4.5 8h5M4.5 10.5h5M4.5 5.5h2"/></symbol>
       <symbol id="gicon-crop" viewBox="0 0 16 16"><path class="gicon__ink" d="M4 1.75v8.5A1.75 1.75 0 0 0 5.75 12H14.25M1.75 4h8.5A1.75 1.75 0 0 1 12 5.75V14.25"/><path class="gicon__accent" d="M8 8h4V4"/></symbol>
       <symbol id="gicon-download" viewBox="0 0 16 16"><path class="gicon__ink" d="M2.25 10.75V13A1.25 1.25 0 0 0 3.5 14.25h9A1.25 1.25 0 0 0 13.75 13v-2.25"/><path class="gicon__accent gicon__accent--strong" d="M8 1.75v8M4.75 6.75 8 10l3.25-3.25"/></symbol>
       <symbol id="gicon-align-left" viewBox="0 0 16 16"><path class="gicon__ink" d="M2 3h12M2 6.5h8M2 10h12M2 13.5h8"/></symbol>
@@ -1838,9 +1892,9 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
       <button type="button" class="app-icon-button" id="btn-image-edit-close" aria-label="关闭图片编辑"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-close"/></svg></span></button>
     </header>
     <div class="app-image-edit-toolbar" role="toolbar" aria-label="图片编辑">
-      <button type="button" class="app-image-tool" data-image-tool="resize" aria-expanded="false" aria-controls="image-panel-resize"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-expand"/></svg></span><span>缩放</span></button>
+      <button type="button" class="app-image-tool" data-image-tool="resize" aria-expanded="false" aria-controls="image-panel-resize"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-resize"/></svg></span><span>缩放</span></button>
       <button type="button" class="app-image-tool" data-image-tool="align" aria-expanded="false" aria-controls="image-panel-align"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-align-center"/></svg></span><span>对齐</span></button>
-      <button type="button" class="app-image-tool" data-image-tool="description" aria-expanded="false" aria-controls="image-panel-description"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-text"/></svg></span><span>描述</span></button>
+      <button type="button" class="app-image-tool" data-image-tool="description" aria-expanded="false" aria-controls="image-panel-description"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-description"/></svg></span><span>描述</span></button>
       <button type="button" class="app-image-tool" id="btn-image-crop" aria-label="裁剪图片"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-crop"/></svg></span><span>裁剪</span></button>
       <button type="button" class="app-image-tool" id="btn-image-download" aria-label="下载图片"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-download"/></svg></span><span>下载</span></button>
     </div>
@@ -4138,6 +4192,36 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     els.imageEditPopover.style.top = `${Math.round(Math.max(viewportGap, top))}px`;
   }
 
+  function closeImageEditPanels() {
+    if (!els.imageEditPopover) return;
+    els.imageEditPopover.querySelectorAll('[data-image-panel]').forEach((panel) => { panel.hidden = true; });
+    els.imageEditPopover.querySelectorAll('[data-image-tool]').forEach((button) => {
+      button.setAttribute('aria-expanded', 'false');
+      button.classList.remove('is-active');
+    });
+    delete els.imageEditPopover.dataset.imagePanelOpen;
+  }
+
+  function toggleImageEditPanel(panelName) {
+    if (!els.imageEditPopover || !panelName) return;
+    const target = [...els.imageEditPopover.querySelectorAll('[data-image-panel]')]
+      .find((panel) => panel.dataset.imagePanel === panelName);
+    if (!target) return;
+    const shouldOpen = target.hidden;
+    closeImageEditPanels();
+    if (!shouldOpen) {
+      requestAnimationFrame(positionImageEditPopover);
+      return;
+    }
+    target.hidden = false;
+    const trigger = [...els.imageEditPopover.querySelectorAll('[data-image-tool]')]
+      .find((button) => button.dataset.imageTool === panelName);
+    trigger?.setAttribute('aria-expanded', 'true');
+    trigger?.classList.add('is-active');
+    els.imageEditPopover.dataset.imagePanelOpen = 'true';
+    requestAnimationFrame(positionImageEditPopover);
+  }
+
   function syncImageEditControls() {
     if (!selectedPreviewImage?.isConnected) return;
     const row = selectedImageRow();
@@ -4169,6 +4253,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     selectedPreviewImage = null;
     selectedPreviewImageIndex = -1;
     selectedPreviewImageDocId = null;
+    closeImageEditPanels();
     if (els.imageEditPopover) els.imageEditPopover.hidden = true;
     if (options.restoreFocus) previous?.focus?.({ preventScroll: true });
   }
@@ -4183,6 +4268,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     selectedPreviewImageDocId = state.currentDocId;
     image.classList.add('is-image-selected');
     image.setAttribute('aria-selected', 'true');
+    closeImageEditPanels();
     if (els.imageEditPopover) els.imageEditPopover.hidden = false;
     syncImageEditControls();
     requestAnimationFrame(positionImageEditPopover);
@@ -4256,6 +4342,9 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     });
     els.imageEditPopover?.addEventListener('click', (event) => event.stopPropagation());
     els.btnImageEditClose?.addEventListener('click', () => clearSelectedPreviewImage({ restoreFocus: true }));
+    els.imageEditPopover?.querySelectorAll('[data-image-tool]').forEach((button) => {
+      button.addEventListener('click', () => toggleImageEditPanel(button.dataset.imageTool));
+    });
     els.imageSizeRange?.addEventListener('input', () => {
       const settings = selectedImageRowSettings();
       setImageRowMetadata(selectedImageRow(), { ...settings, width: Number(els.imageSizeRange.value) });
@@ -4284,8 +4373,14 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     els.imageDescriptionInput?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') { event.preventDefault(); saveSelectedImageDescription(); }
     });
-    els.btnImageDownload?.addEventListener('click', downloadSelectedPreviewImage);
-    els.btnImageCrop?.addEventListener('click', openSelectedImageCrop);
+    els.btnImageDownload?.addEventListener('click', () => {
+      closeImageEditPanels();
+      downloadSelectedPreviewImage();
+    });
+    els.btnImageCrop?.addEventListener('click', () => {
+      closeImageEditPanels();
+      openSelectedImageCrop();
+    });
     document.addEventListener('click', (event) => {
       if (!selectedPreviewImage) return;
       if (els.imageEditPopover?.contains(event.target) || event.target.closest?.('.app-image-row > img')) return;
