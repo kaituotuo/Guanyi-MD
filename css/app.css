@@ -1541,8 +1541,25 @@ html[data-theme="dark"] .editor-preview mark.app-search-match.is-primary {
 .app-search-footer > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor-source.is-search-locating { box-shadow: inset 3px 0 var(--ui-color-public-normal); }
 .editor-source.is-search-locating::selection { color: #71190d; background: rgba(255, 91, 62, .38); }
-.app-content-find-backdrop { padding-top: min(13vh, 110px); align-items: flex-start; }
-.app-content-find-modal { width: min(640px, 100%); }
+.app-content-find-backdrop {
+  padding: 116px 16px 16px;
+  align-items: flex-start;
+  justify-content: flex-end;
+  background: transparent;
+}
+.app-content-find-modal {
+  width: min(400px, 100vw);
+  max-width: 100%;
+  height: auto;
+  max-height: calc(100vh - 132px);
+  border-radius: 8px;
+  box-shadow: var(--ui-shadow-raised);
+  animation: app-content-find-drawer-in .18s ease-out;
+}
+@keyframes app-content-find-drawer-in {
+  from { transform: translate(10px, -6px); opacity: .72; }
+  to { transform: translateX(0); opacity: 1; }
+}
 .app-content-find-modal__header { padding-bottom: 11px; }
 .app-content-find__tabs { display: flex; gap: 24px; padding: 0 20px; border-bottom: 1px solid var(--ui-color-line-light); }
 .app-content-find__tab { min-height: 42px; padding: 0 2px; border: 0; border-bottom: 2px solid transparent; color: var(--ui-color-text-secondary); background: transparent; font: inherit; font-size: 14px; cursor: pointer; }
@@ -1559,6 +1576,25 @@ html[data-theme="dark"] .editor-preview mark.app-search-match.is-primary {
 .app-content-find__field > input:focus { border-color: var(--ui-color-line-public); box-shadow: 0 0 0 3px var(--ui-color-state-pressed-brand); background: var(--ui-color-background-top); }
 .app-content-find__input-wrap input { min-width: 0; flex: 1; height: 100%; padding: 0; border: 0; outline: 0; color: var(--ui-color-text-primary); background: transparent; font: inherit; }
 .app-content-find__input-wrap output { min-width: 44px; padding-right: 10px; color: var(--ui-color-text-secondary); font-size: 12px; text-align: right; }
+.app-content-find__input-wrap.is-content-find-empty {
+  border-color: var(--ui-color-public-normal, #d94b37);
+  background: rgba(217, 75, 55, .06);
+}
+.app-content-find__input-wrap.is-content-find-empty:focus-within {
+  border-color: var(--ui-color-public-normal, #d94b37);
+  box-shadow: 0 0 0 3px rgba(217, 75, 55, .13);
+}
+.app-content-find__input-wrap.is-content-find-empty output {
+  color: var(--ui-color-public-normal, #d94b37);
+  font-weight: 600;
+}
+.app-content-find__empty {
+  margin: -4px 0 0 68px;
+  color: var(--ui-color-public-normal, #d94b37);
+  font-size: 12px;
+  line-height: 18px;
+}
+.app-content-find__empty[hidden] { display: none; }
 .app-content-find__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px 16px; border-top: 1px solid var(--ui-color-line-light); }
 .app-content-find__nav, .app-content-find__actions { display: flex; gap: 8px; }
 .app-content-find__footer .app-button { min-width: 86px; }
@@ -1588,6 +1624,8 @@ html[data-theme="dark"] .editor-preview mark.app-content-find-match.is-primary {
 html.is-desktop-client .app-topbar { display: none; }
 html.is-desktop-client .app-collab-drawer,
 html.is-desktop-client .app-drawer-mask { top: 0; }
+html.is-desktop-client .app-content-find-backdrop { padding-top: 60px; }
+html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px); }
 
 @media (min-width: 1180px) {
   .app-shell.collab-open .app-body { margin-right: 360px; }
@@ -1620,9 +1658,28 @@ html.is-desktop-client .app-drawer-mask { top: 0; }
   .app-search-summary { padding-inline: 14px; }
   .app-search-results { max-height: calc(100vh - 330px); padding-inline: 8px; }
   .app-search-footer { padding-inline: 14px; }
-  .app-content-find-backdrop { padding: 10px; align-items: flex-end; }
+  .app-content-find-backdrop {
+    padding: 0;
+    align-items: flex-end;
+    background: rgba(13, 13, 13, .16);
+  }
+  .app-content-find-modal {
+    width: 100%;
+    height: auto;
+    max-height: min(78vh, 620px);
+    border: 0;
+    border-top: 1px solid var(--ui-color-line-regular, rgba(13,13,13,.12));
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -14px 34px rgba(60, 40, 20, .16);
+    animation-name: app-content-find-sheet-in;
+  }
+  @keyframes app-content-find-sheet-in {
+    from { transform: translateY(18px); opacity: .72; }
+    to { transform: translateY(0); opacity: 1; }
+  }
   .app-content-find__tabs { padding-inline: 14px; }
   .app-content-find__body { padding-inline: 14px; }
   .app-content-find__footer { padding-inline: 14px; }
   .app-content-find__field { grid-template-columns: 50px minmax(0, 1fr); }
+  .app-content-find__empty { margin-left: 60px; }
 }

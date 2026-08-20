@@ -74,6 +74,20 @@ assert.deepEqual(JSON.parse(JSON.stringify(replaceContentMatches('甲乙甲', '�
 assert.deepEqual(JSON.parse(JSON.stringify(replaceContentMatches('甲乙', '不存在', '丙'))), { text: '甲乙', count: 0 });
 assert.match(indexSource, /id="btn-find-replace"[^>]+Ctrl\/Cmd\+F/, 'find/replace should be available from the editor toolbar');
 assert.match(indexSource, /id="btn-content-replace-all"/, 'replace-all action should exist');
+const findButtonIndex = indexSource.indexOf('id="btn-find-replace"');
+const undoGroupStart = indexSource.indexOf('id="btn-undo"');
+const undoGroupEnd = indexSource.indexOf('</div>', indexSource.indexOf('id="btn-redo"'));
+const undoGroup = indexSource.slice(undoGroupStart, undoGroupEnd);
+const horizontalRuleIndex = indexSource.indexOf('data-fmt="hr"');
+const commentsIndex = indexSource.indexOf('id="btn-comments"');
+assert.ok(!undoGroup.includes('btn-find-replace'), 'find/replace should not be placed in the undo/redo group');
+assert.ok(findButtonIndex > horizontalRuleIndex, 'find/replace should follow the block-format controls');
+assert.ok(findButtonIndex > undoGroupStart && findButtonIndex < commentsIndex, 'find/replace should sit between the separator and comments entry');
+assert.match(indexSource, /id="content-find-empty"[^>]+role="status"/, 'find panel should include an accessible no-result status');
+assert.match(appSource, /contentFindCount\.textContent = hasNoResults \? '无结果'/, 'find controls should expose an explicit no-result label');
+assert.match(cssSource, /\.app-content-find-backdrop\s*\{[\s\S]*?align-items: flex-start;[\s\S]*?justify-content: flex-end;[\s\S]*?background: transparent;/, 'find panel should float below the toolbar on the right');
+assert.match(cssSource, /\.app-content-find-modal\s*\{[\s\S]*?width: min\(400px, 100vw\);[\s\S]*?height: auto;[\s\S]*?border-radius: 8px;/, 'find panel should use a compact floating surface');
+assert.match(cssSource, /\.app-content-find__input-wrap\.is-content-find-empty/, 'find input should provide visual no-result feedback');
 assert.match(indexSource, /gicon-collapse-all[^\n]+M1\.5 3\.25h6\.75/, 'collapse icon should use the list-and-arrow design');
 assert.match(indexSource, /gicon-expand-all[^\n]+M12 2\.5V13/, 'expand icon should use the list-and-arrow design');
 

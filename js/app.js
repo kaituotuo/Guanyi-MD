@@ -149,6 +149,7 @@
     els.contentFindInput = $('content-find-input');
     els.contentReplaceInput = $('content-replace-input');
     els.contentFindCount = $('content-find-count');
+    els.contentFindEmpty = $('content-find-empty');
     els.btnContentFindPrev = $('btn-content-find-prev');
     els.btnContentFindNext = $('btn-content-find-next');
     els.btnContentReplace = $('btn-content-replace');
@@ -5102,7 +5103,12 @@
   function updateContentFindControls() {
     const count = contentFindState.matches.length;
     const index = count ? Math.min(contentFindState.index + 1, count) : 0;
-    if (els.contentFindCount) els.contentFindCount.textContent = count ? `${index}/${count}` : '0/0';
+    const hasQuery = Boolean(contentFindState.query.trim());
+    const hasNoResults = hasQuery && !count;
+    if (els.contentFindCount) els.contentFindCount.textContent = hasNoResults ? '无结果' : count ? `${index}/${count}` : '0/0';
+    els.contentFindModal?.classList.toggle('is-content-find-empty', hasNoResults);
+    els.contentFindInput?.parentElement?.classList.toggle('is-content-find-empty', hasNoResults);
+    if (els.contentFindEmpty) els.contentFindEmpty.hidden = !hasNoResults;
     [els.btnContentFindPrev, els.btnContentFindNext, els.btnContentReplace, els.btnContentReplaceAll]
       .filter(Boolean).forEach((button) => { button.disabled = !count; });
   }
@@ -5191,6 +5197,9 @@
     clearContentFindHighlights();
     setModalOpen(els.contentFindModal, false);
     els.btnFindReplace?.setAttribute('aria-expanded', 'false');
+    els.contentFindModal?.classList.remove('is-content-find-empty');
+    els.contentFindInput?.parentElement?.classList.remove('is-content-find-empty');
+    if (els.contentFindEmpty) els.contentFindEmpty.hidden = true;
     contentFindState.query = '';
     contentFindState.matches = [];
     contentFindState.index = -1;

@@ -1558,8 +1558,25 @@ html[data-theme="dark"] .editor-preview mark.app-search-match.is-primary {
 .app-search-footer > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor-source.is-search-locating { box-shadow: inset 3px 0 var(--ui-color-public-normal); }
 .editor-source.is-search-locating::selection { color: #71190d; background: rgba(255, 91, 62, .38); }
-.app-content-find-backdrop { padding-top: min(13vh, 110px); align-items: flex-start; }
-.app-content-find-modal { width: min(640px, 100%); }
+.app-content-find-backdrop {
+  padding: 116px 16px 16px;
+  align-items: flex-start;
+  justify-content: flex-end;
+  background: transparent;
+}
+.app-content-find-modal {
+  width: min(400px, 100vw);
+  max-width: 100%;
+  height: auto;
+  max-height: calc(100vh - 132px);
+  border-radius: 8px;
+  box-shadow: var(--ui-shadow-raised);
+  animation: app-content-find-drawer-in .18s ease-out;
+}
+@keyframes app-content-find-drawer-in {
+  from { transform: translate(10px, -6px); opacity: .72; }
+  to { transform: translateX(0); opacity: 1; }
+}
 .app-content-find-modal__header { padding-bottom: 11px; }
 .app-content-find__tabs { display: flex; gap: 24px; padding: 0 20px; border-bottom: 1px solid var(--ui-color-line-light); }
 .app-content-find__tab { min-height: 42px; padding: 0 2px; border: 0; border-bottom: 2px solid transparent; color: var(--ui-color-text-secondary); background: transparent; font: inherit; font-size: 14px; cursor: pointer; }
@@ -1576,6 +1593,25 @@ html[data-theme="dark"] .editor-preview mark.app-search-match.is-primary {
 .app-content-find__field > input:focus { border-color: var(--ui-color-line-public); box-shadow: 0 0 0 3px var(--ui-color-state-pressed-brand); background: var(--ui-color-background-top); }
 .app-content-find__input-wrap input { min-width: 0; flex: 1; height: 100%; padding: 0; border: 0; outline: 0; color: var(--ui-color-text-primary); background: transparent; font: inherit; }
 .app-content-find__input-wrap output { min-width: 44px; padding-right: 10px; color: var(--ui-color-text-secondary); font-size: 12px; text-align: right; }
+.app-content-find__input-wrap.is-content-find-empty {
+  border-color: var(--ui-color-public-normal, #d94b37);
+  background: rgba(217, 75, 55, .06);
+}
+.app-content-find__input-wrap.is-content-find-empty:focus-within {
+  border-color: var(--ui-color-public-normal, #d94b37);
+  box-shadow: 0 0 0 3px rgba(217, 75, 55, .13);
+}
+.app-content-find__input-wrap.is-content-find-empty output {
+  color: var(--ui-color-public-normal, #d94b37);
+  font-weight: 600;
+}
+.app-content-find__empty {
+  margin: -4px 0 0 68px;
+  color: var(--ui-color-public-normal, #d94b37);
+  font-size: 12px;
+  line-height: 18px;
+}
+.app-content-find__empty[hidden] { display: none; }
 .app-content-find__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px 16px; border-top: 1px solid var(--ui-color-line-light); }
 .app-content-find__nav, .app-content-find__actions { display: flex; gap: 8px; }
 .app-content-find__footer .app-button { min-width: 86px; }
@@ -1605,6 +1641,8 @@ html[data-theme="dark"] .editor-preview mark.app-content-find-match.is-primary {
 html.is-desktop-client .app-topbar { display: none; }
 html.is-desktop-client .app-collab-drawer,
 html.is-desktop-client .app-drawer-mask { top: 0; }
+html.is-desktop-client .app-content-find-backdrop { padding-top: 60px; }
+html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px); }
 
 @media (min-width: 1180px) {
   .app-shell.collab-open .app-body { margin-right: 360px; }
@@ -1637,11 +1675,30 @@ html.is-desktop-client .app-drawer-mask { top: 0; }
   .app-search-summary { padding-inline: 14px; }
   .app-search-results { max-height: calc(100vh - 330px); padding-inline: 8px; }
   .app-search-footer { padding-inline: 14px; }
-  .app-content-find-backdrop { padding: 10px; align-items: flex-end; }
+  .app-content-find-backdrop {
+    padding: 0;
+    align-items: flex-end;
+    background: rgba(13, 13, 13, .16);
+  }
+  .app-content-find-modal {
+    width: 100%;
+    height: auto;
+    max-height: min(78vh, 620px);
+    border: 0;
+    border-top: 1px solid var(--ui-color-line-regular, rgba(13,13,13,.12));
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -14px 34px rgba(60, 40, 20, .16);
+    animation-name: app-content-find-sheet-in;
+  }
+  @keyframes app-content-find-sheet-in {
+    from { transform: translateY(18px); opacity: .72; }
+    to { transform: translateY(0); opacity: 1; }
+  }
   .app-content-find__tabs { padding-inline: 14px; }
   .app-content-find__body { padding-inline: 14px; }
   .app-content-find__footer { padding-inline: 14px; }
   .app-content-find__field { grid-template-columns: 50px minmax(0, 1fr); }
+  .app-content-find__empty { margin-left: 60px; }
 }
   </style>
 </head>
@@ -1768,9 +1825,6 @@ html.is-desktop-client .app-drawer-mask { top: 0; }
             <button type="button" class="fmt-btn" id="btn-redo" title="恢复 (Ctrl/Cmd+Shift+Z)" aria-label="恢复" disabled>
               <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-redo"/></svg></span>
             </button>
-            <button type="button" class="fmt-btn" id="btn-find-replace" title="查找和替换 (Ctrl/Cmd+F)" aria-label="查找和替换" aria-haspopup="dialog" aria-expanded="false" aria-controls="content-find-modal">
-              <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-search"/></svg></span>
-            </button>
           </div>
 
           <span class="fmt-divider"></span>
@@ -1839,6 +1893,9 @@ html.is-desktop-client .app-drawer-mask { top: 0; }
           </div>
 
           <span class="fmt-divider"></span>
+          <button type="button" class="fmt-btn" id="btn-find-replace" title="查找和替换 (Ctrl/Cmd+F)" aria-label="查找和替换" aria-haspopup="dialog" aria-expanded="false" aria-controls="content-find-modal">
+            <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-search"/></svg></span>
+          </button>
           <button type="button" class="fmt-btn app-comment-tool" id="btn-comments" title="智能审阅（批注与 AI 辅助阅读）" aria-label="打开智能审阅：批注与 AI 辅助阅读" aria-expanded="false">
             <span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g transform="translate(2.5 3) scale(.75)"><path d="M2 1.5H14C14.2761 1.5 14.5 1.72386 14.5 2V12C14.5 12.2761 14.2761 12.5 14 12.5L4 12.5001L1.51625 14.4871C1.5097 14.4924 1.5 14.4877 1.5 14.4793V2C1.5 1.72386 1.72386 1.5 2 1.5Z" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path d="M4.5 5.5H11.5M4.5 8.5H8.5" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g><g transform="translate(.5 .25) scale(.27)"><path d="M5.5 5.5L7.99126 1.01573C7.99507 1.00888 8.00493 1.00888 8.00874 1.01573L10.5 5.5L14.9822 6.49605C14.9899 6.49776 14.9927 6.5073 14.9871 6.51288L11.5 10L12.4957 14.4806C12.4975 14.4887 12.4894 14.4953 12.4819 14.4919L8 12.5L3.51813 14.4919C3.51062 14.4953 3.50252 14.4887 3.5043 14.4806L4.5 10L1.01288 6.51288C1.0073 6.5073 1.01008 6.49776 1.01778 6.49605L5.5 5.5Z" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g><g transform="translate(4.5 1.75) scale(.11)"><path d="M5.5 5.5L7.99126 1.01573C7.99507 1.00888 8.00493 1.00888 8.00874 1.01573L10.5 5.5L14.9822 6.49605C14.9899 6.49776 14.9927 6.5073 14.9871 6.51288L11.5 10L12.4957 14.4806C12.4975 14.4887 12.4894 14.4953 12.4819 14.4919L8 12.5L3.51813 14.4919C3.51062 14.4953 3.50252 14.4887 3.5043 14.4806L4.5 10L1.01288 6.51288C1.0073 6.5073 1.01008 6.49776 1.01778 6.49605L5.5 5.5Z" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span>
             <span class="app-comment-badge" id="comment-count" hidden>0</span>
@@ -1998,6 +2055,7 @@ html.is-desktop-client .app-drawer-mask { top: 0; }
       <div class="app-content-find__body">
         <label class="app-content-find__field"><span>查找</span><span class="app-content-find__input-wrap"><input id="content-find-input" type="search" placeholder="输入要查找的内容" autocomplete="off" spellcheck="false"><output id="content-find-count" aria-live="polite">0/0</output></span></label>
         <label class="app-content-find__field" hidden><span>替换为</span><input id="content-replace-input" type="text" placeholder="输入替换内容" autocomplete="off" spellcheck="false"></label>
+        <p class="app-content-find__empty" id="content-find-empty" role="status" aria-live="polite" hidden>没有找到匹配内容，请尝试其他关键词。</p>
       </div>
       <footer class="app-content-find__footer">
         <div class="app-content-find__nav"><button type="button" class="app-button app-button--secondary" id="btn-content-find-prev" disabled>上一个</button><button type="button" class="app-button app-button--secondary" id="btn-content-find-next" disabled>下一个</button></div>
@@ -2877,6 +2935,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     els.contentFindInput = $('content-find-input');
     els.contentReplaceInput = $('content-replace-input');
     els.contentFindCount = $('content-find-count');
+    els.contentFindEmpty = $('content-find-empty');
     els.btnContentFindPrev = $('btn-content-find-prev');
     els.btnContentFindNext = $('btn-content-find-next');
     els.btnContentReplace = $('btn-content-replace');
@@ -7830,7 +7889,12 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   function updateContentFindControls() {
     const count = contentFindState.matches.length;
     const index = count ? Math.min(contentFindState.index + 1, count) : 0;
-    if (els.contentFindCount) els.contentFindCount.textContent = count ? `${index}/${count}` : '0/0';
+    const hasQuery = Boolean(contentFindState.query.trim());
+    const hasNoResults = hasQuery && !count;
+    if (els.contentFindCount) els.contentFindCount.textContent = hasNoResults ? '无结果' : count ? `${index}/${count}` : '0/0';
+    els.contentFindModal?.classList.toggle('is-content-find-empty', hasNoResults);
+    els.contentFindInput?.parentElement?.classList.toggle('is-content-find-empty', hasNoResults);
+    if (els.contentFindEmpty) els.contentFindEmpty.hidden = !hasNoResults;
     [els.btnContentFindPrev, els.btnContentFindNext, els.btnContentReplace, els.btnContentReplaceAll]
       .filter(Boolean).forEach((button) => { button.disabled = !count; });
   }
@@ -7919,6 +7983,9 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     clearContentFindHighlights();
     setModalOpen(els.contentFindModal, false);
     els.btnFindReplace?.setAttribute('aria-expanded', 'false');
+    els.contentFindModal?.classList.remove('is-content-find-empty');
+    els.contentFindInput?.parentElement?.classList.remove('is-content-find-empty');
+    if (els.contentFindEmpty) els.contentFindEmpty.hidden = true;
     contentFindState.query = '';
     contentFindState.matches = [];
     contentFindState.index = -1;
