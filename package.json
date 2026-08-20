@@ -1,6 +1,6 @@
 {
   "name": "guanyi-md",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "观绎 MD｜俯仰观物，绎述我心。",
   "main": "desktop/main.cjs",
   "author": "Guanyi MD",
@@ -10,6 +10,8 @@
     "build:icons": "node tools/generate-app-icons.mjs",
     "fetch:meilisearch": "node tools/fetch-meilisearch.mjs",
     "test:list-editing": "node tools/test-list-editing.mjs",
+    "test:directory-refresh": "node tools/test-directory-refresh.mjs",
+    "test:search-navigation": "node tools/test-search-navigation.mjs",
     "test:semantic-search": "node tools/test-semantic-search.mjs",
     "desktop": "electron .",
     "build:mac": "node tools/build-desktop.mjs --mac",

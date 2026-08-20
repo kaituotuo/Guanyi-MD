@@ -20,7 +20,9 @@ const MAX_SNIPPET_LENGTH = 1_200;
 const EMBEDDING_BATCH_SIZE = 16;
 const DOCUMENT_BATCH_SIZE = 32;
 const HYBRID_SEMANTIC_RATIO = 0.58;
+const PURE_SEMANTIC_RATIO = 1;
 const MIN_RANKING_SCORE = 0.2;
+const PURE_SEMANTIC_MIN_SCORE = 0.35;
 const SEMANTIC_QUERY_STOP_TERMS = new Set([
   '什么', '怎么', '如何', '为何', '为什么', '哪里', '哪儿', '哪个', '哪些',
   '是谁', '谁的', '是否', '是不是', '有没有', '请问', '一下'
@@ -280,7 +282,16 @@ class SemanticSearchService {
 
   async ensureIndex(progress) {
     await this.loadMetadata();
-    if (this.indexReady && this.client) return this.client;
+    if (this.indexReady && this.client) {
+      if (typeof this.client.health !== 'function') return this.client;
+      try {
+        const health = await this.client.health();
+        if (health?.status === 'available') return this.client;
+      } catch (_error) {
+        this.client = null;
+        this.indexReady = false;
+      }
+    }
     safeProgress(progress, { phase: 'engine', message: '正在启动本地搜索服务' });
     const client = await this.engine.start();
     this.client = client;
@@ -337,6 +348,11 @@ class SemanticSearchService {
     try { engineAvailable = fs.statSync(this.binaryPath).isFile(); } catch (_error) { /* Report below. */ }
     return {
       available: modelAvailable && engineAvailable,
+      modelAvailable,
+      engineAvailable,
+      unavailableReason: !modelAvailable
+        ? '本地语义模型缺失，请重新安装观绎 MD'
+        : (!engineAvailable ? '本地搜索服务缺失，请重新安装观绎 MD' : ''),
       modelReady: !!this.extractor,
       engine: 'Meilisearch',
       engineReady: !!this.client,
@@ -347,6 +363,8 @@ class SemanticSearchService {
       dimensions: MODEL_DIMENSIONS,
       indexedDocuments: Object.keys(this.metadata.documents).length,
       indexedChunks: Object.values(this.metadata.documents).reduce((sum, document) => sum + (document.recordCount || 0), 0),
+      indexedDocumentFingerprints: Object.fromEntries(Object.entries(this.metadata.documents)
+        .map(([id, document]) => [id, document.fingerprint || ''])),
       updatedAt: this.metadata.updatedAt || 0
     };
   }
@@ -440,13 +458,18 @@ class SemanticSearchService {
     return this.runExclusive(async () => {
       const client = await this.ensureIndex(progress);
       const documents = this.sanitizeDocuments(rawDocuments);
-      const activeIds = new Set(documents.map((document) => document.id));
+      const suppliedActiveIds = Array.isArray(options.activeDocumentIds)
+        ? options.activeDocumentIds.map((id) => clampText(id, 240)).filter(Boolean)
+        : null;
+      const activeIds = new Set(suppliedActiveIds || documents.map((document) => document.id));
       const force = !!options.force;
 
-      for (const [docId, saved] of Object.entries(this.metadata.documents)) {
-        if (activeIds.has(docId)) continue;
-        if (saved.recordCount) await client.waitTask(await client.deleteDocumentsByFilter(INDEX_UID, `docId = ${meiliString(docId)}`));
-        delete this.metadata.documents[docId];
+      if (options.prune !== false) {
+        for (const [docId, saved] of Object.entries(this.metadata.documents)) {
+          if (activeIds.has(docId)) continue;
+          if (saved.recordCount) await client.waitTask(await client.deleteDocumentsByFilter(INDEX_UID, `docId = ${meiliString(docId)}`));
+          delete this.metadata.documents[docId];
+        }
       }
 
       const stale = documents.filter((document) => force
@@ -480,6 +503,24 @@ class SemanticSearchService {
         'paragraphId', 'sentenceId'
       ]
     };
+  }
+
+  semanticSearchParameters(query, queryVector, limit) {
+    return {
+      ...this.searchParameters(query, queryVector, limit),
+      hybrid: { embedder: EMBEDDER_NAME, semanticRatio: PURE_SEMANTIC_RATIO },
+      rankingScoreThreshold: PURE_SEMANTIC_MIN_SCORE
+    };
+  }
+
+  mergeCandidateHits(...groups) {
+    const merged = new Map();
+    groups.flat().forEach((hit) => {
+      if (!hit?.id) return;
+      const previous = merged.get(hit.id);
+      if (!previous || Number(hit._rankingScore) > Number(previous._rankingScore)) merged.set(hit.id, hit);
+    });
+    return [...merged.values()].sort((a, b) => Number(b._rankingScore) - Number(a._rankingScore));
   }
 
   hierarchyFilter(hit) {
@@ -529,8 +570,15 @@ class SemanticSearchService {
       safeProgress(progress, { phase: 'searching', message: '正在统一检索关键词与相关内容' });
       const [queryVector] = await this.embed([`${QUERY_PREFIX}${query}`], progress, 0, 1);
       const limit = Math.max(1, Math.min(50, Number(rawLimit) || 15));
-      const primary = await client.search(INDEX_UID, this.searchParameters(query, queryVector, Math.max(60, limit * 4)));
-      const candidates = Array.isArray(primary?.hits) ? primary.hits : [];
+      const candidateLimit = Math.max(60, limit * 4);
+      const [hybrid, semantic] = await Promise.all([
+        client.search(INDEX_UID, this.searchParameters(query, queryVector, candidateLimit)),
+        client.search(INDEX_UID, this.semanticSearchParameters(query, queryVector, candidateLimit))
+      ]);
+      const candidates = this.mergeCandidateHits(
+        Array.isArray(hybrid?.hits) ? hybrid.hits : [],
+        Array.isArray(semantic?.hits) ? semantic.hits : []
+      );
       const hierarchyCandidates = candidates.filter((hit) => hit.granularity !== 'sentence').slice(0, Math.max(20, limit * 2));
       if (hierarchyCandidates.length) {
         const evidenceResponse = await client.multiSearch(hierarchyCandidates.map((hit) => ({

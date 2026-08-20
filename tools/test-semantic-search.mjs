@@ -188,6 +188,14 @@ assert.ok(fakeRecords.every((record) => record._vectors[EMBEDDER_NAME].length ==
 const addCallsAfterFirstIndex = fakeClient.addCalls;
 await fakeService.indexDocuments([fakeDocument], { force: false });
 assert.equal(fakeClient.addCalls, addCallsAfterFirstIndex, 'unchanged documents should not be embedded or written again');
+assert.equal((await fakeService.status()).indexedDocumentFingerprints['three-kingdoms'], fakeDocument.fingerprint);
+
+const incrementalDocument = semanticDocument('incremental', '增量文档', '第一章 新增\n\n只应增量写入这一份文档。');
+await fakeService.indexDocuments([incrementalDocument], { force: false, prune: false });
+assert.ok([...fakeClient.documents.values()].some((record) => record.docId === 'three-kingdoms'), 'incremental indexing must preserve existing documents');
+assert.ok([...fakeClient.documents.values()].some((record) => record.docId === 'incremental'));
+await fakeService.indexDocuments([], { activeDocumentIds: ['three-kingdoms'], prune: true });
+assert.ok([...fakeClient.documents.values()].every((record) => record.docId !== 'incremental'), 'manifest pruning should remove documents absent from the active list');
 
 const updatedFakeDocument = semanticDocument('three-kingdoms', '三国演义', '第一回 新章\n\n更新后的句子。', 'v2');
 await fakeService.indexDocuments([updatedFakeDocument], { force: false });
@@ -224,14 +232,32 @@ const initialDocuments = [
   semanticDocument('three-kingdoms', '三国演义', [
     '第四十六回 用奇谋孔明借箭 献密计黄盖受刑',
     '',
-    '周瑜大怒，喝令左右将黄盖拖翻，脊杖五十。黄盖受刑，乃苦肉计也。'
+    '周瑜大怒，喝令左右将黄盖拖翻，脊杖五十。黄盖受刑，乃苦肉计也。',
+    '',
+    '第三十九回 荆州城公子三求计 博望坡军师初用兵',
+    '',
+    '夏侯惇领兵追入博望坡，忽听一声炮响，四面芦苇一时火起，曹军大乱。',
+    '',
+    '第一百四回 陨大星汉丞相归天 见木像魏都督丧胆',
+    '',
+    '孔明积劳成疾，在五丈原军中病势沉重，夜观将星，自知命在旦夕。',
+    '',
+    '第七十七回 玉泉山关公显圣 洛阳城曹操感神',
+    '',
+    '汉中王听闻云长父子已经遇害，放声大哭，昏绝于地，众人急忙救醒。',
+    '',
+    '第八十回 曹丕废帝篡炎刘 汉王正位续大统',
+    '',
+    '群臣再三劝进，汉中王依礼在成都即皇帝位，改元章武。'
   ].join('\n')),
   semanticDocument('red-chamber', '红楼梦', [
     '第二十三回 西厢记妙词通戏语 牡丹亭艳曲警芳心',
     '',
     '宝玉说道：“古人有诗云，花气袭人知昼暖。因她本姓花，便改名袭人。”',
     '',
-    '袭人听后，仍旧照料宝玉起居。'
+    '袭人听后，仍旧照料宝玉起居。',
+    '',
+    '宝玉听见众人取笑，只怔怔站在那里，神情如呆雁一般，半晌没有言语。'
   ].join('\n')),
   semanticDocument('astronomy', '天文笔记', '# 星空\n\n春夜观测星宿，记录月相和行星运行。')
 ];
@@ -260,11 +286,33 @@ try {
   assert.ok(xirenResults[0]?.snippet.includes('花气袭人') || xirenResults[0]?.snippet.includes('改名袭人'));
   assert.ok(xirenResults[0]?.highlightTerms.includes('袭人'));
 
+  const firstEngineChild = realService.engine.child;
+  await new Promise((resolve) => {
+    firstEngineChild.once('exit', resolve);
+    firstEngineChild.kill('SIGTERM');
+  });
+  const recoveredResults = await realService.search('谁打了黄盖', 12);
+  assert.equal(recoveredResults[0]?.docId, 'three-kingdoms', 'semantic search should recover after the Meilisearch child exits');
+  assert.notEqual(realService.engine.child, firstEngineChild, 'a failed local search process should be restarted');
+
   const exactSentenceResults = await realService.search('脊杖五十', 12);
   assert.equal(exactSentenceResults[0]?.docId, 'three-kingdoms');
   assert.ok(exactSentenceResults[0]?.snippet.includes('脊杖五十'));
   const repeatedSentenceResults = await realService.search('袭人', 12);
   assert.ok(new Set(repeatedSentenceResults.filter((result) => result.docId === 'red-chamber').map((result) => result.start)).size >= 2, 'one document should return multiple sentence anchors');
+
+  const naturalLanguageMatrix = [
+    ['火烧博望坡', 'three-kingdoms', '四面芦苇一时火起'],
+    ['诸葛亮五丈原', 'three-kingdoms', '五丈原军中病势沉重'],
+    ['贾宝玉被嘲笑成呆雁', 'red-chamber', '神情如呆雁一般'],
+    ['刘备伤心关羽去世', 'three-kingdoms', '放声大哭'],
+    ['刘备称王', 'three-kingdoms', '即皇帝位']
+  ];
+  for (const [query, expectedDocId, expectedEvidence] of naturalLanguageMatrix) {
+    const results = await realService.search(query, 12);
+    assert.equal(results[0]?.docId, expectedDocId, `${query} should rank the expected book first`);
+    assert.ok(results.slice(0, 3).some((result) => result.snippet.includes(expectedEvidence)), `${query} should return its sentence evidence`);
+  }
 
   const beeDocument = semanticDocument('bee-notes', '蜂群观察', '# 蜂群协作\n\n工蜂通过舞蹈向同伴传递花源的方向和距离。');
   await realService.indexDocuments([...initialDocuments, beeDocument], { force: false });
@@ -297,4 +345,4 @@ try {
   await restartService.dispose();
 }
 
-console.log(`semantic search tests passed: ${hierarchySentences.length} exact sentences, ${lateUnits.length} long-book units, Meilisearch hierarchy and lifecycle verified`);
+console.log(`semantic search tests passed: ${hierarchySentences.length} exact sentences, ${lateUnits.length} long-book units, 5 user-query recalls, incremental Meilisearch lifecycle verified`);

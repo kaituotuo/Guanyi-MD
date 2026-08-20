@@ -1188,6 +1188,7 @@ select:focus-visible,
   width: 30px;
   height: 28px;
   flex: 0 0 30px;
+  padding: 0;
   border: 1px solid transparent;
   border-radius: 7px;
   color: var(--ui-color-text-secondary);
@@ -1195,13 +1196,18 @@ select:focus-visible,
   cursor: pointer;
 }
 .app-search-trigger:hover,
-.app-search-trigger[aria-expanded="true"] {
+.app-search-trigger:not(.app-tree-toggle-all)[aria-expanded="true"] {
   color: var(--ui-color-text-brand);
   border-color: var(--ui-color-line-light);
   background: var(--ui-color-state-hover);
 }
-.app-search-trigger .ui-icon { width: 18px; height: 18px; }
-.app-add-directory { height: 28px; padding: 0 7px; }
+.app-search-trigger .ui-icon { width: 18px; height: 18px; flex: 0 0 18px; }
+.app-tree-toggle-all .ui-icon { width: 20px; height: 20px; flex-basis: 20px; }
+.app-refresh-directories:disabled { opacity: .42; cursor: default; }
+.app-refresh-directories:disabled:hover { color: var(--ui-color-text-secondary); border-color: transparent; background: transparent; }
+.app-refresh-directories.is-refreshing .ui-icon { animation: app-directory-refresh-spin .8s linear infinite; }
+@keyframes app-directory-refresh-spin { to { transform: rotate(360deg); } }
+.app-add-directory { height: 28px; padding: 0 7px; flex: 0 0 auto; white-space: nowrap; }
 .app-doc-list { padding: 4px 10px 12px; }
 .app-tree-root,
 .app-doc-item {
@@ -1488,6 +1494,39 @@ html.is-split-resizing * { cursor: col-resize !important; user-select: none !imp
   background: rgba(239, 62, 35, .14);
   font-weight: 650;
 }
+.editor-preview .app-search-target { scroll-margin-block: 28vh; }
+.editor-preview mark.app-search-match {
+  padding: 0 .12em;
+  border-radius: 2px;
+  color: #a12d19;
+  background: rgba(239, 62, 35, .18);
+  box-shadow: inset 0 -1px rgba(203, 46, 25, .34);
+  font-weight: 650;
+  scroll-margin-block: 28vh;
+}
+.editor-preview mark.app-search-match.is-primary {
+  color: #71190d;
+  background: rgba(255, 91, 62, .38);
+  box-shadow: 0 0 0 2px rgba(239, 62, 35, .24), inset 0 -1px rgba(139, 29, 14, .42);
+  animation: app-search-match-arrive .9s ease-out;
+}
+html[data-theme="dark"] .editor-preview mark.app-search-match {
+  color: #ffb4a5;
+  background: rgba(255, 91, 62, .24);
+  box-shadow: inset 0 -1px rgba(255, 148, 128, .42);
+}
+html[data-theme="dark"] .editor-preview mark.app-search-match.is-primary {
+  color: #fff1ed;
+  background: rgba(255, 91, 62, .46);
+  box-shadow: 0 0 0 2px rgba(255, 120, 94, .28), inset 0 -1px rgba(255, 191, 178, .5);
+}
+@keyframes app-search-match-arrive {
+  0% { box-shadow: 0 0 0 7px rgba(239, 62, 35, .08), inset 0 -1px rgba(139, 29, 14, .42); }
+  100% { box-shadow: 0 0 0 2px rgba(239, 62, 35, .24), inset 0 -1px rgba(139, 29, 14, .42); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .editor-preview mark.app-search-match.is-primary { animation: none; }
+}
 .app-search-empty {
   display: grid;
   place-items: center;
@@ -1511,6 +1550,7 @@ html.is-split-resizing * { cursor: col-resize !important; user-select: none !imp
 }
 .app-search-footer > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .editor-source.is-search-locating { box-shadow: inset 3px 0 var(--ui-color-public-normal); }
+.editor-source.is-search-locating::selection { color: #71190d; background: rgba(255, 91, 62, .38); }
 .app-collab-drawer {
   top: 56px;
   width: 360px;
@@ -1579,8 +1619,8 @@ html.is-desktop-client .app-drawer-mask { top: 0; }
       <symbol id="gicon-redo" viewBox="0 0 16 16"><path class="gicon__ink" d="M13 5.5H6.9a4.15 4.15 0 1 0 0 8.3h1.6"/><path class="gicon__accent gicon__accent--strong" d="m10.4 2.8 3 2.7-3 2.7"/></symbol>
       <symbol id="gicon-chevron-down" viewBox="0 0 16 16"><path class="gicon__ink" d="m4.25 6.25 3.75 3.5 3.75-3.5"/></symbol>
       <symbol id="gicon-chevron-right" viewBox="0 0 16 16"><path class="gicon__ink" d="m6.25 4.25 3.5 3.75-3.5 3.75"/></symbol>
-      <symbol id="gicon-collapse-all" viewBox="0 0 16 16"><path class="gicon__ink gicon__ink--strong" d="m4.25 7.25 3.75-3.5 3.75 3.5"/><path class="gicon__accent gicon__accent--strong" d="m4.25 12.25 3.75-3.5 3.75 3.5"/></symbol>
-      <symbol id="gicon-expand-all" viewBox="0 0 16 16"><path class="gicon__ink gicon__ink--strong" d="m4.25 3.75 3.75 3.5 3.75-3.5"/><path class="gicon__accent gicon__accent--strong" d="m4.25 8.75 3.75 3.5 3.75-3.5"/></symbol>
+      <symbol id="gicon-collapse-all" viewBox="0 0 16 16"><path class="gicon__ink" d="M1.5 3.25h6.75M1.5 7.25h5.25M1.5 11.25h6.75"/><path class="gicon__accent gicon__accent--strong" d="M12 13.5V3m-2.25 2.35L12 3l2.25 2.35"/></symbol>
+      <symbol id="gicon-expand-all" viewBox="0 0 16 16"><path class="gicon__ink" d="M1.5 3.25h6.75M1.5 7.25h5.25M1.5 11.25h6.75"/><path class="gicon__accent gicon__accent--strong" d="M12 2.5V13m-2.25-2.35L12 13l2.25-2.35"/></symbol>
       <symbol id="gicon-bold" viewBox="0 0 16 16"><path class="gicon__ink gicon__ink--strong" d="M3.8 2.2v11.6M3.8 2.35h4.35c2.05 0 3.25 1 3.25 2.75S10.2 8 8.15 8H3.8"/><path class="gicon__accent gicon__accent--strong" d="M3.8 8h4.65c2.25 0 3.55 1.05 3.55 2.85s-1.3 2.95-3.55 2.95H3.8"/></symbol>
       <symbol id="gicon-italic" viewBox="0 0 16 16"><path class="gicon__ink gicon__ink--strong" d="M7 2.2h5M4 13.8h5"/><path class="gicon__accent gicon__accent--strong" d="m10 2.2-4 11.6"/></symbol>
       <symbol id="gicon-strike" viewBox="0 0 16 16"><path class="gicon__ink" d="M11.75 4.2c-.8-1.2-2-1.8-3.65-1.8-2.15 0-3.6 1-3.6 2.55 0 1.25.9 2 2.7 2.55M5 11.6c.75 1.3 2 2 3.75 2 2.1 0 3.5-1 3.5-2.6 0-1.4-.95-2.15-3-2.75"/><path class="gicon__accent" d="M2 8h12"/></symbol>
@@ -1661,6 +1701,9 @@ html.is-desktop-client .app-drawer-mask { top: 0; }
               <button type="button" class="app-add-directory" id="btn-add-directory" title="添加智能体输出目录">
                 <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-folder-plus"/></svg></span>
                 <span>添加目录</span>
+              </button>
+              <button type="button" class="app-search-trigger app-refresh-directories" id="btn-refresh-directories" title="暂无可刷新的目录" aria-label="暂无可刷新的目录" disabled>
+                <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-refresh"/></svg></span>
               </button>
             </div>
           </div>
@@ -2686,6 +2729,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   let pendingInputStarted = null, exportInProgress = false;
   let lastEditSurface = 'source', lastPreviewRange = null;
   let directoryScanTimer = null, activeDirectoryScanId = null;
+  let directoryRefreshPromise = null;
   let directoryModalPreviousFocus = null;
   let reviewStore = { schemaVersion: 1, documents: {} };
   let modelConfig = null, draftCommentAnchor = null, editingCommentId = null, deletingCommentId = null;
@@ -2702,8 +2746,12 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   const previewImageObjectUrls = new Set();
   const histories = new Map();
   const semanticDocumentCache = new Map();
+  let semanticIndexSyncPromise = null, semanticIndexRevision = 0, semanticIndexSyncedRevision = -1;
+  let semanticIndexSyncSummary = null;
+  let semanticIndexSyncTimer = null;
   let searchTimer = null, searchRunToken = 0;
   let searchModalPreviousFocus = null, activeSearchResults = [], activeSearchResultIndex = -1;
+  let activeSearchQuery = '', activeSearchNavigation = null;
   let removeSemanticProgressListener = null;
   const els = {};
 
@@ -2743,6 +2791,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     els.btnNewDoc = $('btn-new-doc');
     els.btnOpenDoc = $('btn-open-doc');
     els.btnAddDirectory = $('btn-add-directory');
+    els.btnRefreshDirectories = $('btn-refresh-directories');
     els.btnToggleAllDocs = $('btn-toggle-all-docs');
     els.btnSearchDocs = $('btn-search-docs');
     els.searchModal = $('search-modal');
@@ -2847,6 +2896,10 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
         && !String(n.textContent || '').replace(/[\s\u200B\uFEFF]/g, '')
         && !n.querySelector('img, table, hr, video, audio, iframe, canvas'),
       replacement: () => ''
+    });
+    turndownService.addRule('searchHighlight', {
+      filter: (n) => n.nodeName === 'MARK' && n.classList.contains('app-search-match'),
+      replacement: (content) => content
     });
     turndownService.addRule('taskCheckbox', {
       filter: (n) => n.type === 'checkbox' && n.parentNode && n.parentNode.nodeName === 'LI',
@@ -3101,6 +3154,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     if (doc.content === md) return;
     ensureHistory(doc);
     doc.content = md;
+    markSemanticIndexDirty(doc.id);
     markCurrentAnalysisStale();
     if (opts.record !== false) recordHistory(doc, md, opts.inputSource || null, opts.historyUi);
     if (els.sourceEditor.value !== md) els.sourceEditor.value = md;
@@ -3772,6 +3826,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     annotatePreviewLinks();
     updateOutline();
     refreshCollaborationUI();
+    applySearchNavigationHighlight();
     requestAnimationFrame(updateReadingProgress);
     if (started !== null && typeof performance !== 'undefined') {
       const elapsed = performance.now() - started;
@@ -5225,6 +5280,8 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     capture.className = 'editor-preview app-export-capture';
     capture.innerHTML = els.previewEditor.innerHTML;
     capture.querySelectorAll('.app-comment-anchor, .app-comment-draft').forEach((anchor) => anchor.replaceWith(...anchor.childNodes));
+    capture.querySelectorAll('mark.app-search-match').forEach((mark) => mark.replaceWith(...mark.childNodes));
+    capture.querySelectorAll('.app-search-target').forEach((target) => target.classList.remove('app-search-target'));
     capture.querySelectorAll('[data-md-preview-caret]').forEach((paragraph) => paragraph.remove());
     capture.querySelectorAll('.app-block-comment-anchor, .app-comment-block-target, .app-comment-locate').forEach((block) => {
       block.classList.remove('app-block-comment-anchor', 'app-comment-block-target', 'app-comment-locate', 'is-active');
@@ -5446,6 +5503,10 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       const diff = diffDirectoryIndex(existingDocs, scan.entries);
       let refreshedCurrent = false;
 
+      diff.added.forEach((entry) => markSemanticIndexDirty(directoryDocId(directory.id, entry.relativePath)));
+      diff.changed.forEach(({ doc }) => markSemanticIndexDirty(doc.id));
+      diff.missing.forEach((doc) => markSemanticIndexDirty(doc.id));
+
       for (const entry of diff.added) {
         const doc = {
           id: directoryDocId(directory.id, entry.relativePath),
@@ -5543,6 +5604,52 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     for (const directory of [...state.directories].sort((a, b) => a.order - b.order)) {
       if (directory.scanMode !== 'manual') await scanDirectory(directory, options);
     }
+  }
+
+  function updateDirectoryRefreshButton() {
+    if (!els.btnRefreshDirectories) return;
+    const refreshing = !!directoryRefreshPromise || !!activeDirectoryScanId;
+    els.btnRefreshDirectories.disabled = !state.directories.length || refreshing;
+    els.btnRefreshDirectories.classList.toggle('is-refreshing', refreshing);
+    const label = refreshing ? '正在刷新目录' : (state.directories.length ? '刷新全部目录' : '暂无可刷新的目录');
+    els.btnRefreshDirectories.title = label;
+    els.btnRefreshDirectories.setAttribute('aria-label', label);
+  }
+
+  function refreshAllDirectories() {
+    if (directoryRefreshPromise) return directoryRefreshPromise;
+    if (!state.directories.length) {
+      tip('请先添加目录');
+      return Promise.resolve(null);
+    }
+    directoryRefreshPromise = (async () => {
+      while (activeDirectoryScanId) await new Promise((resolve) => setTimeout(resolve, 80));
+      updateDirectoryRefreshButton();
+      const totals = { added: 0, updated: 0, missing: 0, errors: 0 };
+      for (const directory of [...state.directories].sort((a, b) => a.order - b.order)) {
+        const summary = await scanDirectory(directory, { interactive: true, announce: false });
+        if (!summary) continue;
+        totals.added += Number(summary.added) || 0;
+        totals.updated += Number(summary.updated) || 0;
+        totals.missing += Number(summary.missing) || 0;
+        totals.errors += Number(summary.errors) || 0;
+      }
+      const permissionCount = state.directories.filter((directory) => directory.permissionState !== 'granted').length;
+      if (totals.added || totals.updated || totals.missing) {
+        tip(`目录刷新完成：新增 ${totals.added}，更新 ${totals.updated}，缺失 ${totals.missing}${permissionCount ? `；${permissionCount} 个目录需授权` : ''}`);
+      } else if (permissionCount) {
+        tip(`已刷新可访问目录；${permissionCount} 个目录需要重新授权`);
+      } else {
+        tip(totals.errors ? `目录刷新完成，跳过 ${totals.errors} 个无法读取的文件` : '目录刷新完成，暂无更新');
+      }
+      scheduleSemanticIndexSync(300);
+      return { ...totals, permissionCount };
+    })().finally(() => {
+      directoryRefreshPromise = null;
+      updateDirectoryRefreshButton();
+    });
+    updateDirectoryRefreshButton();
+    return directoryRefreshPromise;
   }
 
   async function readDirectoryDocument(doc, interactive) {
@@ -5695,6 +5802,8 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     doc.externalSize = file.size;
     doc.syncState = 'synced';
     doc.externalContent = null;
+    markSemanticIndexDirty(oldId);
+    markSemanticIndexDirty(nextId);
     await removePersistedHandles(oldId);
     await persistDocHandles(doc);
     return doc;
@@ -6349,6 +6458,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       ['#btn-open-doc > .ui-icon', 'open-doc'],
       ['#open-doc-info .ui-icon', 'info'],
       ['#btn-add-directory .ui-icon', 'folder-plus'],
+      ['#btn-refresh-directories .ui-icon', 'refresh'],
       ['#btn-toggle-all-docs .ui-icon', 'collapse-all'],
       ['#btn-undo .ui-icon', 'undo'],
       ['#btn-redo .ui-icon', 'redo'],
@@ -6538,6 +6648,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       doc.externalModifiedAt = file.lastModified;
       doc.externalSize = file.size;
       histories.set(doc.id, { entries: [content], index: 0, lastInputAt: 0, lastInputSource: null });
+      markSemanticIndexDirty(doc.id);
       return content;
     } catch (_error) {
       return '';
@@ -6826,35 +6937,126 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     return [...sentenceUnits, ...paragraphUnits, ...sectionUnits, ...chapterUnits].slice(0, SEMANTIC_MAX_UNITS_PER_DOCUMENT);
   }
 
+  function markSemanticIndexDirty(docId) {
+    if (docId) semanticDocumentCache.delete(docId);
+    semanticIndexRevision += 1;
+    scheduleSemanticIndexSync();
+  }
+
+  function buildSemanticDocument(doc, content) {
+    const docPath = searchPathForDoc(doc);
+    const fingerprint = contentFingerprint(`${doc.id}\n${doc.name}\n${docPath}\n${content}`);
+    const cached = semanticDocumentCache.get(doc.id);
+    if (cached?.fingerprint === fingerprint) return cached.document;
+    const units = chunkMarkdownForSearch(content).map((unit) => ({
+      ...unit,
+      semanticText: `${doc.name}\n${docPath}\n${unit.semanticText}`.slice(0, 1600)
+    }));
+    if (!units.length) return null;
+    const document = { id: doc.id, fingerprint, title: doc.name, path: docPath, units };
+    semanticDocumentCache.set(doc.id, { fingerprint, document });
+    return document;
+  }
+
+  async function directorySearchPermissionMissing(doc) {
+    if (!isDirectoryDoc(doc) || doc.contentLoaded !== false) return false;
+    const directory = directoryForDoc(doc);
+    return !directory?.handle || await queryReadWritePermission(directory.handle) !== 'granted';
+  }
+
   async function semanticDocumentsForIndex(token) {
     const documents = [];
     let loadedContent = false;
     for (let index = 0; index < state.docs.length; index += 1) {
-      if (token !== searchRunToken) return null;
+      if (token !== undefined && token !== searchRunToken) return null;
       const doc = state.docs[index];
+      if (doc.syncState === 'missing' || await directorySearchPermissionMissing(doc)) continue;
+      const wasLoaded = doc.contentLoaded !== false;
+      const content = await contentForSearch(doc);
+      if (!wasLoaded && doc.contentLoaded !== false) loadedContent = true;
+      if (!content.trim()) continue;
+      const document = buildSemanticDocument(doc, content);
+      if (document) documents.push(document);
+      if (index % 12 === 11) await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    if (loadedContent) saveState({ silent: true });
+    return documents;
+  }
+
+  async function synchronizeSemanticIndexOnce(api) {
+    const initialStatus = await api.status();
+    if (!initialStatus?.available) throw new Error(initialStatus?.unavailableReason || '本地语义搜索组件不可用');
+    const indexedFingerprints = initialStatus.indexedDocumentFingerprints || {};
+    const activeDocumentIds = [];
+    const permissionDirectoryIds = new Set();
+    let indexed = 0, reused = 0, loadedContent = false;
+
+    for (let index = 0; index < state.docs.length; index += 1) {
+      const doc = state.docs[index];
+      if (doc.syncState === 'missing') continue;
+      if (await directorySearchPermissionMissing(doc)) {
+        if (indexedFingerprints[doc.id]) activeDocumentIds.push(doc.id);
+        if (doc.directoryId) permissionDirectoryIds.add(doc.directoryId);
+        continue;
+      }
       const wasLoaded = doc.contentLoaded !== false;
       const content = await contentForSearch(doc);
       if (!wasLoaded && doc.contentLoaded !== false) loadedContent = true;
       if (!content.trim()) continue;
       const docPath = searchPathForDoc(doc);
       const fingerprint = contentFingerprint(`${doc.id}\n${doc.name}\n${docPath}\n${content}`);
-      const cached = semanticDocumentCache.get(doc.id);
-      if (cached?.fingerprint === fingerprint) {
-        documents.push(cached.document);
+      activeDocumentIds.push(doc.id);
+      if (indexedFingerprints[doc.id] === fingerprint) {
+        reused += 1;
         continue;
       }
-      const units = chunkMarkdownForSearch(content).map((unit) => ({
-        ...unit,
-        semanticText: `${doc.name}\n${docPath}\n${unit.semanticText}`.slice(0, 1600)
-      }));
-      if (!units.length) continue;
-      const document = { id: doc.id, fingerprint, title: doc.name, path: docPath, units };
-      semanticDocumentCache.set(doc.id, { fingerprint, document });
-      documents.push(document);
-      if (index % 12 === 11) await new Promise((resolve) => setTimeout(resolve, 0));
+      const document = buildSemanticDocument(doc, content);
+      if (!document) continue;
+      await api.indexDocuments([document], { force: false, prune: false });
+      indexed += 1;
+      if (index % 4 === 3) await new Promise((resolve) => setTimeout(resolve, 0));
     }
+    const status = await api.indexDocuments([], { activeDocumentIds, prune: true });
     if (loadedContent) saveState({ silent: true });
-    return documents;
+    return {
+      status,
+      indexed,
+      reused,
+      permissionDirectoryCount: permissionDirectoryIds.size
+    };
+  }
+
+  function ensureSemanticIndexSynced() {
+    const api = semanticSearchApi();
+    if (!api) return Promise.reject(new Error('当前环境未连接桌面语义搜索服务'));
+    if (semanticIndexSyncPromise) return semanticIndexSyncPromise;
+    if (semanticIndexSyncSummary && semanticIndexSyncedRevision === semanticIndexRevision) {
+      return Promise.resolve(semanticIndexSyncSummary);
+    }
+    const revision = semanticIndexRevision;
+    semanticIndexSyncPromise = synchronizeSemanticIndexOnce(api).then((summary) => {
+      semanticIndexSyncSummary = summary;
+      semanticIndexSyncedRevision = revision;
+      return summary;
+    }).finally(() => {
+      semanticIndexSyncPromise = null;
+    });
+    return semanticIndexSyncPromise;
+  }
+
+  function scheduleSemanticIndexSync(delay = 2400) {
+    clearTimeout(semanticIndexSyncTimer);
+    if (!semanticSearchApi()) return;
+    semanticIndexSyncTimer = setTimeout(() => {
+      let synchronized = false;
+      ensureSemanticIndexSynced().then(() => {
+        synchronized = true;
+      }).catch((error) => {
+        console.warn('后台同步本地语义索引失败', error);
+      }).finally(() => {
+        if (synchronized && semanticIndexSyncedRevision !== semanticIndexRevision) scheduleSemanticIndexSync(400);
+      });
+    }, delay);
   }
 
   function searchFieldLabel(field, result) {
@@ -6881,6 +7083,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   function renderSearchResults(results, options = {}) {
     activeSearchResults = Array.isArray(results) ? results : [];
     activeSearchResultIndex = activeSearchResults.length ? 0 : -1;
+    activeSearchQuery = options.query || '';
     els.searchSummaryTitle.textContent = options.title || (options.query ? '搜索结果' : '最近文档');
     els.searchSummaryStatus.textContent = options.status || (activeSearchResults.length ? `${activeSearchResults.length} 项` : '');
     els.searchResults.replaceChildren();
@@ -6957,7 +7160,18 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   function handleSemanticProgress(progress) {
     if (!els.searchModal || els.searchModal.hidden || !els.searchInput.value.trim()) return;
     if (progress?.phase === 'ready') return;
-    els.semanticSearchStatus.textContent = '正在补充相关内容…';
+    els.semanticSearchStatus.textContent = progress?.message || '正在补充相关内容…';
+  }
+
+  function semanticSearchFailureText(error) {
+    let message = String(error?.message || error || '').trim();
+    message = message.replace(/^Error invoking remote method '[^']+':\s*/i, '').replace(/^Error:\s*/i, '');
+    if (!message) return '语义搜索暂不可用，普通搜索仍可使用';
+    if (/尚未建立本地语义索引/.test(message)) return '语义索引尚未建立，请刷新目录后重试';
+    if (/permission|权限|授权/i.test(message)) return '部分目录需要重新授权，当前仅搜索可读取内容';
+    if (/Meilisearch.*启动|listen|ECONNREFUSED|搜索服务缺失/i.test(message)) return '本地搜索服务启动失败，普通搜索仍可使用';
+    if (/模型.*缺失|模型校验失败|语义模型.*不可用/i.test(message)) return '本地语义模型不可用，请重新安装观绎 MD';
+    return `语义搜索暂不可用：${message.slice(0, 72)}`;
   }
 
   function mergeSearchResults(keywordResults, semanticResults) {
@@ -6993,14 +7207,12 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     });
     const api = semanticSearchApi();
     if (!api) {
-      els.semanticSearchStatus.textContent = '已搜索文件名、目录和正文';
+      els.semanticSearchStatus.textContent = '普通搜索已完成；桌面版可补充本地语义结果';
       return;
     }
-    els.semanticSearchStatus.textContent = '正在补充相关内容…';
+    els.semanticSearchStatus.textContent = '正在同步本地语义索引…';
     try {
-      const documents = await semanticDocumentsForIndex(token);
-      if (!documents || token !== searchRunToken) return;
-      await api.indexDocuments(documents, { force: false });
+      const syncSummary = await ensureSemanticIndexSynced();
       if (token !== searchRunToken) return;
       const matches = await api.search(query, SEMANTIC_RESULT_LIMIT);
       if (token !== searchRunToken) return;
@@ -7029,11 +7241,13 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
         query,
         empty: '没有找到相关文档或内容'
       });
-      els.semanticSearchStatus.textContent = '已完成本地搜索';
+      els.semanticSearchStatus.textContent = syncSummary.permissionDirectoryCount
+        ? `已完成本地搜索 · ${syncSummary.permissionDirectoryCount} 个目录需授权后更新索引`
+        : '已完成本地搜索';
     } catch (error) {
       console.warn('本地相关内容检索暂不可用，保留精确匹配结果', error);
       if (token !== searchRunToken) return;
-      els.semanticSearchStatus.textContent = '已搜索文件名、目录和正文';
+      els.semanticSearchStatus.textContent = semanticSearchFailureText(error);
       if (!keywordResults.length) {
         renderSearchResults([], { title: '搜索结果', status: '0 项', query, empty: '没有找到相关文档或内容' });
       }
@@ -7075,52 +7289,175 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     if (searchModalPreviousFocus?.focus) searchModalPreviousFocus.focus();
   }
 
-  function locateSearchResult(result) {
-    if (!result || result.start < 0) return;
-    const markdown = getCurrentMarkdown();
-    let start = Math.max(0, Math.min(markdown.length, Number(result.start) || 0));
-    let end = Math.max(start, Math.min(markdown.length, Number(result.end) || start));
-    if (result.fields?.includes('semantic')) {
-      const chunkEnd = Math.min(markdown.length, Math.max(start + 80, end));
-      const chunkText = markdown.slice(start, chunkEnd).toLowerCase();
-      const evidence = [...new Set([
-        ...(Array.isArray(result.highlightTerms) ? result.highlightTerms : []),
-        ...semanticQueryFragments(els.searchInput?.value || '')
-      ])].sort((a, b) => b.length - a.length);
-      const matchedTerm = evidence.find((term) => chunkText.includes(String(term).toLowerCase()));
-      if (matchedTerm) {
-        const relativeStart = chunkText.indexOf(String(matchedTerm).toLowerCase());
-        start += relativeStart;
-        end = Math.min(markdown.length, start + matchedTerm.length);
-      } else {
-        end = Math.min(markdown.length, Math.max(start + 1, end));
-      }
-    }
-    if (result.quote && !markdown.slice(start, Math.max(start + 1, end)).includes(result.quote)) {
-      const nextStart = markdown.indexOf(result.quote);
-      if (nextStart >= 0) { start = nextStart; end = nextStart + result.quote.length; }
-    }
-    if (state.viewMode === 'preview') {
-      const quote = markdown.slice(start, Math.min(end, start + 180)).trim();
-      if (quote && flashReadingLocation(findPreviewTargetForQuote(quote))) return;
-      setViewMode('split');
-    }
-    requestAnimationFrame(() => {
-      els.sourceEditor.focus();
-      setProgrammaticSourceSelection(start, Math.max(start + 1, end));
-      const line = markdown.slice(0, start).split('\n').length;
-      els.sourceEditor.scrollTop = Math.max(0, line * 22 - els.sourceEditor.clientHeight / 3);
-      els.sourceEditor.classList.add('is-search-locating');
-      setTimeout(() => els.sourceEditor.classList.remove('is-search-locating'), 1250);
+  function normalizedSearchTerms(terms) {
+    const seen = new Set();
+    return (Array.isArray(terms) ? terms : [])
+      .map((term) => String(term || '').trim())
+      .filter((term) => {
+        const key = term.toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => b.length - a.length);
+  }
+
+  function resolveSearchSourceRange(markdown, rawStart, rawEnd, terms) {
+    const content = String(markdown || '');
+    const anchorStart = Math.max(0, Math.min(content.length, Number(rawStart) || 0));
+    const anchorEnd = Math.max(anchorStart, Math.min(content.length, Number(rawEnd) || anchorStart));
+    const scanEnd = Math.min(content.length, Math.max(anchorEnd, anchorStart + 240));
+    const scanText = content.slice(anchorStart, scanEnd).toLowerCase();
+    let best = null;
+    normalizedSearchTerms(terms).forEach((term) => {
+      const relativeStart = scanText.indexOf(term.toLowerCase());
+      if (relativeStart < 0) return;
+      const candidate = {
+        start: anchorStart + relativeStart,
+        end: anchorStart + relativeStart + term.length,
+        matchedTerm: term
+      };
+      if (!best || candidate.start < best.start || (candidate.start === best.start && term.length > best.matchedTerm.length)) best = candidate;
     });
+    if (best) return { anchorStart, anchorEnd, ...best };
+    return {
+      anchorStart,
+      anchorEnd,
+      start: anchorStart,
+      end: Math.min(content.length, Math.max(anchorStart + 1, anchorEnd)),
+      matchedTerm: ''
+    };
+  }
+
+  function searchNavigationForResult(result, query) {
+    if (!result || Number(result.start) < 0) return null;
+    const doc = state.docs.find((item) => item.id === result.docId);
+    const markdown = String(doc?.content || '');
+    const terms = normalizedSearchTerms(resultHighlightTerms(query, result));
+    const range = resolveSearchSourceRange(markdown, result.start, result.end, terms);
+    return {
+      docId: result.docId,
+      query,
+      terms,
+      section: result.section || '',
+      quote: result.quote || markdown.slice(range.anchorStart, range.anchorEnd),
+      ...range
+    };
+  }
+
+  function clearPreviewSearchHighlights() {
+    if (!els.previewEditor) return;
+    els.previewEditor.querySelectorAll('mark.app-search-match').forEach((mark) => mark.replaceWith(...mark.childNodes));
+    els.previewEditor.querySelectorAll('.app-search-target').forEach((target) => target.classList.remove('app-search-target'));
+    els.previewEditor.normalize();
+  }
+
+  function wrapPreviewSearchTerms(terms) {
+    const normalizedTerms = normalizedSearchTerms(terms);
+    if (!normalizedTerms.length) return [];
+    const escaped = normalizedTerms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const expression = new RegExp(escaped.join('|'), 'ig');
+    const walker = document.createTreeWalker(els.previewEditor, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!node.nodeValue || node.parentElement?.closest('script, style, textarea, mark.app-search-match, [data-md-preview-caret]')) continue;
+      expression.lastIndex = 0;
+      if (expression.test(node.nodeValue)) textNodes.push(node);
+    }
+    const marks = [];
+    let remaining = 400;
+    textNodes.forEach((textNode) => {
+      if (remaining <= 0 || !textNode.isConnected) return;
+      const value = textNode.nodeValue;
+      const fragment = document.createDocumentFragment();
+      expression.lastIndex = 0;
+      let cursor = 0, match;
+      while (remaining > 0 && (match = expression.exec(value))) {
+        if (match.index > cursor) fragment.appendChild(document.createTextNode(value.slice(cursor, match.index)));
+        const mark = document.createElement('mark');
+        mark.className = 'app-search-match';
+        mark.textContent = match[0];
+        fragment.appendChild(mark);
+        marks.push(mark);
+        remaining -= 1;
+        cursor = match.index + match[0].length;
+      }
+      if (!cursor) return;
+      if (cursor < value.length) fragment.appendChild(document.createTextNode(value.slice(cursor)));
+      textNode.replaceWith(fragment);
+    });
+    return marks;
+  }
+
+  function searchNavigationTarget(navigation) {
+    const quoteTarget = navigation.quote && findPreviewTargetForQuote(navigation.quote);
+    if (quoteTarget) return quoteTarget;
+    const markdown = getCurrentMarkdown();
+    const sectionCandidates = [
+      navigation.section,
+      ...String(navigation.section || '').split(/\s*\/\s*/),
+      ...headingPathAt(markdown, navigation.anchorStart).reverse()
+    ].map((item) => String(item || '').trim()).filter(Boolean);
+    for (const candidate of sectionCandidates) {
+      const target = findPreviewTargetForQuote(candidate);
+      if (target) return target;
+    }
+    return null;
+  }
+
+  function applySearchNavigationHighlight(options = {}) {
+    clearPreviewSearchHighlights();
+    const navigation = activeSearchNavigation;
+    if (!navigation || navigation.docId !== state.currentDocId || state.viewMode === 'source') return null;
+    const target = searchNavigationTarget(navigation);
+    const marks = wrapPreviewSearchTerms(navigation.terms);
+    let primary = target ? marks.find((mark) => target.contains(mark)) : null;
+    if (!primary && navigation.matchedTerm) {
+      primary = marks.find((mark) => mark.textContent.toLowerCase() === navigation.matchedTerm.toLowerCase()) || null;
+    }
+    if (!primary && target) {
+      primary = marks.find((mark) => !!(target.compareDocumentPosition(mark) & Node.DOCUMENT_POSITION_FOLLOWING)) || null;
+    }
+    if (!primary) primary = marks[0] || null;
+    if (target) target.classList.add('app-search-target');
+    if (primary) primary.classList.add('is-primary');
+    const location = primary || target;
+    if (options.scroll && location) location.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    return location;
+  }
+
+  function locateSearchResult(navigation) {
+    if (!navigation || navigation.docId !== state.currentDocId) return;
+    const markdown = getCurrentMarkdown();
+    const previewLocation = applySearchNavigationHighlight({ scroll: state.viewMode !== 'source' });
+    if (state.viewMode !== 'preview') {
+      requestAnimationFrame(() => {
+        els.sourceEditor.focus();
+        setProgrammaticSourceSelection(navigation.start, navigation.end);
+        const lineHeight = parseFloat(getComputedStyle(els.sourceEditor).lineHeight) || 22;
+        const line = markdown.slice(0, navigation.start).split('\n').length - 1;
+        els.sourceEditor.scrollTop = Math.max(0, line * lineHeight - els.sourceEditor.clientHeight / 3);
+        els.sourceEditor.classList.add('is-search-locating');
+        setTimeout(() => els.sourceEditor.classList.remove('is-search-locating'), 1250);
+      });
+    }
+    if (state.viewMode === 'preview' && !previewLocation) tip('已打开文档，但当前预览未能精确定位命中内容');
   }
 
   async function openSearchResult(index) {
     const result = activeSearchResults[index];
     if (!result) return;
+    const query = activeSearchQuery || els.searchInput.value.trim();
+    const navigation = searchNavigationForResult(result, query);
+    activeSearchNavigation = navigation;
     closeSearchModal();
-    await switchDoc(result.docId);
-    locateSearchResult(result);
+    await switchDoc(result.docId, { restoreReadingScroll: !navigation });
+    if (state.currentDocId !== result.docId) {
+      activeSearchNavigation = null;
+      return;
+    }
+    if (navigation) requestAnimationFrame(() => locateSearchResult(navigation));
   }
 
   function bindDocumentSearch() {
@@ -7358,13 +7695,15 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       els.docList.appendChild(group);
     });
     updateDocumentTreeToggle();
+    updateDirectoryRefreshButton();
     if (state.currentDocId) revealDoc(state.currentDocId);
   }
 
-  async function switchDoc(id) {
+  async function switchDoc(id, options = {}) {
     flushPendingPreviewCommit();
     const doc = state.docs.find((d) => d.id === id);
     if (!doc) return;
+    if (activeSearchNavigation?.docId !== id) activeSearchNavigation = null;
     if (isDirectoryDoc(doc)) {
       const readable = await readDirectoryDocument(doc, true);
       if (!readable && !doc.contentLoaded) return;
@@ -7389,7 +7728,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     renderDocList();
     revealDoc(doc.id);
     render();
-    restoreReadingScroll();
+    if (options.restoreReadingScroll !== false) restoreReadingScroll();
     updateEditChrome();
     updateConflictBar();
   }
@@ -7552,7 +7891,10 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     if (!directory) return;
     const removedDocs = state.docs.filter((doc) => doc.directoryId === directory.id);
     const removedIds = new Set(removedDocs.map((doc) => doc.id));
-    removedDocs.forEach((doc) => histories.delete(doc.id));
+    removedDocs.forEach((doc) => {
+      histories.delete(doc.id);
+      markSemanticIndexDirty(doc.id);
+    });
     state.docs = state.docs.filter((doc) => doc.directoryId !== directory.id);
     state.directories = state.directories.filter((item) => item.id !== directory.id)
       .map((item, index) => ({ ...item, order: index }));
@@ -7572,6 +7914,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
 
   function bindDirectoryManager() {
     if (els.btnAddDirectory) els.btnAddDirectory.addEventListener('click', openDirectoryModal);
+    if (els.btnRefreshDirectories) els.btnRefreshDirectories.addEventListener('click', refreshAllDirectories);
     els.btnDirectoryAdd.addEventListener('click', addDirectory);
     els.btnDirectoryClose.addEventListener('click', closeDirectoryModal);
     els.btnDirectoryDone.addEventListener('click', closeDirectoryModal);
@@ -7594,6 +7937,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       const nextName = String(event.target.value || '').trim();
       if (!nextName) { event.target.value = directory.name; tip('目录显示名称不能为空'); return; }
       directory.name = nextName;
+      state.docs.filter((doc) => doc.directoryId === directory.id).forEach((doc) => markSemanticIndexDirty(doc.id));
       saveState({ silent: true });
       renderDocList();
       tip(`目录显示名称已更新为「${nextName}」`);
@@ -7730,6 +8074,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       lastOpenedAt: 0
     };
     state.docs.push(doc);
+    markSemanticIndexDirty(doc.id);
     touchDoc(doc);
     ensureHistory(doc);
     state.currentDocId = doc.id;
@@ -7809,6 +8154,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       lastOpenedAt: 0
     };
     state.docs.push(doc);
+    markSemanticIndexDirty(doc.id);
     ensureHistory(doc);
     return doc;
   }
@@ -8028,7 +8374,12 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
         return false;
       }
     }
-    if (doc.name !== name) { doc.name = name; saveState(); tip(`已重命名为「${name}」`); }
+    if (doc.name !== name) {
+      doc.name = name;
+      markSemanticIndexDirty(doc.id);
+      saveState();
+      tip(`已重命名为「${name}」`);
+    }
     renderDocList();
     updateStatus();
     return true;
@@ -8068,6 +8419,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     const localFile = isDiskFileDoc(doc);
     const index = state.docs.findIndex((d) => d.id === doc.id);
     state.docs.splice(index, 1);
+    markSemanticIndexDirty(doc.id);
     delete reviewStore.documents[doc.id];
     persistReviewStore();
     histories.delete(doc.id);
@@ -9472,6 +9824,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       }
     });
     els.sourceEditor.addEventListener('input', () => {
+      activeSearchNavigation = null;
       pendingInputStarted = typeof performance !== 'undefined' ? performance.now() : null;
       setCurrentMarkdown(els.sourceEditor.value, { inputSource: 'source' });
     });
@@ -9808,6 +10161,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     els.previewEditor.addEventListener('input', (event) => {
       if (previewEditing) return;
       if (event.target.closest && event.target.closest('input[type="checkbox"][data-md-task-index]')) return;
+      activeSearchNavigation = null;
       clearTimeout(renderTimer);
       renderTimer = null;
       clearTimeout(previewInputTimer);
@@ -10000,7 +10354,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     updateStatus();
     updateEditChrome();
     startDirectoryScanning();
-    scanAllDirectories({ interactive: false, announce: false });
+    scanAllDirectories({ interactive: false, announce: false }).finally(() => scheduleSemanticIndexSync(800));
     window.addEventListener('beforeunload', releasePreviewImageUrls);
     window.__MD_EDITOR_TEST__ = {
       computeFormat,
