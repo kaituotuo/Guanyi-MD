@@ -58,6 +58,7 @@
   const SEMANTIC_RESULT_LIMIT = 24;
   const SEMANTIC_SENTENCE_MAX_LENGTH = 620;
   const SEMANTIC_MAX_UNITS_PER_DOCUMENT = 1000000;
+  const SEMANTIC_CHUNKING_VERSION = 2;
 
   const state = { docs: [], directories: [], currentDocId: null, viewMode: 'split', splitRatio: 0.5, theme: 'light', myDocsCollapsed: false };
   let saveTimer = null, renderTimer = null, syncScrollLock = false;
@@ -4063,19 +4064,119 @@
     return results.sort((a, b) => b.score - a.score).slice(0, SEARCH_RESULT_LIMIT);
   }
 
-  function plainTextSectionHeading(line) {
-    const value = String(line || '').trim();
-    if (!value || value.length > 96) return '';
-    if (/^第[〇零一二三四五六七八九十百千万两\d]+(?:回|章|节|卷|篇)(?:[\s　:：.-]*.*)?$/.test(value)) return value;
-    if (/^卷[〇零一二三四五六七八九十百千万两\d]+(?:[\s　:：.-]+.*)?$/.test(value)) return value;
-    if (/^[上中下]卷(?:[\s　:：.-]+.*)?$/.test(value)) return value;
-    return '';
+  function plainTextSectionHeading(line, context = {}) {
+    return plainTextHeadingInfo(line, context)?.title || '';
   }
 
-  function plainTextHeadingKind(line) {
-    const heading = plainTextSectionHeading(line);
-    if (!heading) return '';
-    return /^第[〇零一二三四五六七八九十百千万两\d]+节/.test(heading) ? 'section' : 'chapter';
+  function plainTextHeadingKind(line, context = {}) {
+    return plainTextHeadingInfo(line, context)?.kind || '';
+  }
+
+  function plainTextHeadingInfo(line, context = {}) {
+    const value = String(line || '').replace(/^\uFEFF/, '').trim();
+    if (!value || value.length > 160) return null;
+    const comparable = typeof value.normalize === 'function' ? value.normalize('NFKC') : value;
+    if (context.setextKind) return { title: value, kind: context.setextKind, source: 'setext' };
+
+    const ordinal = /^第[〇零一二三四五六七八九十百千万亿億两兩壹貳贰參叁肆伍陸陆柒捌玖拾佰仟\dIVXLCDMivxlcdm]+(小节|部分|回|章|节|卷|篇|部|集|幕)(?:[\s　:：.-]*.*)?$/.exec(comparable);
+    if (ordinal) return { title: value, kind: /\u8282$/.test(ordinal[1]) ? 'section' : 'chapter', source: 'ordinal' };
+    if (/^卷[〇零一二三四五六七八九十百千万两兩壹貳贰參叁肆伍陸陆柒捌玖拾佰仟\d]+(?:[\s　:：.-]+.*)?$/.test(comparable)) {
+      return { title: value, kind: 'chapter', source: 'volume' };
+    }
+    if (/^[上中下](?:卷|篇|部)(?:[\s　:：.-]+.*)?$/.test(comparable)) {
+      return { title: value, kind: 'chapter', source: 'volume' };
+    }
+    if (/^(?:序|序章|序幕|楔子|引子|前言|序言|引言|导言|绪论|内容简介|目录|后记|尾声|终章|结语|跋)(?:$|[\s　:：.-]+.*$)/.test(comparable)
+      || /^附录(?:$|[\s　:：.-]*[A-Za-z0-9〇零一二三四五六七八九十].*$)/.test(comparable)) {
+      return { title: value, kind: 'chapter', source: 'named' };
+    }
+
+    const english = /^(chapter|chap(?:ter)?\.?|part|book|volume|vol\.?|section|sec\.?|appendix)(?:\s+|$)/i.exec(comparable);
+    if (english) {
+      return { title: value, kind: /^(?:section|sec\.?)/i.test(english[1]) ? 'section' : 'chapter', source: 'english' };
+    }
+    if (/^(?:prologue|epilogue|preface|foreword|afterword|introduction|contents|acknowledg(?:e)?ments)(?:\s*[:.-]?\s+.*)?$/i.test(comparable)) {
+      return { title: value, kind: 'chapter', source: 'english' };
+    }
+
+    if (context.numberedListNeighbor !== true) {
+      const decimal = /^(\d{1,3}(?:[.．]\d{1,3})+)(?:[\s　、.)）:：-]+)(\S.*)$/.exec(comparable);
+      if (decimal) return { title: value, kind: 'section', source: 'decimal' };
+      if (/^\d{1,3}[、.．)）:：-]\s*\S.+$/.test(comparable)
+        || /^[一二三四五六七八九十百千〇零两兩壹貳贰參叁肆伍陸陆柒捌玖拾佰仟]{1,12}[、.．)）:：-]\s*\S.+$/.test(comparable)
+        || /^[IVXLCDM]{1,12}[.)、:：-]\s*\S.+$/i.test(comparable)) {
+        return { title: value, kind: 'chapter', source: 'numbered' };
+      }
+      if (/^[（(](?:\d{1,3}|[一二三四五六七八九十百千〇零两兩壹貳贰參叁肆伍陸陆柒捌玖拾佰仟]{1,12}|[IVXLCDM]{1,12})[)）]\s*\S.+$/i.test(comparable)) {
+        return { title: value, kind: 'section', source: 'numbered' };
+      }
+    }
+
+    if (context.isolated && /^(?:【[^\u3011]{2,80}】|\[[^\]]{2,80}\])$/.test(comparable)) {
+      return { title: value, kind: 'chapter', source: 'wrapped' };
+    }
+    if (context.allowImplicit) return { title: value, kind: context.implicitKind || 'chapter', source: 'implicit' };
+    return null;
+  }
+
+  function numberedPlainTextLine(line) {
+    const value = String(line || '').trim();
+    const comparable = typeof value.normalize === 'function' ? value.normalize('NFKC') : value;
+    return /^(?:\d{1,3}|[一二三四五六七八九十百千〇零两兩壹貳贰參叁肆伍陸陆柒捌玖拾佰仟]{1,12}|[IVXLCDM]{1,12})[、.．)）:：-]\s*\S+/i.test(comparable);
+  }
+
+  function numberedPlainTextListLines(lines) {
+    const numbered = lines.map((line) => numberedPlainTextLine(line));
+    const listLines = new Set();
+    for (let index = 0; index < lines.length; index += 1) {
+      if (!numbered[index]) continue;
+      let previous = index - 1;
+      while (previous >= 0 && !String(lines[previous] || '').trim()) previous -= 1;
+      let next = index + 1;
+      while (next < lines.length && !String(lines[next] || '').trim()) next += 1;
+      if (numbered[previous] || numbered[next]) {
+        listLines.add(index);
+        if (numbered[previous]) listLines.add(previous);
+        if (numbered[next]) listLines.add(next);
+      }
+    }
+    return listLines;
+  }
+
+  function plainTextSetextHeadings(lines) {
+    const headingLines = new Map();
+    const underlineLines = new Set();
+    for (let index = 0; index + 1 < lines.length; index += 1) {
+      const value = String(lines[index] || '').trim();
+      const underlineValue = String(lines[index + 1] || '').trim();
+      const underline = typeof underlineValue.normalize === 'function' ? underlineValue.normalize('NFKC') : underlineValue;
+      if (!value || value.length > 160 || /[。！？!?；;]$/.test(value) || !/^(?:={3,}|-{3,})$/.test(underline)) continue;
+      headingLines.set(index, underline.startsWith('=') ? 'chapter' : 'section');
+      underlineLines.add(index + 1);
+    }
+    return { headingLines, underlineLines };
+  }
+
+  function implicitPlainTextHeadingLines(lines, reservedLines) {
+    const candidates = [];
+    for (let index = 0; index < lines.length; index += 1) {
+      const value = String(lines[index] || '').trim();
+      if (!value) continue;
+      if (reservedLines.has(index) || value.length < 2 || value.length > 40) continue;
+      const blankBefore = index === 0 || !String(lines[index - 1] || '').trim();
+      const blankAfter = index === lines.length - 1 || !String(lines[index + 1] || '').trim();
+      if (!blankBefore || !blankAfter) continue;
+      if (/[\u3002！？!?；;,，]/.test(value)
+        || /^(?:[-*+>]\s|```|~~~|\||https?:\/\/)/i.test(value)
+        || plainTextHeadingInfo(value)) continue;
+      let nextIndex = index + 1;
+      while (nextIndex < lines.length && !String(lines[nextIndex] || '').trim()) nextIndex += 1;
+      const nextText = String(lines[nextIndex] || '').trim();
+      if (!nextText || nextText.length < Math.max(12, value.length + 4)) continue;
+      if (!/[。！？!?；;]/.test(nextText) && nextText.length < 28) continue;
+      candidates.push(index);
+    }
+    return new Set(candidates.length >= 2 ? candidates : []);
   }
 
   function sentenceRangesForSearch(text) {
@@ -4099,6 +4200,11 @@
   function chunkMarkdownForSearch(markdown) {
     const content = String(markdown || '').replace(/\r\n?/g, '\n');
     if (!content.trim()) return [];
+    const lines = content.split('\n');
+    const setext = plainTextSetextHeadings(lines);
+    const reservedHeadingLines = new Set([...setext.headingLines.keys(), ...setext.underlineLines]);
+    const implicitHeadingLines = implicitPlainTextHeadingLines(lines, reservedHeadingLines);
+    const numberedListLines = numberedPlainTextListLines(lines);
     const headings = [];
     const paragraphs = [];
     const chapterDefinitions = new Map();
@@ -4156,13 +4262,21 @@
       currentSection = section;
     }
 
-    content.split('\n').forEach((line) => {
+    lines.forEach((line, index) => {
       const lineStart = offset;
       const lineEnd = lineStart + line.length;
       offset = lineEnd + 1;
+      if (setext.underlineLines.has(index)) { flushParagraph(); return; }
       const markdownHeading = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
-      const textHeading = markdownHeading ? '' : plainTextSectionHeading(line);
-      const textHeadingKind = textHeading ? plainTextHeadingKind(textHeading) : '';
+      const textHeadingInfo = markdownHeading ? null : plainTextHeadingInfo(line, {
+        setextKind: setext.headingLines.get(index),
+        numberedListNeighbor: numberedListLines.has(index),
+        isolated: (index === 0 || !String(lines[index - 1] || '').trim())
+          && (index === lines.length - 1 || !String(lines[index + 1] || '').trim()),
+        allowImplicit: implicitHeadingLines.has(index)
+      });
+      const textHeading = textHeadingInfo?.title || '';
+      const textHeadingKind = textHeadingInfo?.kind || '';
       if (markdownHeading || textHeading) {
         flushParagraph();
         if (markdownHeading) {
@@ -4281,7 +4395,7 @@
 
   function buildSemanticDocument(doc, content) {
     const docPath = searchPathForDoc(doc);
-    const fingerprint = contentFingerprint(`${doc.id}\n${doc.name}\n${docPath}\n${content}`);
+    const fingerprint = contentFingerprint(`${SEMANTIC_CHUNKING_VERSION}\n${doc.id}\n${doc.name}\n${docPath}\n${content}`);
     const cached = semanticDocumentCache.get(doc.id);
     if (cached?.fingerprint === fingerprint) return cached.document;
     const units = chunkMarkdownForSearch(content).map((unit) => ({

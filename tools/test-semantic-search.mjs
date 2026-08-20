@@ -45,6 +45,18 @@ const {
 
 assert.equal(plainTextHeadingKind('第四十六回 用奇谋孔明借箭'), 'chapter');
 assert.equal(plainTextHeadingKind('第三节 人物关系'), 'section');
+assert.equal(plainTextHeadingKind('第二部分 入城'), 'chapter');
+assert.equal(plainTextHeadingKind('第二小节 线索'), 'section');
+assert.equal(plainTextHeadingKind('第３章 全角编号'), 'chapter');
+assert.equal(plainTextHeadingKind('第壹章 大写编号'), 'chapter');
+assert.equal(plainTextHeadingKind('CHAPTER XII The Return'), 'chapter');
+assert.equal(plainTextHeadingKind('Section 2 Evidence'), 'section');
+assert.equal(plainTextHeadingKind('2.3 检索策略'), 'section');
+assert.equal(plainTextHeadingKind('（一）索引策略'), 'section');
+assert.equal(plainTextHeadingKind('一、故事开端'), 'chapter');
+assert.equal(plainTextHeadingKind('序章 风起'), 'chapter');
+assert.equal(plainTextHeadingKind('Epilogue'), 'chapter');
+assert.equal(plainTextHeadingKind('2026年8月20日 工作记录'), '', 'dates should not become chapter headings');
 assert.deepEqual(
   [...sentenceRangesForSearch('第一句。第二句！')].map((range) => '第一句。第二句！'.slice(range.start, range.end)),
   ['第一句。', '第二句！']
@@ -87,6 +99,71 @@ const markdownUnits = chunkMarkdownForSearch('# 上卷\n\n## 第一节\n\n小节
 assert.ok(markdownUnits.some((unit) => unit.granularity === 'chapter' && unit.chapter === '上卷'));
 assert.ok(markdownUnits.some((unit) => unit.granularity === 'section' && unit.section === '上卷 / 第一节'));
 assert.ok(markdownUnits.some((unit) => unit.granularity === 'section' && unit.section === '上卷 / 第一节 / 其一'));
+
+const numberedHeadingUnits = chunkMarkdownForSearch([
+  '1. 结构起点',
+  '',
+  '这是第一部分的正文内容。',
+  '',
+  '1.1 检索范围',
+  '',
+  '这一小节说明应当如何选择文档。',
+  '',
+  'CHAPTER II Offline Search',
+  '',
+  'All vectors remain on the local computer.'
+].join('\n'));
+assert.ok(numberedHeadingUnits.some((unit) => unit.granularity === 'chapter' && unit.chapter === '1. 结构起点'));
+assert.ok(numberedHeadingUnits.some((unit) => unit.granularity === 'section' && unit.section === '1. 结构起点 / 1.1 检索范围'));
+assert.ok(numberedHeadingUnits.some((unit) => unit.granularity === 'chapter' && unit.chapter === 'CHAPTER II Offline Search'));
+
+const setextUnits = chunkMarkdownForSearch([
+  'Origins',
+  '=======',
+  '',
+  'This paragraph explains where the project began.',
+  '',
+  'Details',
+  '-------',
+  '',
+  'This paragraph contains the implementation details.'
+].join('\n'));
+assert.ok(setextUnits.some((unit) => unit.granularity === 'chapter' && unit.chapter === 'Origins'));
+assert.ok(setextUnits.some((unit) => unit.granularity === 'section' && unit.section === 'Origins / Details'));
+assert.ok(!setextUnits.some((unit) => unit.text === '=======' || unit.text === '-------'), 'setext underlines should not enter searchable text');
+
+const implicitHeadingUnits = chunkMarkdownForSearch([
+  '陌上初逢',
+  '',
+  '春日里两人在城外第一次相见，记下了彼此的名字。',
+  '',
+  '月下重逢',
+  '',
+  '入夜后他们再次在桥边见面，终于说清了当年的误会。'
+].join('\n'));
+assert.deepEqual(
+  [...implicitHeadingUnits].filter((unit) => unit.granularity === 'chapter').map((unit) => unit.chapter),
+  ['陌上初逢', '月下重逢'],
+  'repeated isolated short titles should define plain-text chapter boundaries'
+);
+
+const listUnits = chunkMarkdownForSearch([
+  '购物清单',
+  '',
+  '1. 苹果',
+  '',
+  '2. 香蕉',
+  '',
+  '3. 茶叶',
+  '',
+  '以上是今天需要购买的全部物品。'
+].join('\n'));
+assert.ok(!listUnits.some((unit) => unit.granularity === 'chapter' && /^[123]\./.test(unit.chapter)), 'consecutive numbered list items should remain body text');
+
+const isolatedShortLineUnits = chunkMarkdownForSearch('风停了\n\n雨很快又落下来，街上的行人都加快了脚步。');
+assert.ok(!isolatedShortLineUnits.some((unit) => unit.granularity === 'chapter' && unit.chapter === '风停了'), 'one isolated short sentence is not enough evidence for a heading');
+assert.match(appSource, /SEMANTIC_CHUNKING_VERSION\s*=\s*2/);
+assert.match(appSource, /contentFingerprint\(`\$\{SEMANTIC_CHUNKING_VERSION\}\\n/);
 
 const lateChapters = Array.from({ length: 220 }, (_value, index) => [
   `第${index + 1}回 测试章节`,
