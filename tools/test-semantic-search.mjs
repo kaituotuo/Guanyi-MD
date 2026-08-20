@@ -27,6 +27,10 @@ const {
 } = vm.runInNewContext(`(() => {
   const SEMANTIC_SENTENCE_MAX_LENGTH = 620;
   const SEMANTIC_MAX_UNITS_PER_DOCUMENT = 1000000;
+  const SEMANTIC_PASSAGE_TARGET_LENGTH = 1000;
+  const SEMANTIC_PASSAGE_MAX_LENGTH = 1800;
+  const SEMANTIC_PASSAGE_MAX_PARAGRAPHS = 6;
+  const SEMANTIC_PASSAGE_OVERLAP_PARAGRAPHS = 2;
   ${appSource.slice(sentenceBoundsStart, sentenceBoundsEnd)}
   ${appSource.slice(helperStart, helperEnd)}
   return { plainTextHeadingKind, sentenceRangesForSearch, searchSentenceBounds, chunkMarkdownForSearch };
@@ -78,7 +82,7 @@ const hierarchyFixture = [
 ].join('\n');
 const hierarchyUnits = chunkMarkdownForSearch(hierarchyFixture);
 const granularities = new Set(hierarchyUnits.map((unit) => unit.granularity));
-assert.deepEqual([...granularities].sort(), ['chapter', 'paragraph', 'section', 'sentence']);
+assert.deepEqual([...granularities].sort(), ['chapter', 'paragraph', 'passage', 'section', 'sentence']);
 const hierarchySentences = hierarchyUnits.filter((unit) => unit.granularity === 'sentence');
 assert.equal(hierarchySentences.length, 4);
 hierarchySentences.forEach((unit) => {
@@ -162,8 +166,19 @@ assert.ok(!listUnits.some((unit) => unit.granularity === 'chapter' && /^[123]\./
 
 const isolatedShortLineUnits = chunkMarkdownForSearch('风停了\n\n雨很快又落下来，街上的行人都加快了脚步。');
 assert.ok(!isolatedShortLineUnits.some((unit) => unit.granularity === 'chapter' && unit.chapter === '风停了'), 'one isolated short sentence is not enough evidence for a heading');
-assert.match(appSource, /SEMANTIC_CHUNKING_VERSION\s*=\s*2/);
+assert.match(appSource, /SEMANTIC_CHUNKING_VERSION\s*=\s*3/);
 assert.match(appSource, /contentFingerprint\(`\$\{SEMANTIC_CHUNKING_VERSION\}\\n/);
+
+const headinglessLongArticle = chunkMarkdownForSearch(Array.from({ length: 12 }, (_value, index) =>
+  `这是一段没有章节标题的通用长文章。第${index + 1}段记下不同的事实、观察和推理，用于验证多段语义检索。`).join('\n\n'));
+const headinglessPassages = headinglessLongArticle.filter((unit) => unit.granularity === 'passage');
+assert.ok(headinglessPassages.length >= 2, 'headingless long articles should receive several bounded passage units');
+assert.ok(headinglessPassages.every((unit) => unit.passageId && unit.end > unit.start));
+assert.ok(
+  headinglessLongArticle.filter((unit) => unit.granularity === 'sentence').some((unit) => unit.passageIds.length > 1),
+  'passage windows should overlap so boundary sentences retain context'
+);
+assert.equal(headinglessLongArticle.filter((unit) => unit.granularity === 'chapter').length, 1, 'headingless articles keep one root chapter only as a fallback container');
 
 const lateChapters = Array.from({ length: 220 }, (_value, index) => [
   `第${index + 1}回 测试章节`,
@@ -259,8 +274,9 @@ await fakeService.indexDocuments([fakeDocument], { force: true });
 assert.equal(fakeClient.settings.embedders[EMBEDDER_NAME].source, 'userProvided');
 assert.equal(fakeClient.settings.embedders[EMBEDDER_NAME].dimensions, MODEL_DIMENSIONS);
 assert.ok(fakeClient.settings.filterableAttributes.includes('sentenceId') === false, 'sentenceId is an anchor, not a filter dimension');
+assert.ok(fakeClient.settings.filterableAttributes.includes('passageIds'), 'passageIds should support overlapping sentence evidence lookup');
 const fakeRecords = [...fakeClient.documents.values()];
-assert.deepEqual([...new Set(fakeRecords.map((record) => record.granularity))].sort(), ['chapter', 'paragraph', 'section', 'sentence']);
+assert.deepEqual([...new Set(fakeRecords.map((record) => record.granularity))].sort(), ['chapter', 'paragraph', 'passage', 'section', 'sentence']);
 assert.ok(fakeRecords.every((record) => record._vectors[EMBEDDER_NAME].length === MODEL_DIMENSIONS));
 const addCallsAfterFirstIndex = fakeClient.addCalls;
 await fakeService.indexDocuments([fakeDocument], { force: false });
@@ -281,6 +297,8 @@ assert.ok([...fakeClient.documents.values()].every((record) => !record.text.incl
 
 const fakeSentenceRecords = [...fakeClient.documents.values()].filter((record) => record.granularity === 'sentence');
 const fakeChapterRecord = [...fakeClient.documents.values()].find((record) => record.granularity === 'chapter');
+const fakePassageRecord = [...fakeClient.documents.values()].find((record) => record.granularity === 'passage');
+assert.match(fakeService.hierarchyFilter(fakePassageRecord), /passageIds = "passage-1"/);
 fakeClient.searchHits = [
   { ...fakeSentenceRecords[0], _rankingScore: 0.72 },
   { ...fakeChapterRecord, _rankingScore: 0.88 }
@@ -290,6 +308,12 @@ const fakeSearchResults = await fakeService.search('更新了什么', 10);
 assert.equal(fakeSearchResults.length, 1, 'hierarchy and direct hits for the same sentence should be deduplicated');
 assert.equal(fakeSearchResults[0].start, fakeSentenceRecords[0].start);
 assert.equal(fakeSearchResults[0].matchedGranularity, 'chapter');
+
+fakeClient.searchHits = [{ ...fakePassageRecord, _rankingScore: 0.81 }];
+fakeClient.evidenceHits = [{ ...fakeSentenceRecords[0], _rankingScore: 0.76 }];
+const fakePassageResults = await fakeService.search('长文中间的相关内容', 10);
+assert.equal(fakePassageResults[0].matchedGranularity, 'passage');
+assert.equal(fakePassageResults[0].start, fakeSentenceRecords[0].start, 'passage hits should resolve to exact sentence evidence');
 
 await fakeService.indexDocuments([], { force: false });
 assert.equal(fakeClient.documents.size, 0, 'removed documents should leave no stale Meilisearch records');
@@ -391,6 +415,22 @@ try {
     assert.ok(results.slice(0, 3).some((result) => result.snippet.includes(expectedEvidence)), `${query} should return its sentence evidence`);
   }
 
+  const headinglessDocument = semanticDocument('headingless-article', '无标题长文', [
+    '早春的河谷仍然寒冷，研究人员每天记录水温和风速。',
+    '他们把不同测点的数据写入同一份观测日志，以便比较季节变化。',
+    '迁徙候鸟在长距离飞行中会结合地标、太阳位置与地磁场判断方向。',
+    '夜间看不清地标时，它们仍能借助地磁感知修正航线。',
+    '沿途的湿地提供食物和休息地，也会影响群体选择的路径。',
+    '抵达繁殖地后，观测人员再根据脚环信息核对它们的来源。',
+    '夏季到来以后，河流水位上升，鱼类活动也变得更加频繁。',
+    '这些连续记录最终用于分析气候与生态系统之间的关系。'
+  ].join('\n\n'));
+  assert.ok(headinglessDocument.units.filter((unit) => unit.granularity === 'passage').length >= 2);
+  await realService.indexDocuments([...initialDocuments, headinglessDocument], { force: false });
+  const headinglessResults = await realService.search('候鸟在夜间怎样找到迁徙方向', 12);
+  assert.equal(headinglessResults[0]?.docId, 'headingless-article');
+  assert.ok(headinglessResults.slice(0, 3).some((result) => result.snippet.includes('地磁感知')));
+
   const beeDocument = semanticDocument('bee-notes', '蜂群观察', '# 蜂群协作\n\n工蜂通过舞蹈向同伴传递花源的方向和距离。');
   await realService.indexDocuments([...initialDocuments, beeDocument], { force: false });
   const beeResults = await realService.search('蜜蜂怎样告诉同伴花在哪里', 12);
@@ -422,4 +462,4 @@ try {
   await restartService.dispose();
 }
 
-console.log(`semantic search tests passed: ${hierarchySentences.length} exact sentences, ${lateUnits.length} long-book units, 5 user-query recalls, incremental Meilisearch lifecycle verified`);
+console.log(`semantic search tests passed: ${hierarchySentences.length} exact sentences, ${lateUnits.length} long-book units, ${headinglessPassages.length} headingless passages, 6 user-query recalls, incremental Meilisearch lifecycle verified`);

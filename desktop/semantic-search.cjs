@@ -5,7 +5,7 @@ const { MeilisearchHttpError, MeilisearchProcess } = require('./meilisearch-proc
 
 const INDEX_SCHEMA_VERSION = 4;
 const INDEX_UID = `guanyi_content_v${INDEX_SCHEMA_VERSION}`;
-const INDEX_SETTINGS_VERSION = 1;
+const INDEX_SETTINGS_VERSION = 2;
 const EMBEDDER_NAME = 'bgeZh';
 const MODEL_ID = 'Xenova/bge-small-zh-v1.5';
 const MODEL_REVISION = '75c43b069aac4d136ba6bc1122f995fedcfd2781';
@@ -231,9 +231,12 @@ class SemanticSearchService {
         section: clampText(unit?.section, 500),
         chapterId: clampText(unit?.chapterId, 240),
         sectionId: clampText(unit?.sectionId, 240),
+        passageId: clampText(unit?.passageId, 240),
+        passageIds: [...new Set((Array.isArray(unit?.passageIds) ? unit.passageIds : [unit?.passageId])
+          .map((id) => clampText(id, 240)).filter(Boolean))],
         paragraphId: clampText(unit?.paragraphId, 240),
         sentenceId: clampText(unit?.sentenceId, 240),
-        granularity: ['sentence', 'paragraph', 'section', 'chapter'].includes(unit?.granularity) ? unit.granularity : 'paragraph',
+        granularity: ['sentence', 'paragraph', 'passage', 'section', 'chapter'].includes(unit?.granularity) ? unit.granularity : 'paragraph',
         start: Math.max(0, Number(unit?.start) || 0),
         end: Math.max(0, Number(unit?.end) || 0)
       })).filter((unit) => unit.unitId && unit.text.trim() && unit.end >= unit.start) : [];
@@ -327,9 +330,9 @@ class SemanticSearchService {
       displayedAttributes: [
         'id', 'docId', 'fingerprint', 'title', 'path', 'unitId', 'granularity',
         'start', 'end', 'snippet', 'text', 'heading', 'chapter', 'section',
-        'chapterId', 'sectionId', 'paragraphId', 'sentenceId'
+        'chapterId', 'sectionId', 'passageId', 'passageIds', 'paragraphId', 'sentenceId'
       ],
-      filterableAttributes: ['docId', 'granularity', 'chapterId', 'sectionId', 'paragraphId'],
+      filterableAttributes: ['docId', 'granularity', 'chapterId', 'sectionId', 'passageId', 'passageIds', 'paragraphId'],
       rankingRules: ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
       embedders: { [EMBEDDER_NAME]: { source: 'userProvided', dimensions: MODEL_DIMENSIONS } }
     }));
@@ -387,6 +390,8 @@ class SemanticSearchService {
       section: unit.section,
       chapterId: unit.chapterId,
       sectionId: unit.sectionId,
+      passageId: unit.passageId,
+      passageIds: unit.passageIds,
       paragraphId: unit.paragraphId,
       sentenceId: unit.sentenceId,
       _vectors: { [EMBEDDER_NAME]: Array.from(vector) }
@@ -408,6 +413,7 @@ class SemanticSearchService {
     const sentences = document.units.filter((unit) => unit.granularity === 'sentence');
     const accumulators = {
       paragraph: new VectorAccumulator(),
+      passage: new VectorAccumulator(),
       section: new VectorAccumulator(),
       chapter: new VectorAccumulator()
     };
@@ -419,6 +425,7 @@ class SemanticSearchService {
       const records = batch.map((unit, index) => {
         const vector = vectors[index];
         accumulators.paragraph.add(unit.paragraphId, vector);
+        unit.passageIds.forEach((passageId) => accumulators.passage.add(passageId, vector));
         accumulators.section.add(unit.sectionId, vector);
         accumulators.chapter.add(unit.chapterId, vector);
         const record = this.recordFor(document, unit, vector);
@@ -435,8 +442,9 @@ class SemanticSearchService {
     const parentRecords = [];
     for (const unit of document.units.filter((candidate) => candidate.granularity !== 'sentence')) {
       const key = unit.granularity === 'paragraph' ? unit.paragraphId
-        : unit.granularity === 'section' ? unit.sectionId
-          : unit.chapterId;
+        : unit.granularity === 'passage' ? unit.passageId
+          : unit.granularity === 'section' ? unit.sectionId
+            : unit.chapterId;
       const vector = accumulators[unit.granularity]?.normalized(key);
       if (!vector) continue;
       const record = this.recordFor(document, unit, vector);
@@ -500,7 +508,7 @@ class SemanticSearchService {
       attributesToRetrieve: [
         'id', 'docId', 'title', 'path', 'unitId', 'granularity', 'start', 'end',
         'snippet', 'text', 'heading', 'chapter', 'section', 'chapterId', 'sectionId',
-        'paragraphId', 'sentenceId'
+        'passageId', 'passageIds', 'paragraphId', 'sentenceId'
       ]
     };
   }
@@ -526,6 +534,7 @@ class SemanticSearchService {
   hierarchyFilter(hit) {
     const filters = [`granularity = ${meiliString('sentence')}`, `docId = ${meiliString(hit.docId)}`];
     if (hit.granularity === 'paragraph') filters.push(`paragraphId = ${meiliString(hit.paragraphId)}`);
+    else if (hit.granularity === 'passage') filters.push(`passageIds = ${meiliString(hit.passageId)}`);
     else if (hit.granularity === 'section') filters.push(`sectionId = ${meiliString(hit.sectionId)}`);
     else if (hit.granularity === 'chapter') filters.push(`chapterId = ${meiliString(hit.chapterId)}`);
     return filters.join(' AND ');

@@ -58,7 +58,11 @@
   const SEMANTIC_RESULT_LIMIT = 24;
   const SEMANTIC_SENTENCE_MAX_LENGTH = 620;
   const SEMANTIC_MAX_UNITS_PER_DOCUMENT = 1000000;
-  const SEMANTIC_CHUNKING_VERSION = 2;
+  const SEMANTIC_CHUNKING_VERSION = 3;
+  const SEMANTIC_PASSAGE_TARGET_LENGTH = 1000;
+  const SEMANTIC_PASSAGE_MAX_LENGTH = 1800;
+  const SEMANTIC_PASSAGE_MAX_PARAGRAPHS = 6;
+  const SEMANTIC_PASSAGE_OVERLAP_PARAGRAPHS = 2;
 
   const state = { docs: [], directories: [], currentDocId: null, viewMode: 'split', splitRatio: 0.5, theme: 'light', myDocsCollapsed: false };
   let saveTimer = null, renderTimer = null, syncScrollLock = false;
@@ -4303,6 +4307,39 @@
     flushParagraph();
     if (!paragraphs.length) return [];
 
+    const paragraphGroups = [];
+    paragraphs.forEach((paragraph) => {
+      const container = `${paragraph.chapterId}\n${paragraph.sectionId}`;
+      const previous = paragraphGroups.at(-1);
+      if (!previous || previous.container !== container) paragraphGroups.push({ container, paragraphs: [paragraph] });
+      else previous.paragraphs.push(paragraph);
+    });
+    const passages = [];
+    paragraphGroups.forEach((group) => {
+      let startIndex = 0;
+      while (startIndex < group.paragraphs.length) {
+        let endIndex = startIndex, length = 0;
+        while (endIndex < group.paragraphs.length && endIndex - startIndex < SEMANTIC_PASSAGE_MAX_PARAGRAPHS) {
+          const paragraphLength = group.paragraphs[endIndex].body.length + (endIndex > startIndex ? 2 : 0);
+          if (endIndex > startIndex && length + paragraphLength > SEMANTIC_PASSAGE_MAX_LENGTH) break;
+          length += paragraphLength;
+          endIndex += 1;
+          if (endIndex - startIndex >= 2 && length >= SEMANTIC_PASSAGE_TARGET_LENGTH) break;
+        }
+        if (endIndex === startIndex) endIndex += 1;
+        const passageParagraphs = group.paragraphs.slice(startIndex, endIndex);
+        const passageId = `passage-${passages.length + 1}`;
+        passageParagraphs.forEach((paragraph) => {
+          paragraph.passageIds ||= [];
+          paragraph.passageIds.push(passageId);
+        });
+        passages.push({ id: passageId, paragraphs: passageParagraphs });
+        if (endIndex >= group.paragraphs.length) break;
+        const overlap = Math.min(SEMANTIC_PASSAGE_OVERLAP_PARAGRAPHS, Math.max(0, passageParagraphs.length - 1));
+        startIndex = Math.max(startIndex + 1, endIndex - overlap);
+      }
+    });
+
     const sentenceUnits = [];
     const paragraphUnits = [];
     for (const paragraph of paragraphs) {
@@ -4320,6 +4357,8 @@
           unitId: sentence.id,
           sentenceId: sentence.id,
           paragraphId: paragraph.id,
+          passageId: paragraph.passageIds[0],
+          passageIds: paragraph.passageIds,
           sectionId: paragraph.sectionId,
           chapterId: paragraph.chapterId,
           granularity: 'sentence',
@@ -4337,6 +4376,8 @@
         unitId: paragraph.id,
         sentenceId: '',
         paragraphId: paragraph.id,
+        passageId: paragraph.passageIds[0],
+        passageIds: paragraph.passageIds,
         sectionId: paragraph.sectionId,
         chapterId: paragraph.chapterId,
         granularity: 'paragraph',
@@ -4351,6 +4392,30 @@
       });
     }
 
+    const passageUnits = passages.map((passage) => {
+      const first = passage.paragraphs[0];
+      const last = passage.paragraphs.at(-1);
+      const text = passage.paragraphs.map((paragraph) => paragraph.body).join('\n\n');
+      return {
+        unitId: passage.id,
+        sentenceId: '',
+        paragraphId: '',
+        passageId: passage.id,
+        passageIds: [passage.id],
+        sectionId: first.sectionId,
+        chapterId: first.chapterId,
+        granularity: 'passage',
+        start: first.start,
+        end: last.end,
+        text,
+        semanticText: [first.heading, text].filter(Boolean).join('\n'),
+        snippet: text.slice(0, 1200),
+        heading: first.heading,
+        chapter: first.chapter,
+        section: first.section ? [first.chapter, first.section].filter(Boolean).join(' / ') : ''
+      };
+    });
+
     const parentUnit = (definition, granularity, groupedParagraphs) => {
       const start = Math.min(...groupedParagraphs.map((paragraph) => paragraph.start));
       const end = Math.max(...groupedParagraphs.map((paragraph) => paragraph.end));
@@ -4361,6 +4426,8 @@
         unitId: definition.id,
         sentenceId: '',
         paragraphId: '',
+        passageId: '',
+        passageIds: [],
         sectionId: granularity === 'section' ? definition.id : '',
         chapterId: granularity === 'chapter' ? definition.id : definition.chapterId,
         granularity,
@@ -4384,7 +4451,7 @@
       const grouped = paragraphs.filter((paragraph) => paragraph.chapterId === definition.id);
       return grouped.length ? [parentUnit(definition, 'chapter', grouped)] : [];
     });
-    return [...sentenceUnits, ...paragraphUnits, ...sectionUnits, ...chapterUnits].slice(0, SEMANTIC_MAX_UNITS_PER_DOCUMENT);
+    return [...sentenceUnits, ...paragraphUnits, ...passageUnits, ...sectionUnits, ...chapterUnits].slice(0, SEMANTIC_MAX_UNITS_PER_DOCUMENT);
   }
 
   function markSemanticIndexDirty(docId) {
