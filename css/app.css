@@ -716,6 +716,53 @@ html[data-theme="dark"] .theme-icon--sun { display: inline-flex; }
   outline: none;
 }
 html[data-theme="dark"] .app-link-menu__item { color: var(--ui-color-text-primary); }
+.app-image-edit-popover {
+  position: fixed; z-index: 1420;
+  width: min(380px, calc(100vw - 16px)); overflow: hidden;
+  border: 1px solid var(--ui-color-line-regular); border-radius: 8px;
+  color: var(--ui-color-text-primary); background: var(--ui-color-background-top);
+  box-shadow: var(--ui-shadow-raised);
+}
+.app-image-edit-popover[hidden] { display: none; }
+.app-image-edit-popover__header {
+  min-height: 42px; padding: 6px 8px 6px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--ui-color-line-light);
+}
+.app-image-edit-popover__header strong { font-size: 13px; }
+.app-image-edit-popover__body { padding: 10px 12px 12px; display: grid; gap: 10px; }
+.app-image-edit-actions { display: flex; gap: 6px; }
+.app-image-edit-actions .app-button { min-height: 30px; }
+.app-image-edit-actions .ui-icon,
+.app-image-edit-actions .ui-icon > svg { width: 16px; height: 16px; }
+.app-image-edit-field {
+  min-width: 0; display: grid; grid-template-columns: 62px minmax(0, 1fr);
+  align-items: center; gap: 8px; color: var(--ui-color-text-secondary); font-size: 12px;
+}
+.app-image-edit-field--size { grid-template-columns: 62px minmax(90px, 1fr) 42px 48px; }
+.app-image-edit-field input[type="range"] { width: 100%; accent-color: var(--ui-color-public-normal); }
+.app-image-edit-field output { color: var(--ui-color-text-primary); text-align: right; font-variant-numeric: tabular-nums; }
+.app-image-edit-field > input[type="text"] {
+  width: 100%; min-width: 0; height: 32px; padding: 0 9px;
+  border: 1px solid var(--ui-color-line-regular); border-radius: 6px; outline: none;
+  color: var(--ui-color-text-primary); background: var(--ui-color-background-container); font: inherit;
+}
+.app-image-edit-field > input[type="text"]:focus { border-color: var(--ui-color-line-public); box-shadow: 0 0 0 3px var(--ui-color-state-pressed-brand); }
+.app-image-edit-field--description { grid-template-columns: 62px minmax(0, 1fr) 48px; }
+.app-image-align-control {
+  width: max-content; display: inline-flex; padding: 2px;
+  border: 1px solid var(--ui-color-line-regular); border-radius: 6px;
+  background: var(--ui-color-background-container);
+}
+.app-image-align-control button {
+  width: 30px; height: 28px; padding: 0; border: 0; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ui-color-text-secondary); background: transparent; cursor: pointer;
+}
+.app-image-align-control button:hover { color: var(--ui-color-text-brand); background: var(--ui-color-state-hover); }
+.app-image-align-control button.is-active { color: var(--ui-color-text-brand); background: var(--ui-color-state-pressed-brand); }
+.app-image-align-control .ui-icon,
+.app-image-align-control .ui-icon > svg { width: 16px; height: 16px; }
 .editor-preview strong { font-weight: 600; }
 .editor-preview table { border-collapse: collapse; width: 100%; margin: 1em 0; }
 .editor-preview th, .editor-preview td { border: 1px solid var(--ui-color-line-regular, rgba(13,13,13,0.12)); padding: 8px 12px; }
@@ -740,9 +787,13 @@ html[data-theme="dark"] .app-link-menu__item { color: var(--ui-color-text-primar
   align-items: stretch; gap: 8px;
   width: 100%; margin: 1.35em 0;
 }
+.editor-preview .app-image-row[data-image-width] { width: var(--app-image-row-width); }
+.editor-preview .app-image-row[data-image-align="left"] { margin-left: 0; margin-right: auto; }
+.editor-preview .app-image-row[data-image-align="center"] { margin-left: auto; margin-right: auto; }
+.editor-preview .app-image-row[data-image-align="right"] { margin-left: auto; margin-right: 0; }
 .editor-preview .app-image-row > img {
   width: 100%; max-width: none; min-width: 0; min-height: 0; height: auto; margin: 0;
-  aspect-ratio: 4 / 3; object-fit: cover;
+  aspect-ratio: 4 / 3; object-fit: contain;
   background: var(--ui-color-background-container);
 }
 .editor-preview .app-image-row[data-image-count="4"] > img,
@@ -753,15 +804,35 @@ html[data-theme="dark"] .app-link-menu__item { color: var(--ui-color-text-primar
   width: auto; max-width: 100%; max-height: 520px; margin-inline: auto;
   aspect-ratio: auto; object-fit: contain;
 }
+.editor-preview .app-image-row[data-image-count="1"][data-image-width] > img { width: 100%; max-height: none; }
+.editor-preview .app-image-row[data-image-count="1"][data-image-align="left"] > img { margin-left: 0; margin-right: auto; }
+.editor-preview .app-image-row[data-image-count="1"][data-image-align="center"] > img { margin-left: auto; margin-right: auto; }
+.editor-preview .app-image-row[data-image-count="1"][data-image-align="right"] > img { margin-left: auto; margin-right: 0; }
 .editor-preview .app-preview-caret-paragraph {
   box-sizing: border-box;
   min-height: 1.8em;
   margin: 0.35em 0 0;
 }
 .app-export-capture .app-preview-caret-paragraph { display: none; }
+.app-export-capture .app-image-row > img.is-image-selected { outline: 0; box-shadow: none; }
+.app-image-crop-modal { width: min(820px, 100%); }
+.app-image-crop-body {
+  min-height: 340px; display: grid; place-items: center; overflow: auto;
+  background: var(--ui-color-background-container);
+}
+.app-image-crop-body canvas {
+  display: block; max-width: 100%; max-height: min(58vh, 520px);
+  border-radius: 4px;
+  background: repeating-conic-gradient(rgba(60,40,20,.08) 0 25%, transparent 0 50%) 0 / 16px 16px;
+  cursor: crosshair; touch-action: none;
+}
 .editor-preview .app-image-row > img[draggable="true"] {
   cursor: grab; user-select: none; -webkit-user-drag: element;
   transition: opacity .15s ease, box-shadow .15s ease;
+}
+.editor-preview .app-image-row > img.is-image-selected {
+  outline: 2px solid var(--ui-color-public-normal); outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--ui-color-state-pressed-brand);
 }
 .editor-preview .app-image-row > img.is-image-dragging { opacity: .38; cursor: grabbing; }
 .editor-preview .app-image-row.is-image-drop-target {

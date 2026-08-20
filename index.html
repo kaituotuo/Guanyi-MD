@@ -733,6 +733,53 @@ html[data-theme="dark"] .theme-icon--sun { display: inline-flex; }
   outline: none;
 }
 html[data-theme="dark"] .app-link-menu__item { color: var(--ui-color-text-primary); }
+.app-image-edit-popover {
+  position: fixed; z-index: 1420;
+  width: min(380px, calc(100vw - 16px)); overflow: hidden;
+  border: 1px solid var(--ui-color-line-regular); border-radius: 8px;
+  color: var(--ui-color-text-primary); background: var(--ui-color-background-top);
+  box-shadow: var(--ui-shadow-raised);
+}
+.app-image-edit-popover[hidden] { display: none; }
+.app-image-edit-popover__header {
+  min-height: 42px; padding: 6px 8px 6px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--ui-color-line-light);
+}
+.app-image-edit-popover__header strong { font-size: 13px; }
+.app-image-edit-popover__body { padding: 10px 12px 12px; display: grid; gap: 10px; }
+.app-image-edit-actions { display: flex; gap: 6px; }
+.app-image-edit-actions .app-button { min-height: 30px; }
+.app-image-edit-actions .ui-icon,
+.app-image-edit-actions .ui-icon > svg { width: 16px; height: 16px; }
+.app-image-edit-field {
+  min-width: 0; display: grid; grid-template-columns: 62px minmax(0, 1fr);
+  align-items: center; gap: 8px; color: var(--ui-color-text-secondary); font-size: 12px;
+}
+.app-image-edit-field--size { grid-template-columns: 62px minmax(90px, 1fr) 42px 48px; }
+.app-image-edit-field input[type="range"] { width: 100%; accent-color: var(--ui-color-public-normal); }
+.app-image-edit-field output { color: var(--ui-color-text-primary); text-align: right; font-variant-numeric: tabular-nums; }
+.app-image-edit-field > input[type="text"] {
+  width: 100%; min-width: 0; height: 32px; padding: 0 9px;
+  border: 1px solid var(--ui-color-line-regular); border-radius: 6px; outline: none;
+  color: var(--ui-color-text-primary); background: var(--ui-color-background-container); font: inherit;
+}
+.app-image-edit-field > input[type="text"]:focus { border-color: var(--ui-color-line-public); box-shadow: 0 0 0 3px var(--ui-color-state-pressed-brand); }
+.app-image-edit-field--description { grid-template-columns: 62px minmax(0, 1fr) 48px; }
+.app-image-align-control {
+  width: max-content; display: inline-flex; padding: 2px;
+  border: 1px solid var(--ui-color-line-regular); border-radius: 6px;
+  background: var(--ui-color-background-container);
+}
+.app-image-align-control button {
+  width: 30px; height: 28px; padding: 0; border: 0; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ui-color-text-secondary); background: transparent; cursor: pointer;
+}
+.app-image-align-control button:hover { color: var(--ui-color-text-brand); background: var(--ui-color-state-hover); }
+.app-image-align-control button.is-active { color: var(--ui-color-text-brand); background: var(--ui-color-state-pressed-brand); }
+.app-image-align-control .ui-icon,
+.app-image-align-control .ui-icon > svg { width: 16px; height: 16px; }
 .editor-preview strong { font-weight: 600; }
 .editor-preview table { border-collapse: collapse; width: 100%; margin: 1em 0; }
 .editor-preview th, .editor-preview td { border: 1px solid var(--ui-color-line-regular, rgba(13,13,13,0.12)); padding: 8px 12px; }
@@ -757,9 +804,13 @@ html[data-theme="dark"] .app-link-menu__item { color: var(--ui-color-text-primar
   align-items: stretch; gap: 8px;
   width: 100%; margin: 1.35em 0;
 }
+.editor-preview .app-image-row[data-image-width] { width: var(--app-image-row-width); }
+.editor-preview .app-image-row[data-image-align="left"] { margin-left: 0; margin-right: auto; }
+.editor-preview .app-image-row[data-image-align="center"] { margin-left: auto; margin-right: auto; }
+.editor-preview .app-image-row[data-image-align="right"] { margin-left: auto; margin-right: 0; }
 .editor-preview .app-image-row > img {
   width: 100%; max-width: none; min-width: 0; min-height: 0; height: auto; margin: 0;
-  aspect-ratio: 4 / 3; object-fit: cover;
+  aspect-ratio: 4 / 3; object-fit: contain;
   background: var(--ui-color-background-container);
 }
 .editor-preview .app-image-row[data-image-count="4"] > img,
@@ -770,15 +821,35 @@ html[data-theme="dark"] .app-link-menu__item { color: var(--ui-color-text-primar
   width: auto; max-width: 100%; max-height: 520px; margin-inline: auto;
   aspect-ratio: auto; object-fit: contain;
 }
+.editor-preview .app-image-row[data-image-count="1"][data-image-width] > img { width: 100%; max-height: none; }
+.editor-preview .app-image-row[data-image-count="1"][data-image-align="left"] > img { margin-left: 0; margin-right: auto; }
+.editor-preview .app-image-row[data-image-count="1"][data-image-align="center"] > img { margin-left: auto; margin-right: auto; }
+.editor-preview .app-image-row[data-image-count="1"][data-image-align="right"] > img { margin-left: auto; margin-right: 0; }
 .editor-preview .app-preview-caret-paragraph {
   box-sizing: border-box;
   min-height: 1.8em;
   margin: 0.35em 0 0;
 }
 .app-export-capture .app-preview-caret-paragraph { display: none; }
+.app-export-capture .app-image-row > img.is-image-selected { outline: 0; box-shadow: none; }
+.app-image-crop-modal { width: min(820px, 100%); }
+.app-image-crop-body {
+  min-height: 340px; display: grid; place-items: center; overflow: auto;
+  background: var(--ui-color-background-container);
+}
+.app-image-crop-body canvas {
+  display: block; max-width: 100%; max-height: min(58vh, 520px);
+  border-radius: 4px;
+  background: repeating-conic-gradient(rgba(60,40,20,.08) 0 25%, transparent 0 50%) 0 / 16px 16px;
+  cursor: crosshair; touch-action: none;
+}
 .editor-preview .app-image-row > img[draggable="true"] {
   cursor: grab; user-select: none; -webkit-user-drag: element;
   transition: opacity .15s ease, box-shadow .15s ease;
+}
+.editor-preview .app-image-row > img.is-image-selected {
+  outline: 2px solid var(--ui-color-public-normal); outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--ui-color-state-pressed-brand);
 }
 .editor-preview .app-image-row > img.is-image-dragging { opacity: .38; cursor: grabbing; }
 .editor-preview .app-image-row.is-image-drop-target {
@@ -1746,6 +1817,11 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
       <symbol id="gicon-delete" viewBox="0 0 16 16"><path class="gicon__accent gicon__accent--strong" d="M2 4.2h12M5 1.7h6"/><path class="gicon__ink" d="m3.5 4.2.85 9a1.15 1.15 0 0 0 1.15 1.05h5a1.15 1.15 0 0 0 1.15-1.05l.85-9M6.25 7v4.25M9.75 7v4.25"/></symbol>
       <symbol id="gicon-confirm" viewBox="0 0 16 16"><circle class="gicon__ink" cx="8" cy="8" r="6.25"/><path class="gicon__accent" d="m4.5 8 2.25 2.25 4.75-4.75"/></symbol>
       <symbol id="gicon-cancel" viewBox="0 0 16 16"><rect class="gicon__ink" x="1.75" y="1.75" width="12.5" height="12.5" rx="1.5"/><path class="gicon__accent" d="m5 5 6 6M11 5l-6 6"/></symbol>
+      <symbol id="gicon-crop" viewBox="0 0 16 16"><path class="gicon__ink" d="M4 1.75v8.5A1.75 1.75 0 0 0 5.75 12H14.25M1.75 4h8.5A1.75 1.75 0 0 1 12 5.75V14.25"/><path class="gicon__accent" d="M8 8h4V4"/></symbol>
+      <symbol id="gicon-download" viewBox="0 0 16 16"><path class="gicon__ink" d="M2.25 10.75V13A1.25 1.25 0 0 0 3.5 14.25h9A1.25 1.25 0 0 0 13.75 13v-2.25"/><path class="gicon__accent gicon__accent--strong" d="M8 1.75v8M4.75 6.75 8 10l3.25-3.25"/></symbol>
+      <symbol id="gicon-align-left" viewBox="0 0 16 16"><path class="gicon__ink" d="M2 3h12M2 6.5h8M2 10h12M2 13.5h8"/></symbol>
+      <symbol id="gicon-align-center" viewBox="0 0 16 16"><path class="gicon__ink" d="M2 3h12M4 6.5h8M2 10h12M4 13.5h8"/></symbol>
+      <symbol id="gicon-align-right" viewBox="0 0 16 16"><path class="gicon__ink" d="M2 3h12M6 6.5h8M2 10h12M6 13.5h8"/></symbol>
     </defs>
   </svg>
   <!-- 临时操作反馈：默认隐藏，不常驻 -->
@@ -1755,6 +1831,43 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
   <div class="app-link-menu" id="link-menu" role="menu" hidden>
     <button type="button" class="app-link-menu__item" id="link-menu-open" role="menuitem">打开链接</button>
   </div>
+
+  <section class="app-image-edit-popover" id="image-edit-popover" role="dialog" aria-labelledby="image-edit-title" hidden>
+    <header class="app-image-edit-popover__header">
+      <strong id="image-edit-title">图片</strong>
+      <button type="button" class="app-icon-button" id="btn-image-edit-close" aria-label="关闭图片编辑"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-close"/></svg></span></button>
+    </header>
+    <div class="app-image-edit-toolbar" role="toolbar" aria-label="图片编辑">
+      <button type="button" class="app-image-tool" data-image-tool="resize" aria-expanded="false" aria-controls="image-panel-resize"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-expand"/></svg></span><span>缩放</span></button>
+      <button type="button" class="app-image-tool" data-image-tool="align" aria-expanded="false" aria-controls="image-panel-align"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-align-center"/></svg></span><span>对齐</span></button>
+      <button type="button" class="app-image-tool" data-image-tool="description" aria-expanded="false" aria-controls="image-panel-description"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-text"/></svg></span><span>描述</span></button>
+      <button type="button" class="app-image-tool" id="btn-image-crop" aria-label="裁剪图片"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-crop"/></svg></span><span>裁剪</span></button>
+      <button type="button" class="app-image-tool" id="btn-image-download" aria-label="下载图片"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-download"/></svg></span><span>下载</span></button>
+    </div>
+    <div class="app-image-edit-popover__body">
+      <div class="app-image-edit-panel" id="image-panel-resize" data-image-panel="resize" hidden>
+      <div class="app-image-edit-field app-image-edit-field--size">
+        <span>显示大小</span>
+        <input id="image-size-range" type="range" min="25" max="100" step="5" value="100" aria-label="图片行显示大小">
+        <output id="image-size-value" for="image-size-range">自动</output>
+        <button type="button" class="app-button app-button--secondary" id="btn-image-size-auto">自动</button>
+      </div>
+      </div>
+      <div class="app-image-edit-panel" id="image-panel-align" data-image-panel="align" hidden>
+        <div class="app-image-edit-field">
+        <span>对齐</span>
+        <div class="app-image-align-control" role="group" aria-label="图片行对齐方式">
+          <button type="button" data-image-align="left" title="左对齐" aria-label="左对齐"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-align-left"/></svg></span></button>
+          <button type="button" data-image-align="center" title="居中对齐" aria-label="居中对齐"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-align-center"/></svg></span></button>
+          <button type="button" data-image-align="right" title="右对齐" aria-label="右对齐"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-align-right"/></svg></span></button>
+        </div>
+      </div>
+      </div>
+      <div class="app-image-edit-panel" id="image-panel-description" data-image-panel="description" hidden>
+        <label class="app-image-edit-field app-image-edit-field--description"><span>图片描述</span><input id="image-description-input" type="text" maxlength="160" placeholder="简短描述图片内容" autocomplete="off"><button type="button" class="app-button app-button--primary" id="btn-image-description-save">保存</button></label>
+      </div>
+    </div>
+  </section>
 
   <!-- 拖拽遮罩 -->
   <div class="app-drop-mask" id="drop-mask" hidden>
@@ -2074,6 +2187,14 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
         </div>
         <footer class="app-modal__footer"><span></span><div class="app-modal__footer-actions"><button type="button" class="app-button app-button--secondary" id="btn-image-url-cancel">取消</button><button type="submit" class="app-button app-button--primary">插入图片</button></div></footer>
       </form>
+    </section>
+  </div>
+
+  <div class="app-modal-backdrop" id="image-crop-modal" aria-hidden="true" hidden>
+    <section class="app-modal app-image-crop-modal" role="dialog" aria-modal="true" aria-labelledby="image-crop-title">
+      <header class="app-modal__header"><div><h2 id="image-crop-title">裁剪图片</h2><p>框选需要保留的画面。</p></div></header>
+      <div class="app-modal__body app-image-crop-body"><canvas id="image-crop-canvas" aria-label="图片裁剪画布"></canvas></div>
+      <footer class="app-modal__footer"><button type="button" class="app-button app-button--secondary" id="btn-image-crop-reset">重置</button><div class="app-modal__footer-actions"><button type="button" class="app-button app-button--secondary" id="btn-image-crop-cancel">取消</button><button type="button" class="app-button app-button--primary" id="btn-image-crop-apply">应用裁剪</button></div></footer>
     </section>
   </div>
 
@@ -2868,6 +2989,11 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   let previewImageRenderToken = 0;
   let previewImagesReady = Promise.resolve();
   let draggedPreviewImage = null, previewImageDragSourceRow = null;
+  let selectedPreviewImage = null;
+  let selectedPreviewImageIndex = -1;
+  let selectedPreviewImageDocId = null;
+  let imageCropState = null;
+  let imageSizeCommitTimer = null;
   let previewInputTimer = null;
   let previewPointerDown = null;
   const previewImageObjectUrls = new Set();
@@ -3011,6 +3137,21 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     els.imageAltInput = $('image-alt-input');
     els.btnImageUrlClose = $('btn-image-url-close');
     els.btnImageUrlCancel = $('btn-image-url-cancel');
+    els.imageEditPopover = $('image-edit-popover');
+    els.imageEditTitle = $('image-edit-title');
+    els.imageSizeRange = $('image-size-range');
+    els.imageSizeValue = $('image-size-value');
+    els.btnImageSizeAuto = $('btn-image-size-auto');
+    els.imageDescriptionInput = $('image-description-input');
+    els.btnImageDescriptionSave = $('btn-image-description-save');
+    els.btnImageCrop = $('btn-image-crop');
+    els.btnImageDownload = $('btn-image-download');
+    els.btnImageEditClose = $('btn-image-edit-close');
+    els.imageCropModal = $('image-crop-modal');
+    els.imageCropCanvas = $('image-crop-canvas');
+    els.imageCropReset = $('btn-image-crop-reset');
+    els.imageCropCancel = $('btn-image-crop-cancel');
+    els.imageCropApply = $('btn-image-crop-apply');
   }
 
   function initMarked() {
@@ -3029,6 +3170,16 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
         n.getAttribute('data-md-image-source') || '',
         n.getAttribute('title') || ''
       )
+    });
+    turndownService.addRule('imageRowMetadata', {
+      filter: (n) => n.nodeName === 'P' && n.classList.contains('app-image-row'),
+      replacement: (content, n) => {
+        const metadata = imageRowMetadataComment({
+          width: n.dataset.imageWidth || 'auto',
+          align: n.dataset.imageAlign || 'center'
+        });
+        return `\n\n${metadata ? `${metadata}\n` : ''}${content.trim()}\n\n`;
+      }
     });
     turndownService.addRule('previewCaretPlaceholder', {
       filter: (n) => n.nodeName === 'P'
@@ -3682,6 +3833,72 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     return [...paragraph.childNodes].every((node) => node.nodeType === Node.TEXT_NODE ? !node.textContent.trim() : node.nodeName === 'IMG');
   }
 
+  function parseImageRowMetadata(comment) {
+    const source = String(comment || '').trim();
+    if (!source.startsWith('guanyi:image')) return null;
+    const metadata = {};
+    source.replace(/(?:^|\s)(width|align)=([^\s]+)/g, (_match, key, value) => {
+      if (key === 'width') {
+        const width = Number(value);
+        if (Number.isFinite(width) && width >= 25 && width <= 100) metadata.width = Math.round(width);
+      } else if (/^(?:left|center|right)$/.test(value)) {
+        metadata.align = value;
+      }
+      return _match;
+    });
+    return metadata;
+  }
+
+  function imageRowMetadataComment(metadata = {}) {
+    const parts = [];
+    if (metadata.width && metadata.width !== 'auto') parts.push(`width=${Math.max(25, Math.min(100, Number(metadata.width) || 100))}`);
+    if (metadata.align && metadata.align !== 'center') parts.push(`align=${metadata.align}`);
+    return parts.length ? `<!-- guanyi:image ${parts.join(' ')} -->` : '';
+  }
+
+  function imageMetadataCommentBefore(block) {
+    let node = block?.previousSibling || null;
+    while (node && node.nodeType === Node.TEXT_NODE && !node.textContent.trim()) node = node.previousSibling;
+    return node?.nodeType === Node.COMMENT_NODE && String(node.data || '').trim().startsWith('guanyi:image') ? node : null;
+  }
+
+  function imageRowMetadataFor(block) {
+    const comment = imageMetadataCommentBefore(block);
+    const parsed = parseImageRowMetadata(comment?.data);
+    return parsed || {};
+  }
+
+  function applyImageRowPresentation(row, metadata = {}) {
+    const width = metadata.width && metadata.width !== 'auto'
+      ? Math.max(25, Math.min(100, Number(metadata.width) || 100))
+      : null;
+    const align = /^(?:left|center|right)$/.test(metadata.align || '') ? metadata.align : (width ? 'center' : null);
+    if (width) {
+      row.dataset.imageWidth = String(width);
+      row.style.setProperty('--app-image-row-width', `${width}%`);
+    } else {
+      delete row.dataset.imageWidth;
+      row.style.removeProperty('--app-image-row-width');
+    }
+    if (align) row.dataset.imageAlign = align;
+    else delete row.dataset.imageAlign;
+  }
+
+  function setImageRowMetadata(row, metadata = {}) {
+    if (!row) return;
+    const normalized = {
+      width: metadata.width && metadata.width !== 'auto' ? Math.round(Math.max(25, Math.min(100, Number(metadata.width) || 100))) : null,
+      align: /^(?:left|center|right)$/.test(metadata.align || '') ? metadata.align : 'center'
+    };
+    const comment = imageMetadataCommentBefore(row);
+    const serialized = imageRowMetadataComment(normalized);
+    if (serialized) {
+      if (comment) comment.data = serialized.slice(5, -4).trim();
+      else row.before(document.createComment(serialized.slice(5, -4).trim()));
+    } else if (comment) comment.remove();
+    applyImageRowPresentation(row, normalized);
+  }
+
   function markPreviewImageRow(paragraph) {
     const images = [...paragraph.querySelectorAll(':scope > img')];
     const count = images.length;
@@ -3693,9 +3910,12 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     paragraph.setAttribute('aria-label', `图片组，共 ${count} 张`);
     paragraph.setAttribute('contenteditable', 'false');
     paragraph.dataset.mdAtomicBlock = 'image';
+    applyImageRowPresentation(paragraph, imageRowMetadataFor(paragraph));
     images.forEach((image) => {
       image.draggable = true;
       image.classList.add('app-image-row__item');
+      image.tabIndex = 0;
+      image.setAttribute('aria-selected', 'false');
     });
   }
 
@@ -3876,13 +4096,206 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
 
       const remainingSourceImages = originalSourceImages.filter((image) => image !== draggedPreviewImage);
       if (remainingSourceImages.length) rebuildPreviewImageRow(sourceRow, remainingSourceImages);
-      else sourceRow.remove();
+      else {
+        imageMetadataCommentBefore(sourceRow)?.remove();
+        sourceRow.remove();
+      }
       rebuildPreviewImageRow(targetRow, targetImages);
       clearPreviewImageDragState();
       if (commitPreviewImageOrder()) tip('图片已移入该行');
     });
 
     els.previewEditor.addEventListener('dragend', clearPreviewImageDragState);
+  }
+
+  function selectedImageRow() {
+    return selectedPreviewImage?.closest?.('.app-image-row') || null;
+  }
+
+  function selectedImageRowSettings() {
+    const row = selectedImageRow();
+    return {
+      width: row?.dataset.imageWidth ? Number(row.dataset.imageWidth) : null,
+      align: row?.dataset.imageAlign || 'center'
+    };
+  }
+
+  function positionImageEditPopover() {
+    if (!els.imageEditPopover || els.imageEditPopover.hidden || !selectedPreviewImage?.isConnected) return;
+    const imageRect = selectedPreviewImage.getBoundingClientRect();
+    const panelRect = els.imageEditPopover.getBoundingClientRect();
+    const gap = 10;
+    const viewportGap = 8;
+    const left = Math.min(
+      Math.max(viewportGap, imageRect.left),
+      Math.max(viewportGap, window.innerWidth - panelRect.width - viewportGap)
+    );
+    const above = imageRect.top - panelRect.height - gap;
+    const top = above >= viewportGap
+      ? above
+      : Math.min(window.innerHeight - panelRect.height - viewportGap, imageRect.bottom + gap);
+    els.imageEditPopover.style.left = `${Math.round(left)}px`;
+    els.imageEditPopover.style.top = `${Math.round(Math.max(viewportGap, top))}px`;
+  }
+
+  function syncImageEditControls() {
+    if (!selectedPreviewImage?.isConnected) return;
+    const row = selectedImageRow();
+    const images = row ? [...row.querySelectorAll(':scope > img')] : [];
+    const index = Math.max(0, images.indexOf(selectedPreviewImage));
+    const settings = selectedImageRowSettings();
+    if (els.imageEditTitle) {
+      els.imageEditTitle.textContent = images.length > 1
+        ? `图片 ${index + 1}/${images.length} · 本行 ${images.length} 张`
+        : '图片';
+    }
+    if (els.imageSizeRange) els.imageSizeRange.value = String(settings.width || 100);
+    if (els.imageSizeValue) els.imageSizeValue.textContent = settings.width ? `${settings.width}%` : '自动';
+    if (els.imageDescriptionInput) els.imageDescriptionInput.value = selectedPreviewImage.alt || '';
+    els.imageEditPopover?.querySelectorAll('[data-image-align]').forEach((button) => {
+      const active = button.dataset.imageAlign === settings.align;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  }
+
+  function clearSelectedPreviewImage(options = {}) {
+    const previous = selectedPreviewImage;
+    if (selectedPreviewImageDocId === state.currentDocId) flushPendingImageSizeCommit();
+    else clearTimeout(imageSizeCommitTimer);
+    imageSizeCommitTimer = null;
+    previous?.classList.remove('is-image-selected');
+    previous?.setAttribute('aria-selected', 'false');
+    selectedPreviewImage = null;
+    selectedPreviewImageIndex = -1;
+    selectedPreviewImageDocId = null;
+    if (els.imageEditPopover) els.imageEditPopover.hidden = true;
+    if (options.restoreFocus) previous?.focus?.({ preventScroll: true });
+  }
+
+  function selectPreviewImage(image, options = {}) {
+    if (!image?.matches?.('.app-image-row > img') || !els.previewEditor.contains(image)) return false;
+    if (selectedPreviewImage && selectedPreviewImage !== image) flushPendingImageSizeCommit();
+    selectedPreviewImage?.classList.remove('is-image-selected');
+    selectedPreviewImage?.setAttribute('aria-selected', 'false');
+    selectedPreviewImage = image;
+    selectedPreviewImageIndex = [...els.previewEditor.querySelectorAll('img')].indexOf(image);
+    selectedPreviewImageDocId = state.currentDocId;
+    image.classList.add('is-image-selected');
+    image.setAttribute('aria-selected', 'true');
+    if (els.imageEditPopover) els.imageEditPopover.hidden = false;
+    syncImageEditControls();
+    requestAnimationFrame(positionImageEditPopover);
+    if (options.focus) image.focus({ preventScroll: true });
+    lastEditSurface = 'preview';
+    return true;
+  }
+
+  function restoreSelectedPreviewImage() {
+    if (selectedPreviewImageIndex < 0 || selectedPreviewImageDocId !== state.currentDocId || !els.imageEditPopover || els.imageEditPopover.hidden) return;
+    const image = els.previewEditor.querySelectorAll('img')[selectedPreviewImageIndex];
+    if (image?.matches?.('.app-image-row > img')) selectPreviewImage(image);
+    else clearSelectedPreviewImage();
+  }
+
+  function commitSelectedImageRowSettings(settings, announce) {
+    const row = selectedImageRow();
+    if (!row) return false;
+    setImageRowMetadata(row, settings);
+    syncImageEditControls();
+    positionImageEditPopover();
+    if (!commitPreviewImageOrder()) return false;
+    if (announce) tip(announce);
+    return true;
+  }
+
+  function flushPendingImageSizeCommit(announce) {
+    const pending = imageSizeCommitTimer !== null;
+    clearTimeout(imageSizeCommitTimer);
+    imageSizeCommitTimer = null;
+    if (!pending || selectedPreviewImageDocId !== state.currentDocId || !selectedImageRow()) return false;
+    return commitSelectedImageRowSettings(selectedImageRowSettings(), announce);
+  }
+
+  function scheduleImageSizeCommit() {
+    clearTimeout(imageSizeCommitTimer);
+    imageSizeCommitTimer = setTimeout(() => {
+      imageSizeCommitTimer = null;
+      if (selectedPreviewImageDocId !== state.currentDocId || !selectedImageRow()) return;
+      commitSelectedImageRowSettings(selectedImageRowSettings());
+    }, 180);
+  }
+
+  function saveSelectedImageDescription() {
+    if (!selectedPreviewImage) return;
+    const description = markdownImageAlt(els.imageDescriptionInput?.value || '');
+    selectedPreviewImage.alt = description;
+    if (commitPreviewImageOrder()) tip(description ? '图片描述已更新' : '图片描述已清空');
+    syncImageEditControls();
+  }
+
+  function bindPreviewImageEditing() {
+    els.previewEditor.addEventListener('click', (event) => {
+      const image = event.target.closest?.('.app-image-row > img');
+      if (!image || !els.previewEditor.contains(image)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      selectPreviewImage(image, { focus: true });
+    });
+    els.previewEditor.addEventListener('keydown', (event) => {
+      const image = event.target.closest?.('.app-image-row > img');
+      if (!image) return;
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        selectPreviewImage(image);
+      } else if (event.key === 'Escape' && image === selectedPreviewImage) {
+        event.preventDefault();
+        clearSelectedPreviewImage({ restoreFocus: true });
+      }
+    });
+    els.imageEditPopover?.addEventListener('click', (event) => event.stopPropagation());
+    els.btnImageEditClose?.addEventListener('click', () => clearSelectedPreviewImage({ restoreFocus: true }));
+    els.imageSizeRange?.addEventListener('input', () => {
+      const settings = selectedImageRowSettings();
+      setImageRowMetadata(selectedImageRow(), { ...settings, width: Number(els.imageSizeRange.value) });
+      syncImageEditControls();
+      positionImageEditPopover();
+      scheduleImageSizeCommit();
+    });
+    els.imageSizeRange?.addEventListener('change', () => {
+      const settings = selectedImageRowSettings();
+      clearTimeout(imageSizeCommitTimer);
+      imageSizeCommitTimer = null;
+      commitSelectedImageRowSettings(settings, `图片行显示大小已设为 ${settings.width}%`);
+    });
+    els.btnImageSizeAuto?.addEventListener('click', () => {
+      const settings = selectedImageRowSettings();
+      commitSelectedImageRowSettings({ ...settings, width: null }, '图片行已恢复自动大小');
+    });
+    els.imageEditPopover?.querySelectorAll('[data-image-align]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const settings = selectedImageRowSettings();
+        const labels = { left: '左对齐', center: '居中对齐', right: '右对齐' };
+        commitSelectedImageRowSettings({ ...settings, align: button.dataset.imageAlign }, `图片行已${labels[button.dataset.imageAlign]}`);
+      });
+    });
+    els.btnImageDescriptionSave?.addEventListener('click', saveSelectedImageDescription);
+    els.imageDescriptionInput?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') { event.preventDefault(); saveSelectedImageDescription(); }
+    });
+    els.btnImageDownload?.addEventListener('click', downloadSelectedPreviewImage);
+    els.btnImageCrop?.addEventListener('click', openSelectedImageCrop);
+    document.addEventListener('click', (event) => {
+      if (!selectedPreviewImage) return;
+      if (els.imageEditPopover?.contains(event.target) || event.target.closest?.('.app-image-row > img')) return;
+      clearSelectedPreviewImage();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && selectedPreviewImage && els.imageCropModal?.hidden) clearSelectedPreviewImage({ restoreFocus: true });
+    });
+    els.previewWrap?.addEventListener('scroll', positionImageEditPopover, { passive: true });
+    window.addEventListener('resize', positionImageEditPopover);
   }
 
   function preparePreviewImageRows() {
@@ -3893,6 +4306,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
         markPreviewImageRow(paragraph);
         return;
       }
+      const metadata = imageRowMetadataFor(paragraph);
       const fragment = document.createDocumentFragment();
       for (let index = 0; index < images.length; index += 6) {
         const row = document.createElement('p');
@@ -3901,6 +4315,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
           row.appendChild(image);
         });
         markPreviewImageRow(row);
+        applyImageRowPresentation(row, metadata);
         fragment.appendChild(row);
       }
       paragraph.replaceWith(fragment);
@@ -3958,6 +4373,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     const imageToken = ++previewImageRenderToken;
     const started = pendingInputStarted;
     const md = getCurrentMarkdown();
+    if (selectedPreviewImageDocId && selectedPreviewImageDocId !== state.currentDocId) clearSelectedPreviewImage();
     if (typeof marked !== 'undefined') els.previewEditor.innerHTML = marked.parse(markdownForPreview(md));
     preparePreviewImageRows();
     ensurePreviewTrailingAtomicCaret();
@@ -3969,7 +4385,10 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     refreshCollaborationUI();
     applySearchNavigationHighlight();
     applyContentFindHighlight();
-    requestAnimationFrame(updateReadingProgress);
+    requestAnimationFrame(() => {
+      updateReadingProgress();
+      restoreSelectedPreviewImage();
+    });
     if (started !== null && typeof performance !== 'undefined') {
       const elapsed = performance.now() - started;
       window.__MD_EDITOR_LAST_RENDER_MS__ = elapsed;
@@ -4081,11 +4500,12 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     const chars = md.length;
     const viewMap = { source: '源码', preview: '预览', split: '分栏' };
     const dirtyLabel = isDocDirty(doc) ? ' · 未保存到文件' : '';
+    const detachedFileLabel = doc?.openedWithoutHandle ? ' · 下载副本，未关联原文件' : '';
     const directory = directoryForDoc(doc);
     const sourceLabel = directory ? ` · ${directory.name}` : '';
     const syncLabels = { conflict: ' · 磁盘版本冲突', missing: ' · 原文件缺失', 'permission-required': ' · 需要目录授权', updated: ' · 磁盘版本已更新' };
     const syncLabel = doc ? (syncLabels[doc.syncState] || '') : '';
-    els.statusText.textContent = `${doc?.name || '未命名文档'}${sourceLabel} · ${lines} 行 · ${chars} 字符 · 视图：${viewMap[state.viewMode] || '分栏'}${dirtyLabel}${syncLabel}`;
+    els.statusText.textContent = `${doc?.name || '未命名文档'}${sourceLabel} · ${lines} 行 · ${chars} 字符 · 视图：${viewMap[state.viewMode] || '分栏'}${dirtyLabel}${detachedFileLabel}${syncLabel}`;
     updateEditChrome();
     updateConflictBar();
   }
@@ -4798,6 +5218,19 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     };
   }
 
+  function imageInsertionSelectionAfterPreviewBlock(block, markdown) {
+    if (!block || !block.previousElementSibling) return null;
+    const previousText = normalizeCommentText(block.previousElementSibling.textContent || '');
+    if (!previousText) return null;
+    const lines = markdownLineInfos(markdown);
+    for (let index = lines.length - 1; index >= 0; index -= 1) {
+      if (markdownToPlain(lines[index].raw) === previousText) {
+        return { markdown, start: lines[index].end, end: lines[index].end };
+      }
+    }
+    return null;
+  }
+
   function applyFormatToPreview(action, level) {
     const activeRange = currentPreviewRange();
     const bookmark = previewSelectionBookmark(activeRange);
@@ -4940,6 +5373,94 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     return `![${markdownImageAlt(alt)}](${safeSource}${safeTitle ? ` "${safeTitle}"` : ''})`;
   }
 
+  function markdownCharacterIsEscaped(source, index) {
+    let slashes = 0;
+    for (let cursor = index - 1; cursor >= 0 && source[cursor] === '\\'; cursor -= 1) slashes += 1;
+    return slashes % 2 === 1;
+  }
+
+  function markdownImageTokens(markdown) {
+    const source = String(markdown || '');
+    const tokens = [];
+    const fenceRanges = imageFenceBlocks(source, imageInsertionLines(source));
+    let cursor = 0;
+    while (cursor < source.length - 3) {
+      const start = source.indexOf('![', cursor);
+      if (start < 0) break;
+      cursor = start + 2;
+      if (markdownCharacterIsEscaped(source, start)) continue;
+      let labelDepth = 1;
+      let labelEnd = -1;
+      for (let index = start + 2; index < source.length; index += 1) {
+        if (markdownCharacterIsEscaped(source, index)) continue;
+        if (source[index] === '[') labelDepth += 1;
+        if (source[index] === ']') {
+          labelDepth -= 1;
+          if (!labelDepth) { labelEnd = index; break; }
+        }
+      }
+      if (labelEnd < 0 || source[labelEnd + 1] !== '(') continue;
+      let parenDepth = 1;
+      let tokenEnd = -1;
+      let quote = '';
+      for (let index = labelEnd + 2; index < source.length; index += 1) {
+        const character = source[index];
+        if (markdownCharacterIsEscaped(source, index)) continue;
+        if ((character === '"' || character === "'") && (!quote || quote === character)) {
+          quote = quote ? '' : character;
+          continue;
+        }
+        if (quote) continue;
+        if (character === '(') parenDepth += 1;
+        if (character === ')') {
+          parenDepth -= 1;
+          if (!parenDepth) { tokenEnd = index + 1; break; }
+        }
+      }
+      if (tokenEnd < 0) continue;
+      cursor = tokenEnd;
+      if (fenceRanges.some((range) => start >= range.start && start < range.end)) continue;
+      const inner = source.slice(labelEnd + 2, tokenEnd - 1).trim();
+      let destination = '';
+      let remainder = '';
+      if (inner.startsWith('<')) {
+        const close = inner.indexOf('>');
+        destination = close >= 0 ? inner.slice(1, close) : inner;
+        remainder = close >= 0 ? inner.slice(close + 1).trim() : '';
+      } else {
+        let split = inner.length;
+        for (let index = 0; index < inner.length; index += 1) {
+          if (/\s/.test(inner[index]) && !markdownCharacterIsEscaped(inner, index)) { split = index; break; }
+        }
+        destination = inner.slice(0, split);
+        remainder = inner.slice(split).trim();
+      }
+      let title = '';
+      if (remainder.length >= 2) {
+        const first = remainder[0];
+        const last = remainder[remainder.length - 1];
+        if ((first === '"' && last === '"') || (first === "'" && last === "'") || (first === '(' && last === ')')) {
+          title = remainder.slice(1, -1).replace(/\\([\\"])/g, '$1');
+        }
+      }
+      const alt = source.slice(start + 2, labelEnd).replace(/\\([\\\]])/g, '$1');
+      tokens.push({ start, end: tokenEnd, altStart: start + 2, altEnd: labelEnd, alt, source: destination, title });
+    }
+    return tokens;
+  }
+
+  function updateMarkdownImage(markdown, imageIndex, changes = {}) {
+    const source = String(markdown || '');
+    const token = markdownImageTokens(source)[imageIndex];
+    if (!token) return null;
+    const next = markdownImageSyntax(
+      changes.alt === undefined ? token.alt : changes.alt,
+      changes.source === undefined ? token.source : changes.source,
+      changes.title === undefined ? token.title : changes.title
+    );
+    return source.slice(0, token.start) + next + source.slice(token.end);
+  }
+
   function normalizedHttpImageUrl(rawValue) {
     try {
       const url = new URL(String(rawValue || '').trim());
@@ -4999,13 +5520,36 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     return candidate;
   }
 
+  function canStoreImageBesideDocument(doc) {
+    return isDirectoryDoc(doc) || (isLocalFileDoc(doc) && !!doc.fileHandle);
+  }
+
+  async function imageAssetLocation(doc) {
+    if (isDirectoryDoc(doc)) {
+      const directory = directoryForDoc(doc);
+      if (!directory?.handle) throw new Error('目录授权已失效，请重新添加目录');
+      return { root: directory.handle, relativePath: doc.relativePath || doc.localFileName || documentFileName(doc) };
+    }
+    if (isLocalFileDoc(doc) && doc.fileHandle) {
+      let root;
+      try { root = await selectParentDirectory(doc); }
+      catch (error) {
+        if (error?.name === 'AbortError') throw new Error('需要授权文档所在文件夹，才能把图片写入 assets 目录');
+        throw error;
+      }
+      await persistDocHandles(doc);
+      return { root, relativePath: doc.fileHandle.name || doc.localFileName || documentFileName(doc) };
+    }
+    throw new Error('当前文档尚未关联可写文件');
+  }
+
   async function storeDirectoryImage(file, doc) {
     if (file.size > DIRECTORY_IMAGE_MAX_FILE_SIZE) throw new Error(`图片「${file.name || '未命名'}」超过 20 MB`);
-    const directory = directoryForDoc(doc);
-    if (!directory?.handle || !await ensureReadWritePermission(directory.handle)) throw new Error('未获得文档目录读写权限');
-    const docParts = normalizeRelativePath(doc.relativePath).split('/');
+    const location = await imageAssetLocation(doc);
+    if (!await ensureReadWritePermission(location.root)) throw new Error('未获得文档目录读写权限');
+    const docParts = normalizeRelativePath(location.relativePath).split('/');
     const docFileName = docParts.pop() || documentFileName(doc);
-    const parent = await directoryHandleAtPath(directory.handle, docParts);
+    const parent = await directoryHandleAtPath(location.root, docParts);
     const assets = await parent.getDirectoryHandle('assets', { create: true });
     const docFolderName = safeFileName(docFileName.replace(/\.(md|markdown|txt)$/i, ''));
     const docFolder = await assets.getDirectoryHandle(docFolderName, { create: true });
@@ -5022,14 +5566,21 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     };
   }
 
-  async function storeDataUrlImage(file, projectedCharacters) {
+  function inlineImageStorageMessage(doc) {
+    if (doc?.openedWithoutHandle || (isLocalFileDoc(doc) && !doc.fileHandle)) {
+      return '这份文档只是下载了副本，浏览器未关联原文件；请用「打开文档」重新打开该文件，或用「添加目录」载入后再插图';
+    }
+    return '浏览器文档中的内嵌图片已接近本地存储上限；请先保存文档并授权其所在文件夹，或用「添加目录」载入后再插图';
+  }
+
+  async function storeDataUrlImage(file, projectedCharacters, doc) {
     if (file.size > DATA_URL_IMAGE_MAX_FILE_SIZE) {
-      throw new Error(`当前文档未关联目录，图片「${file.name || '未命名'}」需小于 1 MB`);
+      throw new Error(`${inlineImageStorageMessage(doc)}；未关联目录时单张图片需小于 1 MB`);
     }
     const source = await fileAsDataUrl(file);
     if (!/^data:image\/(?:png|jpeg|gif|webp|avif);base64,/i.test(source)) throw new Error('图片格式无法安全写入当前文档');
     if (dataUrlCharactersInDocuments() + projectedCharacters + source.length > DATA_URL_IMAGE_MAX_TOTAL_CHARS) {
-      throw new Error('浏览器文档中的内嵌图片已接近本地存储上限，请先将文档放入目录后再插入');
+      throw new Error(inlineImageStorageMessage(doc));
     }
     return { source, cleanup: async () => {} };
   }
@@ -5056,9 +5607,13 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       || (!options.surface && (state.viewMode === 'preview' || (state.viewMode === 'split' && lastEditSurface === 'preview')));
     if (usePreview) {
       const range = options.range || currentPreviewRange();
+      const emptyPreviewBlock = range ? previewEmptyCaretBlock(range) : null;
+      // 先把刚输入的换行写回 Markdown，避免工具栏夺取焦点后按旧文档定位。
+      flushPendingPreviewCommit();
       const mapped = range ? previewMarkdownSelection(range) : null;
       if (mapped) {
-        const canonical = canonicalPreviewSelection(mapped, 'image');
+        const canonical = imageInsertionSelectionAfterPreviewBlock(emptyPreviewBlock, getCurrentMarkdown())
+          || canonicalPreviewSelection(mapped, 'image');
         if (!canonical) return null;
         return {
           docId: doc.id, surface: 'preview', sourceMarkdown: doc.content,
@@ -5365,16 +5920,18 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     try {
       const doc = currentDoc();
       for (const file of files) {
-        const item = isDirectoryDoc(doc)
+        const item = canStoreImageBesideDocument(doc)
           ? await storeDirectoryImage(file, doc)
-          : await storeDataUrlImage(file, projectedCharacters);
+          : await storeDataUrlImage(file, projectedCharacters, doc);
         projectedCharacters += item.source.length;
         stored.push({ ...item, alt: imageBaseName(file) });
       }
       if (state.currentDocId !== anchor.docId) throw new Error('已切换文档，未插入图片');
       const blocks = stored.map((item, index) => markdownImageSyntax(index === 0 && anchor.selectedText ? anchor.selectedText : item.alt, item.source));
       if (!applyImageBlocks(anchor, blocks)) throw new Error('图片插入位置已失效');
-      tip(files.length > 1 ? `已插入 ${files.length} 张图片` : (isDirectoryDoc(doc) ? '图片已写入文档 assets 目录' : '图片已内嵌到当前文档'));
+      tip(files.length > 1
+        ? `已插入 ${files.length} 张图片`
+        : (canStoreImageBesideDocument(doc) ? '图片已写入文档 assets 目录' : '图片已内嵌到当前文档'));
       return true;
     } catch (error) {
       await Promise.all(stored.map((item) => item.cleanup()));
@@ -5394,6 +5951,228 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     }
     tip('已插入网络图片');
     return true;
+  }
+
+  function downloadBlob(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = safeFileName(fileName);
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function previewImageBlob(image) {
+    if (!image) throw new Error('未选择图片');
+    const renderedSource = image.currentSrc || image.getAttribute('src') || '';
+    if (!renderedSource) throw new Error('图片尚未载入');
+    let response;
+    try { response = await fetch(renderedSource); }
+    catch (_error) { throw new Error('网络图片不允许跨域读取，无法下载或裁剪'); }
+    if (!response.ok) throw new Error(`图片读取失败（${response.status}）`);
+    const blob = await response.blob();
+    if (!String(blob.type || '').startsWith('image/')) throw new Error('读取到的内容不是图片');
+    return blob;
+  }
+
+  function imageFileNameForDownload(image, blob) {
+    const originalSource = image?.getAttribute('data-md-image-source') || '';
+    const sourceName = originalSource.split(/[?#]/, 1)[0].split('/').pop() || '';
+    let decoded = sourceName;
+    try { decoded = decodeURIComponent(sourceName); } catch (_error) { /* 保留原始名称 */ }
+    const extension = String(decoded).match(/\.(png|jpe?g|gif|webp|avif)$/i)?.[0]
+      || IMAGE_MIME_EXTENSIONS[String(blob?.type || '').toLowerCase()]
+      || '.png';
+    const base = safeFileName((decoded || image?.alt || '图片').replace(/\.(png|jpe?g|gif|webp|avif)$/i, ''));
+    return `${base}${extension}`;
+  }
+
+  async function downloadSelectedPreviewImage() {
+    const image = selectedPreviewImage;
+    if (!image) return;
+    els.btnImageDownload.disabled = true;
+    try {
+      const blob = await previewImageBlob(image);
+      const fileName = imageFileNameForDownload(image, blob);
+      downloadBlob(blob, fileName);
+      tip(`已下载 ${fileName}`);
+    } catch (error) {
+      tip(`图片下载失败：${error?.message || '未知错误'}`);
+    } finally {
+      els.btnImageDownload.disabled = false;
+    }
+  }
+
+  function loadImageFromBlob(blob) {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(blob);
+      const image = new Image();
+      image.onload = () => resolve({ image, objectUrl });
+      image.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('图片解码失败')); };
+      image.src = objectUrl;
+    });
+  }
+
+  function imageCropCanvasPoint(event) {
+    const rect = els.imageCropCanvas.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(els.imageCropCanvas.width, (event.clientX - rect.left) * els.imageCropCanvas.width / Math.max(1, rect.width))),
+      y: Math.max(0, Math.min(els.imageCropCanvas.height, (event.clientY - rect.top) * els.imageCropCanvas.height / Math.max(1, rect.height)))
+    };
+  }
+
+  function drawImageCropCanvas() {
+    if (!imageCropState) return;
+    const canvas = els.imageCropCanvas;
+    const context = canvas.getContext('2d');
+    const crop = imageCropState.crop;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(imageCropState.image, 0, 0, canvas.width, canvas.height);
+    context.fillStyle = 'rgba(20, 17, 14, .56)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.save();
+    context.beginPath();
+    context.rect(crop.x, crop.y, crop.width, crop.height);
+    context.clip();
+    context.drawImage(imageCropState.image, 0, 0, canvas.width, canvas.height);
+    context.restore();
+    context.strokeStyle = '#ffffff';
+    context.lineWidth = 2;
+    context.setLineDash([6, 4]);
+    context.strokeRect(crop.x + 1, crop.y + 1, Math.max(0, crop.width - 2), Math.max(0, crop.height - 2));
+    context.setLineDash([]);
+  }
+
+  function resetImageCropSelection() {
+    if (!imageCropState) return;
+    imageCropState.crop = { x: 0, y: 0, width: els.imageCropCanvas.width, height: els.imageCropCanvas.height };
+    drawImageCropCanvas();
+  }
+
+  function closeImageCrop() {
+    if (imageCropState?.objectUrl) URL.revokeObjectURL(imageCropState.objectUrl);
+    imageCropState = null;
+    setModalOpen(els.imageCropModal, false);
+    requestAnimationFrame(positionImageEditPopover);
+  }
+
+  async function openSelectedImageCrop() {
+    const image = selectedPreviewImage;
+    if (!image) return;
+    els.btnImageCrop.disabled = true;
+    try {
+      const blob = await previewImageBlob(image);
+      const loaded = await loadImageFromBlob(blob);
+      const scale = Math.min(1, 720 / loaded.image.naturalWidth, 480 / loaded.image.naturalHeight);
+      els.imageCropCanvas.width = Math.max(1, Math.round(loaded.image.naturalWidth * scale));
+      els.imageCropCanvas.height = Math.max(1, Math.round(loaded.image.naturalHeight * scale));
+      imageCropState = {
+        image: loaded.image,
+        objectUrl: loaded.objectUrl,
+        blob,
+        imageIndex: selectedPreviewImageIndex,
+        docId: state.currentDocId,
+        crop: { x: 0, y: 0, width: els.imageCropCanvas.width, height: els.imageCropCanvas.height },
+        dragStart: null
+      };
+      drawImageCropCanvas();
+      setModalOpen(els.imageCropModal, true);
+    } catch (error) {
+      tip(`无法裁剪图片：${error?.message || '未知错误'}`);
+    } finally {
+      els.btnImageCrop.disabled = false;
+    }
+  }
+
+  async function storeCroppedImage(blob, imageIndex) {
+    const doc = currentDoc();
+    if (!doc) throw new Error('当前文档已失效');
+    const token = markdownImageTokens(doc.content)[imageIndex];
+    if (!token) throw new Error('图片位置已失效');
+    const originalName = token.source.split(/[?#]/, 1)[0].split('/').pop() || token.alt || '图片';
+    let decodedName = originalName;
+    try { decodedName = decodeURIComponent(originalName); } catch (_error) { /* 保留原始名称 */ }
+    const file = new File([blob], `${safeFileName(decodedName.replace(/\.[^.]+$/, '') || '图片')}-裁剪.png`, { type: 'image/png' });
+    const stored = canStoreImageBesideDocument(doc)
+      ? await storeDirectoryImage(file, doc)
+      : await storeDataUrlImage(file, 0, doc);
+    const next = updateMarkdownImage(doc.content, imageIndex, { source: stored.source });
+    if (!next) { await stored.cleanup(); throw new Error('图片位置已失效'); }
+    setCurrentMarkdown(next);
+    renderPreview();
+  }
+
+  async function applyImageCrop() {
+    if (!imageCropState || imageCropState.docId !== state.currentDocId) return;
+    const stateAtStart = imageCropState;
+    const crop = stateAtStart.crop;
+    if (crop.width < 4 || crop.height < 4) { tip('裁剪区域过小'); return; }
+    els.imageCropApply.disabled = true;
+    try {
+      const scaleX = stateAtStart.image.naturalWidth / els.imageCropCanvas.width;
+      const scaleY = stateAtStart.image.naturalHeight / els.imageCropCanvas.height;
+      const output = document.createElement('canvas');
+      output.width = Math.max(1, Math.round(crop.width * scaleX));
+      output.height = Math.max(1, Math.round(crop.height * scaleY));
+      output.getContext('2d').drawImage(
+        stateAtStart.image,
+        crop.x * scaleX, crop.y * scaleY, crop.width * scaleX, crop.height * scaleY,
+        0, 0, output.width, output.height
+      );
+      const blob = await canvasToBlob(output);
+      const imageIndex = stateAtStart.imageIndex;
+      await storeCroppedImage(blob, imageIndex);
+      closeImageCrop();
+      tip('图片已裁剪，原图保留在资源目录中');
+    } catch (error) {
+      tip(`裁剪失败：${error?.message || '未知错误'}`);
+    } finally {
+      els.imageCropApply.disabled = false;
+    }
+  }
+
+  function bindImageCrop() {
+    els.imageCropCanvas?.addEventListener('pointerdown', (event) => {
+      if (!imageCropState) return;
+      event.preventDefault();
+      const point = imageCropCanvasPoint(event);
+      imageCropState.dragStart = point;
+      imageCropState.crop = { x: point.x, y: point.y, width: 0, height: 0 };
+      els.imageCropCanvas.setPointerCapture?.(event.pointerId);
+      drawImageCropCanvas();
+    });
+    els.imageCropCanvas?.addEventListener('pointermove', (event) => {
+      if (!imageCropState?.dragStart) return;
+      const point = imageCropCanvasPoint(event);
+      const start = imageCropState.dragStart;
+      imageCropState.crop = {
+        x: Math.min(start.x, point.x),
+        y: Math.min(start.y, point.y),
+        width: Math.abs(point.x - start.x),
+        height: Math.abs(point.y - start.y)
+      };
+      drawImageCropCanvas();
+    });
+    const finishCropDrag = (event) => {
+      if (!imageCropState?.dragStart) return;
+      imageCropState.dragStart = null;
+      els.imageCropCanvas.releasePointerCapture?.(event.pointerId);
+      if (imageCropState.crop.width < 4 || imageCropState.crop.height < 4) resetImageCropSelection();
+    };
+    els.imageCropCanvas?.addEventListener('pointerup', finishCropDrag);
+    els.imageCropCanvas?.addEventListener('pointercancel', finishCropDrag);
+    els.imageCropReset?.addEventListener('click', resetImageCropSelection);
+    els.imageCropCancel?.addEventListener('click', closeImageCrop);
+    els.imageCropApply?.addEventListener('click', applyImageCrop);
+    els.imageCropModal?.addEventListener('click', (event) => { if (event.target === els.imageCropModal) closeImageCrop(); });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || els.imageCropModal?.hidden) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      closeImageCrop();
+    });
   }
 
   function canvasToBlob(canvas) {
@@ -5860,7 +6639,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       doc.directoryHandle = null;
     }
     if (typeof window.showDirectoryPicker !== 'function') {
-      throw new Error('当前浏览器不支持同步重命名，请使用最新版 Chrome 或 Edge');
+      throw new Error('当前浏览器不支持授权文档所在文件夹，请使用最新版 Chrome、Edge 或桌面版');
     }
     const directory = await window.showDirectoryPicker({ mode: 'readwrite', startIn: doc.fileHandle });
     if (!await ensureReadWritePermission(directory)) throw new Error('未获得文件夹读写权限');
@@ -10251,7 +11030,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
         if (id) focusComment(id);
         return;
       }
-      if (event.target.closest('a, button, input')) return;
+      if (event.target.closest('a, button, input, img')) return;
       const block = topPreviewBlock(event.target);
       if (!block) return;
       els.previewEditor.querySelectorAll('.app-comment-block-target').forEach((item) => item.classList.remove('app-comment-block-target'));
@@ -10865,6 +11644,8 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     bindTablePicker();
     bindImageInsert();
     bindPreviewImageReorder();
+    bindPreviewImageEditing();
+    bindImageCrop();
     bindViewSeg();
     bindSplitResizer();
     bindDocList();
@@ -10893,6 +11674,10 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       insertTablePure,
       insertTable,
       markdownImageSyntax,
+      markdownImageTokens,
+      updateMarkdownImage,
+      parseImageRowMetadata,
+      imageRowMetadataComment,
       normalizedHttpImageUrl,
       isSupportedImageFile,
       normalizeImageInsertion,
