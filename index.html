@@ -200,7 +200,14 @@ body {
   color: var(--ui-color-text-secondary, rgba(13,13,13,0.66));
   border-top: 1px solid var(--ui-color-line-regular, rgba(13,13,13,0.12));
 }
-.app-sidebar__section--row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.app-sidebar__section--row { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.app-sidebar__section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
 .app-add-directory {
   height: 24px; padding: 0 5px; border: none; border-radius: 5px;
   display: inline-flex; align-items: center; gap: 3px;
@@ -1180,7 +1187,7 @@ select:focus-visible,
   font-size: 11px;
   letter-spacing: 0;
 }
-.app-sidebar__section-actions { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.app-sidebar__section-actions { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 0 0 auto; }
 .app-search-trigger {
   display: inline-flex;
   align-items: center;
@@ -1690,11 +1697,13 @@ html.is-desktop-client .app-drawer-mask { top: 0; }
             <input type="file" id="image-file-open" class="app-file-input" accept="image/png,image/jpeg,image/gif,image/webp,image/avif" multiple hidden />
           </div>
           <div class="app-sidebar__section app-sidebar__section--row">
-            <span>文档列表</span>
-            <div class="app-sidebar__section-actions">
+            <div class="app-sidebar__section-title">
+              <span>文档列表</span>
               <button type="button" class="app-search-trigger app-tree-toggle-all" id="btn-toggle-all-docs" title="折叠全部目录" aria-label="折叠全部目录" aria-controls="doc-list" aria-expanded="true">
                 <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-collapse-all"/></svg></span>
               </button>
+            </div>
+            <div class="app-sidebar__section-actions">
               <button type="button" class="app-search-trigger" id="btn-search-docs" title="搜索文档 (Ctrl/Cmd+Shift+F)" aria-label="搜索文档">
                 <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-search"/></svg></span>
               </button>

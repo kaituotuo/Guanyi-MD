@@ -183,7 +183,14 @@ body {
   color: var(--ui-color-text-secondary, rgba(13,13,13,0.66));
   border-top: 1px solid var(--ui-color-line-regular, rgba(13,13,13,0.12));
 }
-.app-sidebar__section--row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.app-sidebar__section--row { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.app-sidebar__section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
 .app-add-directory {
   height: 24px; padding: 0 5px; border: none; border-radius: 5px;
   display: inline-flex; align-items: center; gap: 3px;
@@ -1163,7 +1170,7 @@ select:focus-visible,
   font-size: 11px;
   letter-spacing: 0;
 }
-.app-sidebar__section-actions { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.app-sidebar__section-actions { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 0 0 auto; }
 .app-search-trigger {
   display: inline-flex;
   align-items: center;

@@ -37,8 +37,17 @@ assert.equal(helpers.shouldIgnoreDirectoryEntry('book.txt', 'file', 0), false);
 assert.equal(helpers.shouldIgnoreDirectoryEntry('level-five', 'directory', 5), true);
 
 const indexSource = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+const cssSource = await readFile(new URL('../css/app.css', import.meta.url), 'utf8');
+const sectionTitleStart = indexSource.indexOf('class="app-sidebar__section-title"');
+const sectionTitleEnd = indexSource.indexOf('class="app-sidebar__section-actions"', sectionTitleStart);
+const toggleButtonPosition = indexSource.indexOf('id="btn-toggle-all-docs"');
 const addButtonPosition = indexSource.indexOf('id="btn-add-directory"');
 const refreshButtonPosition = indexSource.indexOf('id="btn-refresh-directories"');
+assert.ok(
+  sectionTitleStart >= 0 && toggleButtonPosition > sectionTitleStart && toggleButtonPosition < sectionTitleEnd,
+  'collapse toggle should sit beside the document-list title'
+);
+assert.match(cssSource, /\.app-sidebar__section-title\s*\{[^}]*white-space:\s*nowrap;/s, 'document-list title should stay on one line');
 assert.ok(addButtonPosition >= 0 && refreshButtonPosition > addButtonPosition, 'refresh should follow Add Folder');
 assert.match(appSource, /btnRefreshDirectories\.addEventListener\('click', refreshAllDirectories\)/);
 assert.match(appSource, /scanDirectory\(directory, \{ interactive: true, announce: false \}\)/);
