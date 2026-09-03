@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>观绎 MD 帮助</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --paper: #f6f4f1;
+      --surface: #fff;
+      --ink: #24201d;
+      --muted: #756d66;
+      --line: #ded8d2;
+      --accent: #e34a24;
+      --accent-soft: #f9e6df;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 14px/1.7 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      letter-spacing: 0;
+    }
+    .layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 30px 18px;
+      border-right: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+    }
+    .brand { padding: 0 10px 24px; border-bottom: 1px solid var(--line); }
+    .brand strong { display: block; font: 650 20px/1.2 "Songti SC", "Noto Serif CJK SC", serif; }
+    .brand span { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+    nav { display: grid; gap: 4px; margin-top: 18px; }
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-weight: 550;
+    }
+    nav a:hover, nav a:focus-visible { color: var(--ink); background: var(--accent-soft); outline: none; }
+    main { width: min(100%, 800px); padding: 42px clamp(28px, 6vw, 72px) 96px; }
+    section { scroll-margin-top: 28px; padding: 0 0 46px; margin-bottom: 38px; border-bottom: 1px solid var(--line); }
+    section:last-child { border-bottom: 0; }
+    section:target h1, section:target h2 { color: var(--accent); }
+    h1, h2, h3 { font-family: "Songti SC", "Noto Serif CJK SC", serif; letter-spacing: 0; }
+    h1 { margin: 0 0 12px; font-size: 30px; line-height: 1.3; }
+    h2 { margin: 0 0 18px; font-size: 23px; }
+    h3 { margin: 26px 0 8px; font-size: 16px; }
+    p { margin: 0 0 12px; }
+    .lede { color: var(--muted); font-size: 15px; }
+    .notice { margin: 20px 0; padding: 14px 16px; border-left: 3px solid var(--accent); background: var(--accent-soft); }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 12px; font-weight: 600; }
+    kbd, code {
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 1px 6px;
+      font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    ul, ol { padding-left: 22px; }
+    li + li { margin-top: 6px; }
+    @media (max-width: 720px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; padding: 18px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .brand { padding-bottom: 14px; }
+      nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      main { padding: 30px 22px 64px; }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --paper: #1d1b19; --surface: #262320; --ink: #eee9e3; --muted: #b6aea6; --line: #45403b; --accent: #ff6840; --accent-soft: #3b2923; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside>
+      <div class="brand"><strong>观绎 MD</strong><span>俯仰观物，绎述我心。</span></div>
+      <nav aria-label="帮助目录">
+        <a href="#guide">使用指南</a>
+        <a href="#markdown">Markdown</a>
+        <a href="#shortcuts">快捷键</a>
+        <a href="#search">搜索与索引</a>
+        <a href="#privacy">数据与隐私</a>
+      </nav>
+    </aside>
+    <main>
+      <section id="guide">
+        <h1>观绎 MD 使用指南</h1>
+        <p class="lede">编辑、阅读与检索都围绕本机文档进行，登录不是打开和编辑本地文档的前提。</p>
+        <h3>开始一份文档</h3>
+        <ol>
+          <li>使用“文件 > 新建文档”创建本地文档，或“打开文档”载入 Markdown / TXT。</li>
+          <li>使用“添加目录”将常用文库加入左侧文档列表；手动刷新会同步磁盘新增、修改、移动和删除。</li>
+          <li>在源码、预览和分栏视图间切换。TXT 会使用文学阅读排版，源文字与换行保持不变。</li>
+        </ol>
+        <div class="notice">移除文档或目录只会移出观绎 MD 的列表，不会删除磁盘上的真实文件。</div>
+      </section>
+
+      <section id="markdown">
+        <h2>Markdown 快速参考</h2>
+        <table>
+          <thead><tr><th>目的</th><th>写法</th></tr></thead>
+          <tbody>
+            <tr><td>标题</td><td><code># 一级标题</code> 至 <code>###### 六级标题</code></td></tr>
+            <tr><td>强调</td><td><code>**粗体**</code>、<code>*斜体*</code>、<code>~~删除线~~</code></td></tr>
+            <tr><td>列表</td><td><code>- 无序</code>、<code>1. 有序</code>、<code>- [ ] 任务</code></td></tr>
+            <tr><td>引用与代码</td><td><code>&gt; 引用</code>、<code>`行内代码`</code>、三个反引号代码块</td></tr>
+            <tr><td>图片</td><td><code>![描述](图片路径)</code>，预览中可缩放、裁剪、对齐和编辑描述</td></tr>
+          </tbody>
+        </table>
+        <p>列表回车会延续当前规则；空列表再次回车会退出列表。TXT 文档不会启用 Markdown 格式命令。</p>
+      </section>
+
+      <section id="shortcuts">
+        <h2>键盘快捷键</h2>
+        <table>
+          <thead><tr><th>操作</th><th>macOS</th></tr></thead>
+          <tbody>
+            <tr><td>新建 / 打开 / 保存</td><td><kbd>⌘N</kbd> / <kbd>⌘O</kbd> / <kbd>⌘S</kbd></td></tr>
+            <tr><td>撤销 / 重做</td><td><kbd>⌘Z</kbd> / <kbd>⇧⌘Z</kbd></td></tr>
+            <tr><td>查找 / 替换</td><td><kbd>⌘F</kbd> / <kbd>⌥⌘F</kbd></td></tr>
+            <tr><td>搜索文档库</td><td><kbd>⇧⌘F</kbd></td></tr>
+            <tr><td>粗体 / 斜体 / 链接</td><td><kbd>⌘B</kbd> / <kbd>⌘I</kbd> / <kbd>⌘K</kbd></td></tr>
+          </tbody>
+        </table>
+        <p><kbd>⌘H</kbd> 保留为 macOS 的“隐藏应用”，不会再与查找替换冲突。</p>
+      </section>
+
+      <section id="search">
+        <h2>本地搜索与索引</h2>
+        <p>统一搜索同时进行文件名、目录名、正文关键词与本地语义召回，结果可定位到当前打开文档中的原文位置。默认范围是当前编辑器已经添加的全部文档，也可切换为当前文档。</p>
+        <h3>索引更新</h3>
+        <p>添加目录、打开文档、文档保存或手动刷新目录后，变更内容会进入增量索引。语义服务暂不可用时，关键词搜索仍可继续使用。</p>
+        <h3>原文回答与问作品</h3>
+        <p>答案必须以实际召回的原文为证据；未找到足够证据时会明确降级，不会伪造出处。</p>
+      </section>
+
+      <section id="privacy">
+        <h2>数据与隐私</h2>
+        <ul>
+          <li>文档正文、已添加目录和本地语义索引默认保存在本机。</li>
+          <li>关键词与本地语义搜索不要求把文库上传到云端。</li>
+          <li>只有主动使用 AI 辅助阅读或问作品，并完成模型配置后，相关输入才会发送到所选模型服务。</li>
+          <li>API Key 不写入诊断信息；帮助窗口也不会读取当前文档、搜索问题或本地路径。</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

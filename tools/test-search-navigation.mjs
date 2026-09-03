@@ -3,12 +3,39 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
 const appSource = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+const scopeStart = appSource.indexOf('function searchScopeDocumentIds(');
+const scopeEnd = appSource.indexOf('\n  function documentsInSearchScope', scopeStart);
+assert.notEqual(scopeStart, -1, 'search scope helper should exist');
+assert.notEqual(scopeEnd, -1, 'search scope helper should have a stable boundary');
+const searchScopeDocumentIds = vm.runInNewContext(`(${appSource.slice(scopeStart, scopeEnd)})`);
+const scopedDocs = [
+  { id: 'mine-a', sourceKind: 'browser' },
+  { id: 'mine-b', sourceKind: 'browser', directoryId: null },
+  { id: 'dir-a-1', sourceKind: 'directory-file', directoryId: 'dir-a' },
+  { id: 'dir-a-2', sourceKind: 'directory-file', directoryId: 'dir-a' },
+  { id: 'dir-b-1', sourceKind: 'directory-file', directoryId: 'dir-b' },
+  { id: 'loose-a', sourceKind: 'local-file', desktopPath: '/books/a.md' },
+  { id: 'loose-b', sourceKind: 'local-file', desktopPath: '/books/b.txt' },
+  { id: 'loose-c', sourceKind: 'local-file' }
+];
+assert.deepEqual(
+  [...searchScopeDocumentIds(scopedDocs, 'dir-a-1', 'list')],
+  scopedDocs.map((doc) => doc.id),
+  'document-list scope should include every document added to the editor regardless of source or directory'
+);
+assert.deepEqual([...searchScopeDocumentIds(scopedDocs, 'dir-a-1', 'document')], ['dir-a-1'], 'document scope should search only the open document');
+assert.deepEqual(
+  [...searchScopeDocumentIds(scopedDocs, 'missing-current-doc', 'list')],
+  scopedDocs.map((doc) => doc.id),
+  'document-list scope should remain available even when no document is currently open'
+);
+assert.deepEqual([...searchScopeDocumentIds(scopedDocs, 'missing-current-doc', 'document')], [], 'current-document scope should be empty when no document is open');
 const helperStart = appSource.indexOf('function normalizedSearchTerms(');
 const helperEnd = appSource.indexOf('\n  function searchNavigationForResult', helperStart);
 assert.notEqual(helperStart, -1, 'normalizedSearchTerms should exist in js/app.js');
 assert.notEqual(helperEnd, -1, 'search range helpers should end before searchNavigationForResult');
-const { normalizedSearchTerms, resolveSearchSourceRange } = vm.runInNewContext(
-  `(() => { ${appSource.slice(helperStart, helperEnd)}; return { normalizedSearchTerms, resolveSearchSourceRange }; })()`
+const { normalizedSearchTerms, resolveSearchSourceRange, searchResultAnchorRange } = vm.runInNewContext(
+  `(() => { ${appSource.slice(helperStart, helperEnd)}; return { normalizedSearchTerms, resolveSearchSourceRange, searchResultAnchorRange }; })()`
 );
 
 assert.deepEqual(
@@ -29,6 +56,26 @@ assert.equal(yellowCover.anchorStart, sentenceStart, 'sentence navigation should
 assert.equal(yellowCover.anchorEnd, sentenceEnd, 'sentence navigation should preserve the semantic evidence boundary');
 assert.equal(yellowCover.start, threeKingdoms.indexOf('黄盖', sentenceStart), 'semantic navigation should select the evidence term');
 assert.equal(threeKingdoms.slice(yellowCover.start, yellowCover.end), '黄盖');
+
+const revisedDocument = '第一回\n\n旧段落。\n\n第二回\n\n周瑜大怒，喝令左右将黄盖拖翻，脊杖五十。';
+const revisedAnchor = searchResultAnchorRange(revisedDocument, {
+  start: 0,
+  end: 4,
+  quote: '周瑜大怒，喝令左右将黄盖拖翻，脊杖五十。'
+});
+assert.deepEqual(
+  { start: revisedAnchor.anchorStart, end: revisedAnchor.anchorEnd, strategy: revisedAnchor.strategy },
+  { start: revisedDocument.indexOf('周瑜大怒'), end: revisedDocument.length, strategy: 'quote' },
+  'a stale semantic offset should be repaired from the exact evidence quote'
+);
+
+const snippetAnchor = searchResultAnchorRange(revisedDocument, {
+  start: Number.NaN,
+  end: Number.NaN,
+  snippet: '…将黄盖拖翻，脊杖五十…'
+});
+assert.equal(revisedDocument.slice(snippetAnchor.anchorStart, snippetAnchor.anchorEnd), '将黄盖拖翻，脊杖五十');
+assert.equal(snippetAnchor.strategy, 'snippet');
 
 const phoenixSlope = '庞统行至落凤坡前，问此地名号。';
 const exact = resolveSearchSourceRange(phoenixSlope, 0, phoenixSlope.length, ['落凤坡']);
@@ -56,6 +103,88 @@ assert.match(semanticSearchFailureText(new Error('目录权限不足')), /目录
 
 const cssSource = await readFile(new URL('../css/app.css', import.meta.url), 'utf8');
 const indexSource = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+const preloadSource = await readFile(new URL('../desktop/preload.cjs', import.meta.url), 'utf8');
+const semanticSource = await readFile(new URL('../desktop/semantic-search.cjs', import.meta.url), 'utf8');
+assert.match(indexSource, /id="search-scope"[^>]+role="tablist"[^>]+aria-label="搜索范围"/, 'search modal should expose an accessible scope tablist');
+assert.match(indexSource, /data-search-scope="list"[^>]+aria-selected="true"[^>]*>当前文档列表</, 'document-list scope should be selected by default');
+assert.match(indexSource, /data-search-scope="document"[^>]+>当前打开文档</, 'current-document scope should be available');
+assert.match(cssSource, /\.app-search-scope__tab\.is-active/, 'active search scope should have a visible selected state');
+assert.match(appSource, /api\.search\(query, SEMANTIC_RESULT_LIMIT, semanticOptions\)/, 'semantic searches should receive the selected document scope');
+assert.match(appSource, /defaultSearchScope: 'list'/,
+  'search should default to the complete document list for a new installation');
+assert.match(appSource, /function openSearchModal\([\s\S]*?searchScope = state\.settings\?\.defaultSearchScope === 'current' \? 'document' : 'list';[\s\S]*?updateSearchScopeTabs\(\)/,
+  'each search session should honor the user-configured default scope');
+assert.match(appSource, /let activeSearchQuery = '', lastSearchQuery = '', lastSearchResults = \[\], activeSearchNavigation = null;/, 'search should retain the latest query and result snapshot between modal sessions');
+assert.match(appSource, /function openSearchModal\([\s\S]*?const rememberedQuery = lastSearchQuery\.trim\(\)[\s\S]*?els\.searchInput\.value = rememberedQuery;/, 'opening search should restore the latest query');
+assert.match(appSource, /function openSearchModal\([\s\S]*?renderSearchResults\(rememberedResults/, 'opening search should restore cached results before refreshing');
+assert.match(appSource, /function renderSearchResults\([\s\S]*?lastSearchResults = activeSearchResults\.map\(/, 'completed search results should update the retained result snapshot');
+assert.match(appSource, /els\.searchInput\.addEventListener\('input', \(\) => \{[\s\S]*?lastSearchQuery = els\.searchInput\.value\.trim\(\);/, 'search input changes should update the retained query');
+assert.match(appSource, /async function openSearchResultData\(result, query\) \{[\s\S]*?lastSearchQuery = String\(query \|\| els\.searchInput\.value \|\| ''\)\.trim\(\);/, 'clicking a result should retain the query used for navigation');
+const locateWorkStart = appSource.indexOf('async function locateWorkEvidence(');
+const locateWorkEnd = appSource.indexOf('\n  function appendWorkAnswerToCurrentDocument', locateWorkStart);
+assert.notEqual(locateWorkStart, -1, 'work evidence locator should exist');
+const locateWorkSource = appSource.slice(locateWorkStart, locateWorkEnd);
+assert.match(locateWorkSource, /searchNavigationForResult\(/,
+  'work evidence should reuse the search result navigation anchor repair');
+assert.match(locateWorkSource, /activeSearchNavigation = navigation;/,
+  'work evidence should activate cross-view preview highlighting');
+assert.match(locateWorkSource, /locateSearchResult\(navigation(?:,\s*\{[^}]*silentPreviewFailure:\s*true[^}]*\})?\)/,
+  'work evidence should scroll and select the repaired source range');
+const previewLocatorStart = appSource.indexOf('function findPreviewTargetForQuote(');
+const previewLocatorEnd = appSource.indexOf('\n  function flashReadingLocation', previewLocatorStart);
+assert.notEqual(previewLocatorStart, -1, 'preview quote locator should exist');
+assert.notEqual(previewLocatorEnd, -1, 'preview quote locator should have a stable boundary');
+assert.match(
+  appSource.slice(previewLocatorStart, previewLocatorEnd),
+  /\.app-plain-text-line/,
+  'TXT reading lines should be valid preview targets for search and work evidence navigation'
+);
+const locatorStart = appSource.indexOf('function locateSearchResult(');
+const locatorEnd = appSource.indexOf('\n  async function openSearchResultData', locatorStart);
+assert.notEqual(locatorStart, -1, 'search result locator should exist');
+assert.notEqual(locatorEnd, -1, 'search result locator should have a stable boundary');
+assert.match(
+  appSource.slice(locatorStart, locatorEnd),
+  /silentPreviewFailure/,
+  'evidence navigation should be able to retry without showing an intermediate preview failure toast'
+);
+assert.match(
+  appSource.slice(appSource.indexOf('async function locateWorkEvidence('), appSource.indexOf('\n  function appendWorkAnswerToCurrentDocument', appSource.indexOf('async function locateWorkEvidence('))),
+  /locateSearchResult\(navigation, \{ silentPreviewFailure: true \}\)/,
+  'work evidence navigation should fall back to quote location when the first preview target is not ready'
+);
+const normalizeTextStart = appSource.indexOf('function normalizeCommentText(');
+const normalizeTextEnd = appSource.indexOf('\n  function reviewHash', normalizeTextStart);
+const markdownToPlainStart = appSource.indexOf('function markdownToPlain(');
+const markdownToPlainEnd = appSource.indexOf('\n  function sourceBlockBounds', markdownToPlainStart);
+const quoteCandidatesStart = appSource.indexOf('function readingQuotePlainCandidates(');
+const quoteCandidatesEnd = appSource.indexOf('\n  function flashReadingLocation', quoteCandidatesStart);
+const txtPreviewLines = [
+  { textContent: '第一回 测试' },
+  { textContent: '周瑜大怒，喝令左右将黄盖拖翻，脊杖五十。' },
+  { textContent: '第二回 测试' }
+];
+const findPreviewTargetForQuote = vm.runInNewContext(`(() => {
+  ${appSource.slice(normalizeTextStart, normalizeTextEnd)}
+  ${appSource.slice(markdownToPlainStart, markdownToPlainEnd)}
+  ${appSource.slice(quoteCandidatesStart, quoteCandidatesEnd)}
+  return findPreviewTargetForQuote;
+})()`, {
+  marked: undefined,
+  els: { previewEditor: { querySelectorAll: () => txtPreviewLines } }
+});
+assert.equal(
+  findPreviewTargetForQuote('周瑜大怒，喝令左右将黄盖拖翻，脊杖五十。'),
+  txtPreviewLines[1],
+  'TXT single-line evidence should resolve to its rendered reading line'
+);
+assert.equal(
+  findPreviewTargetForQuote('周瑜大怒，喝令左右将黄盖拖翻，脊杖五十。\n第二回 测试'),
+  txtPreviewLines[1],
+  'TXT multi-line evidence should resolve to the first rendered line containing the evidence'
+);
+assert.match(preloadSource, /search: \(query, limit, options\).*\{ query, limit, options \}/, 'desktop bridge should forward semantic scope options');
+assert.match(semanticSource, /docId IN \[\$\{scopedDocumentIds\.map\(meiliString\)\.join\(', '\)\}\]/, 'Meilisearch should filter candidates before ranking');
 assert.match(cssSource, /mark\.app-search-match\.is-primary/, 'primary article highlight styling should exist');
 assert.match(cssSource, /mark\.app-content-find-match\.is-primary/, 'find/replace primary highlight styling should exist');
 const contentFindStart = appSource.indexOf('function contentFindMatches(');

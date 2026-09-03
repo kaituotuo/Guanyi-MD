@@ -12,7 +12,7 @@ const helpers = vm.runInNewContext(`(() => {
   const DIRECTORY_MAX_DEPTH = 5;
   const DIRECTORY_EXTS = ['.md', '.markdown', '.txt'];
   ${appSource.slice(helperStart, helperEnd)}
-  return { normalizeRelativePath, directoryDocId, shouldIgnoreDirectoryEntry, diffDirectoryIndex };
+  return { normalizeRelativePath, directoryDocId, shouldIgnoreDirectoryEntry, diffDirectoryIndex, partitionMissingDirectoryDocs };
 })()`);
 
 const existing = [
@@ -30,6 +30,19 @@ assert.deepEqual([...diff.added].map((entry) => entry.relativePath), ['new/repor
 assert.deepEqual([...diff.changed].map(({ doc }) => doc.id), ['change']);
 assert.deepEqual([...diff.unchanged].map(({ doc }) => doc.id), ['keep']);
 assert.deepEqual([...diff.missing].map((doc) => doc.id), ['missing']);
+const cleanMissing = { id: 'clean', content: 'saved', lastSavedContent: 'saved' };
+const dirtyMissing = { id: 'dirty', content: 'draft', lastSavedContent: 'saved' };
+const completeMissing = helpers.partitionMissingDirectoryDocs(
+  [cleanMissing, dirtyMissing],
+  true,
+  (doc) => doc.content !== doc.lastSavedContent
+);
+assert.deepEqual([...completeMissing.removed].map((doc) => doc.id), ['clean']);
+assert.deepEqual([...completeMissing.retained].map((doc) => doc.id), ['dirty']);
+assert.deepEqual([...completeMissing.deferred].map((doc) => doc.id), []);
+const partialMissing = helpers.partitionMissingDirectoryDocs([cleanMissing, dirtyMissing], false, () => false);
+assert.deepEqual([...partialMissing.deferred].map((doc) => doc.id), ['clean', 'dirty']);
+assert.deepEqual([...partialMissing.removed], []);
 assert.equal(helpers.directoryDocId('directory-a', 'notes\\keep.md'), helpers.directoryDocId('directory-a', '/notes/keep.md'));
 assert.equal(helpers.shouldIgnoreDirectoryEntry('.hidden.md', 'file', 0), true);
 assert.equal(helpers.shouldIgnoreDirectoryEntry('draft.review.md', 'file', 0), true);
@@ -51,6 +64,18 @@ assert.match(cssSource, /\.app-sidebar__section-title\s*\{[^}]*white-space:\s*no
 assert.ok(addButtonPosition >= 0 && refreshButtonPosition > addButtonPosition, 'refresh should follow Add Folder');
 assert.match(appSource, /btnRefreshDirectories\.addEventListener\('click', refreshAllDirectories\)/);
 assert.match(appSource, /scanDirectory\(directory, \{ interactive: true, announce: false \}\)/);
+assert.match(appSource, /function updateDirectoryRefreshButton\(\)[\s\S]+const refreshing = !!directoryRefreshPromise;/,
+  'background automatic scans must not animate the global refresh button');
+assert.doesNotMatch(appSource, /const refreshing = !!directoryRefreshPromise \|\| !!activeDirectoryScanId;/,
+  'the global refresh button must not reflect every background directory scan');
 assert.match(appSource, /markSemanticIndexDirty\(doc\.id\)/, 'directory changes should invalidate semantic cache');
+assert.match(appSource, /state\.docs = state\.docs\.filter\(\(doc\) => !removedIds\.has\(doc\.id\)\)/,
+  'a complete refresh should remove clean mirrors for files deleted from disk');
+assert.match(appSource, /doc\.syncState === 'permission-required' \|\| doc\.syncState === 'missing'/,
+  'a file that reappears at the same path should recover from missing state');
+assert.match(appSource, /function desktopDirectoryApi\(/, 'desktop directories should use an Electron-native path bridge');
+assert.match(appSource, /desktopApi && directory\.rootPath[\s\S]+desktopApi\.scan/, 'desktop refresh should reuse the retained native path');
+assert.match(appSource, /window\.addEventListener\('focus'[\s\S]+scanAllDirectories\(\{ interactive: false, announce: false \}\)/,
+  'returning from Finder should refresh directory mirrors without waiting for the interval');
 
-console.log('directory refresh tests passed: add, change, missing, filters, depth, button order and semantic invalidation verified');
+console.log('directory refresh tests passed: add, change, clean removal, dirty recovery, partial-scan safety, filters, depth and semantic invalidation verified');

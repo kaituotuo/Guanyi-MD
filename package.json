@@ -1,6 +1,6 @@
 {
   "name": "guanyi-md",
-  "version": "1.0.11",
+  "version": "1.0.33",
   "description": "观绎 MD｜俯仰观物，绎述我心。",
   "main": "desktop/main.cjs",
   "author": "Guanyi MD",
@@ -11,9 +11,33 @@
     "fetch:meilisearch": "node tools/fetch-meilisearch.mjs",
     "test:list-editing": "node tools/test-list-editing.mjs",
     "test:image-editing": "node tools/test-image-editing.mjs",
+    "test:markdown-clipboard": "node tools/test-markdown-clipboard.mjs",
+    "test:editor-matrix": "node tools/test-editor-matrix.mjs",
+    "test:table-editing": "node tools/test-table-editing.mjs",
+    "test:review-sidecar": "node tools/test-review-sidecar.mjs",
+    "test:txt-preview": "node tools/test-txt-preview.mjs",
+    "test:desktop-menu": "node tools/test-desktop-menu.mjs",
     "test:directory-refresh": "node tools/test-directory-refresh.mjs",
     "test:search-navigation": "node tools/test-search-navigation.mjs",
+    "test:desktop-file-open": "node tools/test-desktop-file-open.mjs",
+    "test:document-rename": "node tools/test-document-rename.mjs",
+    "test:tabs-file-actions": "node tools/test-tabs-and-file-actions.mjs",
+    "test:single-file-sync": "node tools/test-single-file-sync.mjs",
+    "test:upgrade-persistence": "node tools/test-upgrade-persistence.mjs",
+    "test:original-answer": "node tools/test-original-answer.mjs",
+    "test:work-question": "node tools/test-work-question.mjs",
+    "test:desktop-ai-bridge": "node tools/test-desktop-ai-bridge.mjs",
     "test:semantic-search": "node tools/test-semantic-search.mjs",
+    "test:semantic-search-worker": "node tools/test-semantic-search-worker.mjs",
+    "test:semantic-search-electron": "node tools/test-electron-semantic-search.mjs",
+    "test:semantic-search-real-books": "node tools/test-semantic-search-real-books.mjs",
+    "test:regression-catalog": "node tools/test-regression-catalog.mjs",
+    "test:regression:editor": "node tools/run-regression-matrix.mjs editor",
+    "test:regression:collaboration": "node tools/run-regression-matrix.mjs collaboration",
+    "test:regression:directory": "node tools/run-regression-matrix.mjs directory",
+    "test:regression:search": "node tools/run-regression-matrix.mjs search",
+    "test:regression:recent": "node tools/run-regression-matrix.mjs recent",
+    "test:regression:all": "node tools/run-regression-matrix.mjs all",
     "desktop": "electron .",
     "build:mac": "node tools/build-desktop.mjs --mac",
     "build:win": "node tools/build-desktop.mjs --win",
@@ -67,7 +91,8 @@
       {
         "ext": [
           "md",
-          "markdown"
+          "markdown",
+          "txt"
         ],
         "name": "Markdown 文档",
         "description": "Markdown 文档",
@@ -99,7 +124,7 @@
       ]
     },
     "dmg": {
-      "title": "观绎 MD ${version}",
+      "title": "观绎 MD",
       "artifactName": "Guanyi-MD-${version}-mac-arm64.${ext}",
       "backgroundColor": "#f6f4f1",
       "window": {

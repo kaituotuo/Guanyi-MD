@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>观绎 MD - 设置、文档导航与多页签原型</title>
+  <style>
+    :root {
+      --paper: #f5f2ee;
+      --surface: #fff;
+      --surface-soft: #faf8f6;
+      --desktop: #e8e5e1;
+      --chrome: #eef0f3;
+      --ink: #26211d;
+      --muted: #7e746d;
+      --line: #ded8d2;
+      --accent: #ec4b23;
+      --accent-soft: #f8e3dc;
+      --sidebar-width: 268px;
+      --traffic-width: 36px;
+      --doc-font-size: 14px;
+      --doc-line-height: 2;
+      --shadow: 0 18px 44px rgb(59 40 29 / 18%), 0 2px 8px rgb(59 40 29 / 10%);
+    }
+    body[data-preview-theme="dark"] {
+      color-scheme: dark;
+      --paper: #242220;
+      --surface: #302d2a;
+      --surface-soft: #292725;
+      --desktop: #191817;
+      --chrome: #26282b;
+      --ink: #f2ece6;
+      --muted: #bbb1aa;
+      --line: #4c4742;
+      --accent: #ff5a31;
+      --accent-soft: #4b2c24;
+      --shadow: 0 18px 44px rgb(0 0 0 / 34%), 0 2px 8px rgb(0 0 0 / 24%);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--desktop);
+      color: var(--ink);
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+      letter-spacing: 0;
+    }
+    button, input { font: inherit; letter-spacing: 0; }
+    button { color: inherit; }
+    .prototype-bar {
+      position: fixed;
+      z-index: 20;
+      bottom: 14px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px;
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      box-shadow: 0 6px 22px rgb(0 0 0 / 8%);
+      backdrop-filter: blur(14px);
+    }
+    .prototype-bar span { padding-left: 6px; color: var(--muted); font-size: 12px; }
+    .state-switch { display: flex; padding: 2px; background: var(--paper); border-radius: 5px; }
+    .state-switch button { border: 0; padding: 5px 10px; background: transparent; border-radius: 4px; cursor: pointer; }
+    .state-switch button[aria-pressed="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgb(0 0 0 / 8%); }
+    .window {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      min-height: 620px;
+      margin: 0;
+      overflow: hidden;
+      border: 0;
+      border-radius: 0;
+      background: var(--surface);
+      box-shadow: none;
+    }
+    .titlebar { height: 50px; display: flex; align-items: stretch; gap: 0; padding: 0 10px; border-bottom: 1px solid var(--line); background: var(--chrome); }
+    .traffic { display: block; flex: 0 0 12px; width: 12px; height: 12px; align-self: center; border-radius: 50%; background: #ff5f57; }
+    .traffic:nth-child(2) { background: #ffbd2e; }
+    .traffic:nth-child(3) { background: #28c840; }
+    .app { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); height: calc(100% - 50px); }
+    .sidebar { position: relative; display: flex; min-height: 0; flex-direction: column; border-right: 1px solid var(--line); background: var(--paper); }
+    .sidebar-main { min-height: 0; flex: 1; overflow: auto; padding: 14px 12px; }
+    .action { width: 100%; height: 40px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); text-align: left; padding: 0 14px; font-weight: 650; cursor: pointer; }
+    .action.primary { border-color: var(--accent); background: var(--accent); color: white; }
+    .section-label { display: flex; justify-content: space-between; margin: 22px 4px 10px; color: var(--muted); font-size: 12px; font-weight: 650; }
+    .tree-row { width: 100%; display: flex; align-items: center; gap: 9px; height: 38px; border: 0; padding: 0 10px; border-radius: 5px; background: transparent; color: var(--ink); font: inherit; text-align: left; }
+    button.tree-row { cursor: pointer; }
+    button.tree-row:hover { background: var(--surface); }
+    .tree-row.active { background: var(--accent-soft); color: var(--accent); }
+    .folder-mark { color: var(--accent); font-weight: 800; }
+    .account-entry-wrap { position: relative; flex: 0 0 auto; padding: 10px 12px 12px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 92%, white); }
+    .account-entry {
+      width: 100%;
+      min-height: 56px;
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr) 18px;
+      align-items: center;
+      gap: 10px;
+      border: 0;
+      border-radius: 6px;
+      padding: 7px 8px;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+    .account-entry:hover, .account-entry[aria-expanded="true"] { background: var(--surface); }
+    .avatar { width: 38px; height: 38px; overflow: hidden; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .entry-copy { min-width: 0; }
+    .entry-copy strong, .entry-copy small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .entry-copy strong { font-size: 13px; }
+    .entry-copy small { margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .chevron { color: #9a918b; font-size: 20px; text-align: center; transform: rotate(0); transition: transform 160ms ease; }
+    .account-entry[aria-expanded="true"] .chevron { transform: rotate(90deg); }
+    .account-panel {
+      position: absolute;
+      z-index: 10;
+      left: 12px;
+      bottom: 77px;
+      width: 320px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .account-panel[hidden] { display: none; }
+    .panel-head { padding: 18px 18px 14px; border-bottom: 1px solid var(--line); }
+    .panel-head-row { display: flex; align-items: center; gap: 12px; }
+    .panel-head .avatar { width: 46px; height: 46px; }
+    .panel-head h2 { margin: 0; font: 650 17px/1.3 "Songti SC", serif; }
+    .panel-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .local-badge { display: inline-block; margin-top: 10px; padding: 3px 7px; border-radius: 3px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 650; }
+    .login-cta { width: 100%; height: 38px; margin-top: 14px; border: 0; border-radius: 5px; background: var(--accent); color: white; font-weight: 650; cursor: pointer; }
+    .panel-list { padding: 7px 0; }
+    .panel-row { width: 100%; min-height: 42px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border: 0; padding: 0 18px; background: transparent; text-align: left; cursor: pointer; }
+    .panel-row:hover { background: var(--surface-soft); }
+    .panel-row small { color: var(--muted); }
+    .panel-row--primary { color: var(--ink); font-weight: 650; }
+    .panel-row__label { display: inline-flex; align-items: center; gap: 9px; }
+    .panel-row__icon { width: 16px; color: var(--accent); font-size: 16px; line-height: 1; text-align: center; }
+    .panel-divider { height: 1px; margin: 6px 18px; background: var(--line); }
+    .panel-row.danger { color: #a52e18; }
+    .settings-sheet {
+      position: fixed;
+      z-index: 28;
+      top: 54px;
+      right: max(28px, calc((100vw - 1440px) / 2 + 28px));
+      width: min(500px, calc(100vw - 32px));
+      max-height: calc(100vh - 82px);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .settings-sheet[hidden] { display: none; }
+    .settings-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
+    .settings-head h2 { margin: 0; font: 650 20px/1.3 "Songti SC", serif; }
+    .settings-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .close-button { width: 28px; height: 28px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
+    .close-button:hover { border-color: var(--line); background: var(--surface-soft); color: var(--ink); }
+    .settings-body { max-height: calc(100vh - 232px); overflow: auto; padding: 4px 20px 18px; }
+    .settings-legend { display: flex; flex-wrap: wrap; gap: 7px 12px; padding: 12px 0 2px; color: var(--muted); font-size: 10px; }
+    .settings-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .settings-legend i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+    .settings-legend .is-existing i { background: #31865b; }
+    .settings-legend .is-recommended i { background: var(--accent); }
+    .settings-legend .is-candidate i { background: #a59b94; }
+    .setting-group { padding: 14px 0 4px; border-bottom: 1px solid var(--line); }
+    .setting-group:last-child { border-bottom: 0; }
+    .setting-group h3 { margin: 0 0 8px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .setting-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; min-height: 50px; }
+    .setting-copy { min-width: 0; }
+    .setting-copy strong, .setting-copy small { display: block; }
+    .setting-copy strong { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
+    .setting-copy small { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .setting-state { flex: 0 0 auto; padding: 1px 5px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted); font-size: 9px; line-height: 15px; font-weight: 600; }
+    .setting-state.is-existing { border-color: #9bcdb2; color: #247047; background: #edf8f1; }
+    .setting-state.is-recommended { border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); color: var(--accent); background: var(--accent-soft); }
+    body[data-preview-theme="dark"] .setting-state.is-existing { border-color: #3f7659; color: #8ed9ae; background: #243b2d; }
+    .setting-control { flex: 0 0 auto; }
+    .choice-group { display: flex; gap: 2px; padding: 2px; border-radius: 5px; background: var(--paper); }
+    .choice-group button { min-width: 44px; height: 28px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font-size: 11px; cursor: pointer; }
+    .choice-group button[aria-pressed="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgb(0 0 0 / 8%); font-weight: 650; }
+    .choice-group button:disabled { color: #aaa19a; cursor: not-allowed; }
+    .setting-value { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .setting-range { width: 116px; accent-color: var(--accent); }
+    .setting-select { height: 30px; max-width: 142px; border: 1px solid var(--line); border-radius: 5px; padding: 0 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 11px; }
+    .setting-switch { position: relative; width: 38px; height: 22px; border: 0; border-radius: 11px; background: #c8c1bb; cursor: pointer; }
+    .setting-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: white; box-shadow: 0 1px 3px rgb(0 0 0 / 20%); transition: transform 150ms ease; }
+    .setting-switch[aria-pressed="true"] { background: var(--accent); }
+    .setting-switch[aria-pressed="true"]::after { transform: translateX(16px); }
+    .setting-pending .setting-control { color: var(--muted); font-size: 10px; }
+    .settings-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--line); }
+    .settings-foot small { color: var(--muted); font-size: 10px; }
+    .settings-done { height: 34px; border: 0; border-radius: 5px; padding: 0 15px; background: var(--accent); color: white; font-weight: 650; cursor: pointer; }
+    .prototype-toast { position: fixed; z-index: 50; left: 50%; bottom: 72px; transform: translateX(-50%); padding: 8px 13px; border-radius: 5px; background: #2d2824; color: #fff; font-size: 12px; box-shadow: 0 8px 24px rgb(0 0 0 / 18%); }
+    .prototype-toast[hidden] { display: none; }
+    .canvas { min-width: 0; background: var(--surface-soft); }
+    .toolbar { height: 54px; display: flex; align-items: center; gap: 14px; padding: 0 22px; border-bottom: 1px solid var(--line); color: var(--muted); }
+    .toolbar b { color: var(--ink); }
+    .doc { width: min(780px, calc(100% - 64px)); min-height: calc(100% - 92px); margin: 20px auto; padding: 54px 68px; background: var(--surface); border: 1px solid var(--line); }
+    .doc h1 { margin: 0 0 24px; font: 650 30px/1.3 "Songti SC", serif; }
+    .doc p { color: var(--ink); font-size: var(--doc-font-size); line-height: var(--doc-line-height); text-indent: 2em; }
+    .modal-backdrop { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; background: rgb(27 22 18 / 30%); }
+    .modal-backdrop[hidden] { display: none; }
+    .login-dialog { width: min(390px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 24px; box-shadow: var(--shadow); }
+    .login-dialog h2 { margin: 0; font: 650 21px/1.3 "Songti SC", serif; }
+    .login-dialog p { margin: 8px 0 20px; color: var(--muted); }
+    .login-dialog label { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 650; }
+    .login-dialog input { width: 100%; height: 40px; border: 1px solid var(--line); border-radius: 5px; padding: 0 11px; background: var(--surface); color: var(--ink); }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+    .dialog-actions button { height: 36px; border: 1px solid var(--line); border-radius: 5px; padding: 0 16px; background: var(--surface); cursor: pointer; }
+    .dialog-actions .confirm { border-color: var(--accent); background: var(--accent); color: white; }
+    .dialog-actions .danger { border-color: #c94c34; color: #a52e18; }
+
+    /* 工作区页签 */
+    .titlebar { padding-right: 10px; background: var(--chrome); }
+    .titlebar-brand {
+      flex: 0 0 calc(var(--sidebar-width) - 10px - var(--traffic-width) - 5px);
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      align-self: stretch;
+      gap: 6px;
+      margin: 0 5px 0 0;
+      padding: 0 8px 0 4px;
+      color: var(--ink);
+    }
+    .titlebar-home { flex: 0 0 auto; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; background: #c9ced5; color: #fff; font-size: 14px; line-height: 1; }
+    body[data-preview-theme="dark"] .titlebar-home { background: #555a62; }
+    .titlebar-brand__line { min-width: 0; flex: 1 1 auto; display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ink); font: 700 12px/1.2 "Songti SC", serif; }
+    .titlebar-brand__separator { margin: 0 6px; color: var(--muted); font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; font-weight: 500; }
+    .doc-tabs {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      padding: 0;
+    }
+    .doc-tabs { position: relative; }
+    .doc-tabs::before { content: ''; position: absolute; z-index: 1; inset: 0 auto 0 0; width: 1px; background: var(--line); pointer-events: none; }
+    .doc-tabs::-webkit-scrollbar { display: none; }
+    .doc-tab {
+      position: relative;
+      flex: 0 1 190px;
+      min-width: 112px;
+      max-width: 224px;
+      height: 42px;
+      align-self: end;
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 20px;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px 0 13px;
+      border: 1px solid transparent;
+      border-radius: 10px 10px 0 0;
+      color: var(--muted);
+      background: transparent;
+      cursor: default;
+    }
+    .doc-tab::after { content: ''; position: absolute; right: 0; top: 14px; bottom: 14px; width: 1px; background: var(--line); }
+    .doc-tab:hover { background: color-mix(in srgb, var(--surface) 48%, transparent); color: var(--ink); }
+    .doc-tab.is-active { height: 42px; margin-bottom: -1px; border-color: var(--line); border-bottom-color: var(--surface); background: var(--surface); color: var(--ink); box-shadow: 0 -1px 4px rgb(36 28 23 / 6%); }
+    .doc-tab.is-active::after, .doc-tab:hover::after { background: transparent; }
+    .doc-tab.is-dragging { opacity: .42; }
+    .doc-tab.is-drop-target { box-shadow: -2px 0 0 var(--accent); }
+    .doc-tab__type { display: none; }
+    .doc-tab__name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
+    .doc-tab__name::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 7px; border-radius: 50%; background: transparent; vertical-align: 1px; }
+    .doc-tab.is-dirty .doc-tab__name::after { background: var(--accent); }
+    .doc-tab__close, .doc-tab-add, .doc-tab-more {
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .doc-tab__close { width: 18px; height: 18px; border-radius: 4px; font-size: 14px; opacity: 0; }
+    .doc-tab:hover .doc-tab__close, .doc-tab.is-active .doc-tab__close { opacity: 1; }
+    .doc-tab__close:hover, .doc-tab-add:hover, .doc-tab-more:hover { background: var(--surface-soft); color: var(--ink); }
+    .doc-tab-add, .doc-tab-more { align-self: center; flex: 0 0 auto; width: 32px; height: 32px; margin: 0 2px; border-radius: 7px; font-size: 19px; }
+    .doc-tab-more { font-size: 15px; }
+    .doc-tab-more[aria-expanded="true"] { background: var(--surface); color: var(--ink); }
+    .titlebar-refresh { align-self: center; width: 30px; height: 30px; margin: 0 2px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 17px; cursor: pointer; }
+    .titlebar-refresh:hover { background: var(--surface); color: var(--ink); }
+    .titlebar-divider { flex: 0 0 1px; height: 20px; align-self: center; margin: 0 4px; background: var(--line); }
+    /* 顶部只保留一个应用入口，页签管理集中到“更多”菜单 */
+    .titlebar > .doc-tab-add,
+    .titlebar > .doc-tab-more,
+    .titlebar > .titlebar-divider,
+    .titlebar > .titlebar-refresh { display: none; }
+    .app-menu-wrap { position: relative; flex: 0 0 auto; margin-left: 2px; }
+    .app-menu-button { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer; }
+    .app-menu-button:hover, .app-menu-button[aria-expanded="true"] { border-color: var(--line); background: var(--surface); color: var(--ink); }
+    .app-menu-panel { position: absolute; z-index: 22; top: 36px; right: 0; width: 246px; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; padding: 6px 0; background: var(--surface); box-shadow: var(--shadow); }
+    .app-menu-panel[hidden] { display: none; }
+    .app-menu-panel .panel-row { min-height: 40px; padding-inline: 14px; }
+    .app-menu-panel .panel-row small { min-width: 64px; text-align: right; }
+    .app-menu-auth { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 14px; color: var(--muted); font-size: 11px; }
+    .app-menu-auth strong { color: var(--ink); font-size: 12px; }
+    .app-menu-auth__action { margin-left: auto; border: 0; background: transparent; color: var(--accent); font-size: 11px; font-weight: 650; cursor: pointer; }
+    .app-menu-auth__action:hover { text-decoration: underline; }
+    .auth-dialog { width: min(420px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 24px; box-shadow: var(--shadow); }
+    .auth-dialog h2 { margin: 0; font: 650 21px/1.3 "Songti SC", serif; }
+    .auth-dialog p { margin: 8px 0 18px; color: var(--muted); font-size: 12px; }
+    .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-bottom: 18px; padding: 2px; border-radius: 5px; background: var(--paper); }
+    .auth-tabs button { height: 32px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
+    .auth-tabs button[aria-selected="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgb(0 0 0 / 8%); font-weight: 650; }
+    .auth-field { display: block; margin-bottom: 12px; }
+    .auth-field span { display: block; margin-bottom: 6px; color: var(--muted); font-size: 11px; }
+    .auth-field input { width: 100%; height: 40px; border: 1px solid var(--line); border-radius: 5px; padding: 0 11px; background: var(--surface); color: var(--ink); }
+    .auth-form[hidden] { display: none; }
+    .auth-note { margin: 3px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .tab-overview {
+      position: absolute;
+      z-index: 18;
+      top: 41px;
+      right: 10px;
+      width: 268px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .tab-overview[hidden] { display: none; }
+    .tab-overview__head { display: flex; align-items: center; justify-content: space-between; min-height: 38px; padding: 0 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+    .tab-overview__list { max-height: 280px; overflow: auto; padding: 6px; }
+    .tab-overview__item { width: 100%; min-height: 38px; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 7px; border: 0; border-radius: 5px; padding: 0 8px; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+    .tab-overview__item:hover, .tab-overview__item.is-active { background: var(--surface-soft); }
+    .tab-overview__type { color: var(--accent); font-size: 9px; font-weight: 750; }
+    .tab-overview__name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
+    .tab-overview__state { color: var(--accent); font-size: 15px; }
+
+    /* 左侧：目录负责找文件，导航区负责理解当前文档 */
+    .sidebar-main { display: flex; min-height: 0; flex: 1; flex-direction: column; padding: 0; overflow: hidden; }
+    .library-pane { min-height: 230px; flex: 1 1 auto; overflow: auto; padding: 14px 12px 10px; }
+    .sidebar-inspector { flex: 0 0 252px; min-height: 170px; display: flex; flex-direction: column; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 94%, var(--surface)); }
+    .inspector-context { min-height: 43px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 12px 5px; }
+    .inspector-context__copy { min-width: 0; }
+    .inspector-context strong, .inspector-context small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .inspector-context strong { font-size: 11px; font-weight: 650; }
+    .inspector-context small { margin-top: 1px; color: var(--muted); font-size: 9px; }
+    .inspector-context button { width: 26px; height: 26px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
+    .inspector-context button:hover { background: var(--surface); color: var(--ink); }
+    .inspector-tabs { height: 38px; display: flex; align-items: end; gap: 16px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+    .inspector-tabs button { position: relative; height: 38px; padding: 0 2px; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
+    .inspector-tabs button[aria-selected="true"] { color: var(--ink); font-weight: 650; }
+    .inspector-tabs button[aria-selected="true"]::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); }
+    .inspector-panel { min-height: 0; flex: 1; overflow: auto; padding: 8px 10px 12px; }
+    .inspector-panel[hidden] { display: none; }
+    .outline-item, .saved-item { width: 100%; min-height: 30px; display: flex; align-items: center; gap: 7px; border: 0; border-radius: 4px; padding: 5px 8px; background: transparent; color: var(--muted); text-align: left; font-size: 11px; cursor: pointer; }
+    .outline-item:hover, .saved-item:hover { background: var(--surface); color: var(--ink); }
+    .outline-item.is-current { color: var(--accent); background: var(--accent-soft); }
+    .outline-item[data-level="2"] { padding-left: 20px; }
+    .outline-item[data-level="3"] { padding-left: 34px; }
+    .outline-number { flex: 0 0 18px; color: #a39a94; font-variant-numeric: tabular-nums; }
+    .saved-item { align-items: flex-start; flex-direction: column; gap: 1px; }
+    .saved-item strong { color: var(--ink); font-size: 11px; font-weight: 600; }
+    .saved-item small { color: var(--muted); }
+    .inspector-empty { display: grid; min-height: 116px; place-content: center; gap: 5px; padding: 18px; color: var(--muted); text-align: center; font-size: 10px; }
+    .inspector-empty[hidden] { display: none; }
+    .inspector-empty strong { color: var(--ink); font-size: 11px; }
+
+    /* 内容区 */
+    .canvas { min-height: 0; display: grid; grid-template-rows: 54px minmax(0, 1fr) 24px; overflow: hidden; }
+    .toolbar { flex: 0 0 54px; }
+    .document-stage { min-height: 0; flex: 1; overflow: auto; }
+    .doc { width: calc(100% - 24px); min-height: calc(100% - 24px); margin: 12px; padding-inline: clamp(68px, 10vw, 160px); }
+    .doc[hidden] { display: none; }
+    .doc [data-section] { position: relative; transition: background-color 180ms ease, box-shadow 180ms ease; }
+    .doc [data-section].is-located { background: var(--accent-soft); box-shadow: -4px 0 0 var(--accent); }
+    .workspace-empty { min-height: 100%; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 40px; color: var(--muted); text-align: center; }
+    .workspace-empty[hidden] { display: none; }
+    .workspace-empty strong { color: var(--ink); font: 650 19px/1.3 "Songti SC", serif; }
+    .workspace-empty button { height: 34px; margin-top: 5px; border: 0; border-radius: 5px; padding: 0 14px; background: var(--accent); color: white; cursor: pointer; }
+    .statusbar { min-width: 0; display: flex; align-items: center; gap: 7px; padding: 0 12px; border-top: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .statusbar span { overflow: hidden; text-overflow: ellipsis; }
+    .statusbar__doc { color: var(--ink); }
+
+    /* 带二级页面的设置 */
+    .settings-sheet {
+      top: 64px;
+      right: max(28px, calc((100vw - 1440px) / 2 + 28px));
+      width: min(820px, calc(100vw - 56px));
+      height: min(670px, calc(100vh - 96px));
+      max-height: none;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+    .settings-sheet[hidden] { display: none; }
+    .settings-head { align-items: center; padding: 16px 20px 14px; }
+    .settings-head h2 { font-size: 19px; }
+    .settings-body { min-height: 0; max-height: none; display: grid; grid-template-columns: 180px minmax(0, 1fr); overflow: hidden; padding: 0; }
+    .settings-nav { padding: 12px 10px; border-right: 1px solid var(--line); background: var(--paper); }
+    .settings-nav button { width: 100%; height: 36px; display: flex; align-items: center; gap: 9px; border: 0; border-radius: 5px; padding: 0 10px; background: transparent; color: var(--muted); text-align: left; cursor: pointer; }
+    .settings-nav button:hover { background: var(--surface); color: var(--ink); }
+    .settings-nav button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+    .settings-nav__icon { width: 18px; text-align: center; }
+    .settings-content { min-width: 0; overflow: auto; padding: 0 24px 22px; }
+    .settings-page[hidden] { display: none; }
+    .settings-page-head { position: sticky; z-index: 2; top: 0; padding: 20px 0 13px; border-bottom: 1px solid var(--line); background: var(--surface); }
+    .settings-page-head h3 { margin: 0; font: 650 18px/1.3 "Songti SC", serif; }
+    .settings-page-head p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+    .settings-legend { padding-top: 12px; }
+    .setting-group { padding-top: 15px; }
+    .setting-row { min-height: 56px; }
+    .setting-link { height: 30px; border: 1px solid var(--line); border-radius: 5px; padding: 0 10px; background: var(--surface); color: var(--ink); font-size: 11px; cursor: pointer; }
+    .setting-link:hover { border-color: var(--accent); color: var(--accent); }
+    .setting-callout { margin-top: 18px; padding: 11px 13px; border-left: 3px solid var(--accent); background: var(--accent-soft); color: var(--muted); font-size: 11px; line-height: 1.6; }
+    .settings-foot { padding: 10px 20px; }
+
+    :focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 70%, white); outline-offset: 2px; }
+    @media (max-width: 980px) {
+      :root { --sidebar-width: 230px; }
+      .toolbar { gap: 9px; padding-inline: 16px; white-space: nowrap; overflow: hidden; }
+      .doc { width: calc(100% - 36px); padding: 42px 44px; }
+    }
+    @media (max-width: 760px) {
+      .window { width: 100vw; height: 100vh; min-height: 560px; margin: 0; border: 0; border-radius: 0; }
+      .titlebar { height: 44px; padding-left: 10px; }
+      .traffic { display: none; }
+      :root { --sidebar-width: 196px; --traffic-width: 0px; }
+      .app { height: calc(100% - 44px); }
+      .account-panel { width: min(320px, calc(100vw - 24px)); }
+      .settings-sheet { top: 12px; right: 12px; width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
+      .settings-sheet { height: calc(100vh - 24px); }
+      .settings-body { max-height: none; grid-template-columns: 114px minmax(0, 1fr); }
+      .settings-nav { padding-inline: 7px; }
+      .settings-nav button { padding-inline: 8px; font-size: 11px; }
+      .settings-nav__icon { display: none; }
+      .prototype-bar { right: 8px; bottom: 8px; }
+      .toolbar { padding-left: 18px; white-space: nowrap; overflow: hidden; }
+      .doc { width: calc(100% - 28px); padding: 36px 26px; }
+      .titlebar-brand { margin-left: 0; padding: 0 9px 0 0; gap: 6px; }
+      .titlebar-home { width: 20px; height: 20px; font-size: 13px; }
+      .titlebar-brand__separator, .titlebar-brand__slogan { display: none; }
+      .doc-tab-more { display: none; }
+      .doc-tab { min-width: 96px; }
+      .sidebar-inspector { flex-basis: 190px; }
+    }
+  </style>
+</head>
+<body data-preview-theme="light">
+  <div class="window">
+    <div class="titlebar">
+      <i class="traffic"></i><i class="traffic"></i><i class="traffic"></i>
+      <span class="titlebar-brand" aria-label="观绎 MD | 俯仰观物，绎述我心" title="观绎 MD | 俯仰观物，绎述我心"><span class="titlebar-home" aria-hidden="true">⌂</span><span class="titlebar-brand__line">观绎 MD<span class="titlebar-brand__separator">|</span><span class="titlebar-brand__slogan">俯仰观物，绎述我心</span></span></span>
+      <div class="doc-tabs" id="doc-tabs" role="tablist" aria-label="已打开文档">
+        <div class="doc-tab is-active is-dirty" role="tab" aria-selected="true" tabindex="0" draggable="true" data-doc-tab="product">
+          <span class="doc-tab__name">观绎 MD 产品方案</span><button type="button" class="doc-tab__close" aria-label="关闭观绎 MD 产品方案">×</button>
+        </div>
+        <div class="doc-tab" role="tab" aria-selected="false" tabindex="-1" draggable="true" data-doc-tab="honglou">
+          <span class="doc-tab__name">红楼梦</span><button type="button" class="doc-tab__close" aria-label="关闭红楼梦">×</button>
+        </div>
+        <div class="doc-tab" role="tab" aria-selected="false" tabindex="-1" draggable="true" data-doc-tab="sanguo">
+          <span class="doc-tab__name">三国演义</span><button type="button" class="doc-tab__close" aria-label="关闭三国演义">×</button>
+        </div>
+      </div>
+      <button type="button" class="doc-tab-add" id="doc-tab-add" aria-label="新建文档页签">+</button>
+      <button type="button" class="doc-tab-more" id="doc-tab-more" aria-label="查看全部已打开文档" aria-haspopup="menu" aria-expanded="false" aria-controls="tab-overview">⌄</button>
+      <span class="titlebar-divider" aria-hidden="true"></span>
+      <button type="button" class="titlebar-refresh" data-action="refresh-preview" aria-label="刷新工作区" title="刷新工作区">↻</button>
+      <div class="app-menu-wrap">
+      <button type="button" class="app-menu-button" id="app-menu-button" aria-label="更多" title="更多" aria-haspopup="menu" aria-expanded="false" aria-controls="app-menu-panel">⋯</button>
+        <div class="app-menu-panel" id="app-menu-panel" role="menu" hidden>
+          <div class="app-menu-auth"><strong>本地模式</strong><span>无需账户</span><button type="button" class="app-menu-auth__action" data-action="open-auth">登录 / 注册</button></div>
+          <div class="panel-divider"></div>
+          <button type="button" class="panel-row panel-row--primary" role="menuitem" data-action="show-tabs"><span class="panel-row__label"><span class="panel-row__icon" aria-hidden="true">▤</span>已打开文档</span><small data-app-tab-count>3 个</small></button>
+          <button type="button" class="panel-row panel-row--primary" role="menuitem" data-action="settings"><span class="panel-row__label"><span class="panel-row__icon" aria-hidden="true">⚙</span>设置</span><small>⌘ ,</small></button>
+          <button type="button" class="panel-row" role="menuitem" data-action="check-update"><span class="panel-row__label"><span class="panel-row__icon" aria-hidden="true">↻</span>检查更新</span><small data-update-status>1.0.26</small></button>
+          <button type="button" class="panel-row" role="menuitem" data-settings-open="help"><span class="panel-row__label"><span class="panel-row__icon" aria-hidden="true">?</span>帮助与反馈</span><small>›</small></button>
+          <div class="panel-divider"></div>
+          <button type="button" class="panel-row" role="menuitem" data-settings-open="help"><span class="panel-row__label"><span class="panel-row__icon" aria-hidden="true">i</span>关于观绎 MD</span><small>1.0.26</small></button>
+        </div>
+      </div>
+      <section class="tab-overview" id="tab-overview" aria-label="全部已打开文档" hidden>
+        <header class="tab-overview__head"><strong>已打开文档</strong><span data-open-tab-count>3 个</span></header>
+        <div class="tab-overview__list" role="menu"></div>
+      </section>
+    </div>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="sidebar-main">
+          <div class="library-pane">
+            <button class="action" id="new-doc-action">新建文档</button>
+            <button class="action primary">打开文档</button>
+            <div class="section-label"><span>文档列表</span><span>搜索 · 添加目录</span></div>
+            <div class="tree-row"><span class="folder-mark">▰</span>我的文档</div>
+            <button type="button" class="tree-row active" data-open-doc="product">观绎 MD 产品方案.md</button>
+            <div class="tree-row"><span class="folder-mark">▰</span>文学名著</div>
+            <button type="button" class="tree-row" data-open-doc="honglou">红楼梦.txt</button>
+            <button type="button" class="tree-row" data-open-doc="sanguo">三国演义.txt</button>
+          </div>
+
+          <section class="sidebar-inspector" aria-label="当前文档导航">
+            <div class="inspector-context">
+              <span class="inspector-context__copy"><strong data-current-doc-name>观绎 MD 产品方案</strong><small>导航随当前页签切换</small></span>
+              <button type="button" data-action="collapse-outline" aria-label="折叠大纲层级" title="折叠大纲层级">≡</button>
+            </div>
+            <div class="inspector-tabs" role="tablist">
+              <button type="button" role="tab" data-inspector-tab="outline" aria-selected="true">大纲</button>
+              <button type="button" role="tab" data-inspector-tab="saved" aria-selected="false">收藏</button>
+            </div>
+            <div class="inspector-panel" data-inspector-panel="outline">
+              <div data-outline-for="product">
+                <button type="button" class="outline-item is-current" data-level="1" data-anchor="product-position"><span class="outline-number">01</span>产品定位</button>
+                <button type="button" class="outline-item" data-level="2" data-anchor="product-origin"><span class="outline-number">1.1</span>设计初心</button>
+                <button type="button" class="outline-item" data-level="2" data-anchor="product-capability"><span class="outline-number">1.2</span>核心能力</button>
+                <button type="button" class="outline-item" data-level="1" data-anchor="product-local"><span class="outline-number">02</span>本地优先</button>
+                <button type="button" class="outline-item" data-level="1" data-anchor="product-reading"><span class="outline-number">03</span>文学阅读</button>
+              </div>
+              <div data-outline-for="honglou" hidden>
+                <button type="button" class="outline-item is-current" data-level="1" data-anchor="honglou-chapter"><span class="outline-number">03</span>贾雨村夤缘复旧职</button>
+                <button type="button" class="outline-item" data-level="2" data-anchor="honglou-arrival"><span class="outline-number">•</span>黛玉进京</button>
+                <button type="button" class="outline-item" data-level="2" data-anchor="honglou-meeting"><span class="outline-number">•</span>初见宝玉</button>
+              </div>
+              <div data-outline-for="sanguo" hidden>
+                <button type="button" class="outline-item is-current" data-level="1" data-anchor="sanguo-chapter"><span class="outline-number">21</span>曹操煮酒论英雄</button>
+                <button type="button" class="outline-item" data-level="2" data-anchor="sanguo-wine"><span class="outline-number">•</span>青梅煮酒</button>
+                <button type="button" class="outline-item" data-level="2" data-anchor="sanguo-thunder"><span class="outline-number">•</span>闻雷失箸</button>
+              </div>
+              <div class="inspector-empty" data-outline-empty hidden><strong>还没有大纲</strong><span>输入标题后，这里会自动形成当前文档导航。</span></div>
+            </div>
+            <div class="inspector-panel" data-inspector-panel="saved" hidden>
+              <button type="button" class="saved-item" data-saved-doc="product" data-anchor="product-origin"><strong>俯仰观物，绎述我心</strong><small>观绎 MD 产品方案 · 设计初心</small></button>
+              <button type="button" class="saved-item" data-saved-doc="honglou" data-anchor="honglou-meeting"><strong>初见宝玉</strong><small>红楼梦 · 第三回</small></button>
+            </div>
+          </section>
+        </div>
+
+      </aside>
+
+      <main class="canvas">
+        <div class="toolbar">撤销　恢复　<b>纯文本</b>　粗体　斜体　引用　分割线</div>
+        <div class="document-stage">
+          <article class="doc" id="prototype-document"></article>
+          <div class="workspace-empty" id="workspace-empty" hidden><strong>打开或新建一篇文档</strong><span>关闭页签不会删除文档列表或磁盘中的文件。</span><button type="button" data-action="empty-new-doc">新建文档</button></div>
+        </div>
+        <footer class="statusbar" aria-label="文档状态"><span class="statusbar__doc" data-status-doc>观绎 MD 产品方案.md</span><span>·</span><span data-status-lines>12 行</span><span>·</span><span data-status-chars>462 字符</span><span>·</span><span>视图：预览</span></footer>
+      </main>
+    </div>
+  </div>
+
+  <section class="settings-sheet" id="settings-sheet" role="dialog" aria-modal="false" aria-labelledby="settings-title" hidden>
+    <header class="settings-head">
+      <div><h2 id="settings-title">设置</h2><p>所有偏好保存在本机，可随时调整</p></div>
+      <button type="button" class="close-button" data-action="close-settings" aria-label="关闭设置">×</button>
+    </header>
+    <div class="settings-body">
+      <nav class="settings-nav" aria-label="设置分类">
+        <button type="button" role="tab" aria-selected="true" data-settings-tab="appearance"><span class="settings-nav__icon">◐</span>外观与布局</button>
+        <button type="button" role="tab" aria-selected="false" data-settings-tab="editing"><span class="settings-nav__icon">✎</span>编辑</button>
+        <button type="button" role="tab" aria-selected="false" data-settings-tab="reading"><span class="settings-nav__icon">▤</span>文学阅读</button>
+        <button type="button" role="tab" aria-selected="false" data-settings-tab="search"><span class="settings-nav__icon">⌕</span>搜索与智能</button>
+        <button type="button" role="tab" aria-selected="false" data-settings-tab="storage"><span class="settings-nav__icon">▣</span>数据与隐私</button>
+        <button type="button" role="tab" aria-selected="false" data-settings-tab="help"><span class="settings-nav__icon">?</span>帮助与关于</button>
+      </nav>
+      <div class="settings-content">
+        <section class="settings-page" data-settings-page="appearance">
+          <header class="settings-page-head"><h3>外观与布局</h3><p>让工作区适合你的阅读和编辑节奏</p></header>
+          <div class="settings-legend" aria-label="设置项状态说明"><span class="is-existing"><i></i>已有能力</span><span class="is-recommended"><i></i>建议首期开放</span><span class="is-candidate"><i></i>候选，待确认</span></div>
+          <section class="setting-group">
+            <h3>界面</h3>
+            <div class="setting-row"><div class="setting-copy"><strong>主题<span class="setting-state is-existing">已有能力</span></strong><small>控制工具栏、文档和面板的明暗风格</small></div><div class="setting-control choice-group" data-setting-choice="theme"><button type="button" data-value="light" aria-pressed="true">亮色</button><button type="button" data-value="dark" aria-pressed="false">暗色</button></div></div>
+            <div class="setting-row"><div class="setting-copy"><strong>启动视图<span class="setting-state is-recommended">建议开放</span></strong><small>打开文档时默认进入的编辑布局</small></div><div class="setting-control choice-group" data-setting-choice="view"><button type="button" data-value="source" aria-pressed="false">源码</button><button type="button" data-value="preview" aria-pressed="false">预览</button><button type="button" data-value="split" aria-pressed="true">分栏</button></div></div>
+            <div class="setting-row"><div class="setting-copy"><strong>分栏初始比例<span class="setting-state is-recommended">建议开放</span></strong><small>仅影响打开分栏视图时的左右占比</small></div><div class="setting-control"><input class="setting-range" data-setting-range="split" type="range" min="25" max="75" value="50" aria-label="分栏初始比例"><span class="setting-value" data-setting-value="split">50 / 50</span></div></div>
+          </section>
+        </section>
+        <section class="settings-page" data-settings-page="editing" hidden>
+          <header class="settings-page-head"><h3>编辑</h3><p>调整输入、历史记录和显示密度</p></header>
+          <section class="setting-group"><h3>编辑器</h3>
+            <div class="setting-row"><div class="setting-copy"><strong>回退步数<span class="setting-state is-recommended">建议开放</span></strong><small>当前固定为 50 步；步数越多占用的本地内存越多</small></div><div class="setting-control choice-group" data-setting-choice="history"><button type="button" data-value="20" aria-pressed="false">20</button><button type="button" data-value="50" aria-pressed="true">50</button><button type="button" data-value="100" aria-pressed="false">100</button></div></div>
+            <div class="setting-row"><div class="setting-copy"><strong>编辑器字号<span class="setting-state">候选</span></strong><small>同时调整源码与预览正文，不改变文档内容</small></div><div class="setting-control choice-group" data-setting-choice="font-size"><button type="button" data-value="13" aria-pressed="false">小</button><button type="button" data-value="14" aria-pressed="true">标准</button><button type="button" data-value="16" aria-pressed="false">大</button></div></div>
+            <div class="setting-row"><div class="setting-copy"><strong>行距<span class="setting-state">候选</span></strong><small>只调整显示密度，不改变 Markdown 或 TXT 源文</small></div><div class="setting-control choice-group" data-setting-choice="line-height"><button type="button" data-value="1.65" aria-pressed="false">紧凑</button><button type="button" data-value="1.85" aria-pressed="true">标准</button><button type="button" data-value="2.1" aria-pressed="false">宽松</button></div></div>
+          </section>
+        </section>
+        <section class="settings-page" data-settings-page="reading" hidden>
+          <header class="settings-page-head"><h3>文学阅读</h3><p>只作用于 TXT / 文学阅读内容，不改写源文件</p></header>
+          <section class="setting-group"><h3>阅读排版</h3>
+            <div class="setting-row"><div class="setting-copy"><strong>段首缩进<span class="setting-state is-recommended">建议开放</span></strong><small>当前固定两字；仅作用于 TXT 阅读预览，不写回源文件</small></div><div class="setting-control choice-group" data-setting-choice="txt-indent"><button type="button" data-value="2em" aria-pressed="true">两字</button><button type="button" data-value="0" aria-pressed="false">不缩进</button></div></div>
+            <div class="setting-row"><div class="setting-copy"><strong>连续空行<span class="setting-state">候选</span></strong><small>选择保留原文空行，或合并为一个可见段距</small></div><div class="setting-control choice-group" data-setting-choice="blank-lines"><button type="button" data-value="preserve" aria-pressed="true">保留</button><button type="button" data-value="compact" aria-pressed="false">合并</button></div></div>
+          </section>
+          <div class="setting-callout">阅读预览中的首行缩进、软换行和空行压缩均为显示层处理，原始 TXT 内容保持不变。</div>
+        </section>
+        <section class="settings-page" data-settings-page="search" hidden>
+          <header class="settings-page-head"><h3>搜索与智能</h3><p>本地优先，按需接入模型能力</p></header>
+          <section class="setting-group"><h3>搜索</h3>
+            <div class="setting-row"><div class="setting-copy"><strong>搜索默认范围<span class="setting-state is-recommended">建议开放</span></strong><small>搜索打开时默认使用的文档范围</small></div><div class="setting-control choice-group" data-setting-choice="search-scope"><button type="button" data-value="library" aria-pressed="true">文档列表</button><button type="button" data-value="current" aria-pressed="false">当前文档</button></div></div>
+            <div class="setting-row"><div class="setting-copy"><strong>本地语义索引<span class="setting-state is-existing">已有能力</span></strong><small>查看状态、增量更新和重建索引，不上传文库正文</small></div><div class="setting-control"><span class="setting-value">正常</span></div></div>
+          </section>
+          <section class="setting-group"><h3>模型</h3><div class="setting-row"><div class="setting-copy"><strong>模型与 API<span class="setting-state is-existing">已有能力</span></strong><small>配置可选的大模型服务；本地搜索不依赖登录</small></div><button type="button" class="setting-link" data-action="model-config">打开配置</button></div></section>
+        </section>
+        <section class="settings-page" data-settings-page="storage" hidden>
+          <header class="settings-page-head"><h3>数据与隐私</h3><p>知道文件在哪里，决定哪些内容可以离开设备</p></header>
+          <section class="setting-group"><h3>本地数据</h3>
+            <div class="setting-row"><div class="setting-copy"><strong>本地优先模式<span class="setting-state is-existing">固定策略</span></strong><small>文档、编辑状态和语义索引保存在设备</small></div><button type="button" class="setting-switch" aria-label="本地优先模式" aria-pressed="true" disabled></button></div>
+            <div class="setting-row"><div class="setting-copy"><strong>图片保存位置<span class="setting-state is-existing">已有能力</span></strong><small>桌面端默认写入文档旁的 assets 目录，方便迁移和备份</small></div><div class="setting-control"><span class="setting-value">文档旁 assets</span></div></div>
+            <div class="setting-row"><div class="setting-copy"><strong>索引占用空间</strong><small>语义检索模型与本地索引的磁盘使用情况</small></div><div class="setting-control"><span class="setting-value">约 86 MB</span></div></div>
+          </section>
+        </section>
+        <section class="settings-page" data-settings-page="help" hidden>
+          <header class="settings-page-head"><h3>帮助与关于</h3><p>了解观绎 MD 的本地边界与版本信息</p></header>
+          <section class="setting-group"><h3>支持</h3><div class="setting-row"><div class="setting-copy"><strong>快捷键</strong><small>查看编辑、查找替换、视图切换和搜索快捷键</small></div><button type="button" class="setting-link" data-action="shortcuts">查看快捷键</button></div><div class="setting-row"><div class="setting-copy"><strong>问题反馈</strong><small>反馈编辑器交互、文件兼容和语义检索问题</small></div><button type="button" class="setting-link" data-action="feedback">打开反馈入口</button></div></section>
+          <section class="setting-group"><h3>关于</h3><div class="setting-row"><div class="setting-copy"><strong>观绎 MD</strong><small>俯仰观物，绎述我心　当前原型基于版本 1.0.26</small></div><div class="setting-control"><span class="setting-value">Apple Silicon / Windows</span></div></div></section>
+        </section>
+      </div>
+    </div>
+    <footer class="settings-foot"><small data-settings-status>原型设置，不会修改正式产品</small><button type="button" class="settings-done" data-action="close-settings">完成</button></footer>
+  </section>
+
+  <div class="prototype-toast" id="prototype-toast" hidden></div>
+
+  <div class="modal-backdrop" id="close-tab-modal" hidden>
+    <section class="login-dialog" role="dialog" aria-modal="true" aria-labelledby="close-tab-title">
+      <h2 id="close-tab-title">保存更改后关闭？</h2>
+      <p><strong data-close-tab-name>未命名文档</strong> 包含尚未保存的内容。关闭页签不会删除磁盘文件。</p>
+      <div class="dialog-actions"><button type="button" data-action="cancel-close-tab">取消</button><button type="button" class="danger" data-action="discard-close-tab">不保存</button><button type="button" class="confirm" data-action="save-close-tab">保存并关闭</button></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="auth-modal" hidden>
+    <section class="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <h2 id="auth-title">登录观绎 MD</h2>
+      <p>账户能力原型；首版本地创作不依赖账户，正式同步范围待确认。</p>
+      <div class="auth-tabs" role="tablist" aria-label="账户操作">
+        <button type="button" role="tab" aria-selected="true" data-auth-tab="login">登录</button>
+        <button type="button" role="tab" aria-selected="false" data-auth-tab="register">注册</button>
+      </div>
+      <form class="auth-form" data-auth-form="login">
+        <label class="auth-field"><span>邮箱</span><input type="email" autocomplete="email" value="reader@example.com" required></label>
+        <label class="auth-field"><span>密码</span><input type="password" autocomplete="current-password" value="guanyi-demo" required></label>
+        <p class="auth-note">登录不会上传你的本地文档正文。</p>
+        <div class="dialog-actions"><button type="button" data-action="cancel-auth">取消</button><button class="confirm" type="submit">登录</button></div>
+      </form>
+      <form class="auth-form" data-auth-form="register" hidden>
+        <label class="auth-field"><span>邮箱</span><input type="email" autocomplete="email" placeholder="name@example.com" required></label>
+        <label class="auth-field"><span>设置密码</span><input type="password" autocomplete="new-password" placeholder="至少 8 位" minlength="8" required></label>
+        <label class="auth-field"><span>确认密码</span><input type="password" autocomplete="new-password" required></label>
+        <p class="auth-note">注册只创建观绎账户，不会自动上传已有本地文档。</p>
+        <div class="dialog-actions"><button type="button" data-action="cancel-auth">取消</button><button class="confirm" type="submit">创建账户</button></div>
+      </form>
+    </section>
+  </div>
+
+  <script>
+    const body = document.body;
+    const settings = document.getElementById('settings-sheet');
+    const appMenuButton = document.getElementById('app-menu-button');
+    const appMenuPanel = document.getElementById('app-menu-panel');
+    const authModal = document.getElementById('auth-modal');
+    const closeTabModal = document.getElementById('close-tab-modal');
+    const tabOverview = document.getElementById('tab-overview');
+    const tabMore = document.getElementById('doc-tab-more');
+    const tabList = document.getElementById('doc-tabs');
+    const documentView = document.getElementById('prototype-document');
+    const workspaceEmpty = document.getElementById('workspace-empty');
+    const toast = document.getElementById('prototype-toast');
+    let activeDocId = 'product';
+    let pendingCloseTab = null;
+    let settingsReturnFocus = appMenuButton;
+    let outlineCollapsed = false;
+
+    const docCatalog = {
+      product: {
+        name: '观绎 MD 产品方案', type: 'MD', dirty: true,
+        content: '<h1 data-section="product-position">观绎 MD</h1><p>一款以本心为源的 Markdown 编辑器，观览万象，抽绎所思。</p><h2 data-section="product-origin">设计初心</h2><p>仰而观天文，俯而察地理。人之有思，始于观；观而后绎，便是抽理纷乱的思绪，将内心的体察与向往铺陈为文。</p><h2 data-section="product-capability">核心能力</h2><p>当前页签承载一个独立编辑上下文。切换文档时，源码、预览、光标和未保存状态彼此保留。</p><h2 data-section="product-local">本地优先</h2><p>文档、图片和语义索引保存在设备，关键创作能力不依赖网络。</p><h2 data-section="product-reading">文学阅读</h2><p>大纲、收藏和语义搜索帮助读者理解作品，也让引用原文更有出处。</p>'
+      },
+      honglou: {
+        name: '红楼梦', type: 'TXT', dirty: false,
+        content: '<h1 data-section="honglou-chapter">第三回 贾雨村夤缘复旧职</h1><h2 data-section="honglou-arrival">黛玉进京</h2><p>却说黛玉自那日弃舟登岸时，便有荣国府几个老嬷嬷来接。</p><h2 data-section="honglou-meeting">初见宝玉</h2><p>当前文档是 TXT 文学阅读内容，大纲用于快速跳转章节，阅读排版设置只作用于显示层。</p>'
+      },
+      sanguo: {
+        name: '三国演义', type: 'TXT', dirty: false,
+        content: '<h1 data-section="sanguo-chapter">第二十一回 曹操煮酒论英雄</h1><h2 data-section="sanguo-wine">青梅煮酒</h2><p>正值隆冬，阴云布合，风雨将至。曹操与刘备对坐，谈论天下英雄。</p><h2 data-section="sanguo-thunder">闻雷失箸</h2><p>大纲、收藏和搜索结果都锚定当前页签，不会把证据定位到另一篇文档。</p>'
+      }
+    };
+
+    function announce(message) {
+      toast.textContent = message;
+      toast.hidden = false;
+      clearTimeout(announce.timer);
+      announce.timer = setTimeout(() => { toast.hidden = true; }, 1800);
+    }
+
+    function setAppMenu(open) {
+      appMenuPanel.hidden = !open;
+      appMenuButton.setAttribute('aria-expanded', String(open));
+      if (open) {
+        setTabOverview(false);
+        appMenuPanel.querySelector('[data-action="settings"]')?.focus();
+      }
+    }
+
+    function setSettings(open) {
+      if (open && settings.hidden) {
+        const trigger = document.activeElement;
+        settingsReturnFocus = trigger && !appMenuPanel.contains(trigger) ? trigger : appMenuButton;
+      }
+      if (settings.hidden === !open) return;
+      settings.hidden = !open;
+      if (open) {
+        setAppMenu(false);
+        setTabOverview(false);
+        settings.querySelector('[data-settings-tab][aria-selected="true"]').focus();
+      } else if (settingsReturnFocus?.isConnected) {
+        settingsReturnFocus.focus();
+      }
+    }
+
+    function openSettingsPage(page) {
+      const wasHidden = settings.hidden;
+      setSettings(true);
+      document.querySelectorAll('[data-settings-tab]').forEach((button) => {
+        const selected = button.dataset.settingsTab === page;
+        button.setAttribute('aria-selected', String(selected));
+        button.tabIndex = selected ? 0 : -1;
+      });
+      document.querySelectorAll('[data-settings-page]').forEach((section) => { section.hidden = section.dataset.settingsPage !== page; });
+      if (!wasHidden) document.querySelector(`[data-settings-tab="${page}"]`)?.focus();
+    }
+
+    function setAuthMode(mode) {
+      const register = mode === 'register';
+      document.getElementById('auth-title').textContent = register ? '注册观绎 MD' : '登录观绎 MD';
+      document.querySelectorAll('[data-auth-tab]').forEach((button) => button.setAttribute('aria-selected', String(button.dataset.authTab === mode)));
+      document.querySelectorAll('[data-auth-form]').forEach((form) => { form.hidden = form.dataset.authForm !== mode; });
+      authModal.querySelector(`[data-auth-form="${mode}"] input`)?.focus();
+    }
+
+    function setAuthModal(open, mode = 'login') {
+      authModal.hidden = !open;
+      if (open) {
+        setAppMenu(false);
+        setAuthMode(mode);
+      } else {
+        appMenuButton.focus();
+      }
+    }
+
+    function activeDocTab(id) {
+      return document.querySelector(`.doc-tab[data-doc-tab="${id}"]`);
+    }
+
+    function createDocTab(id) {
+      const doc = docCatalog[id];
+      if (!doc) return null;
+      const tab = document.createElement('div');
+      tab.className = `doc-tab${doc.dirty ? ' is-dirty' : ''}`;
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', 'false');
+      tab.tabIndex = -1;
+      tab.draggable = true;
+      tab.dataset.docTab = id;
+      tab.innerHTML = `<span class="doc-tab__name">${doc.name}</span><button type="button" class="doc-tab__close" aria-label="关闭${doc.name}">×</button>`;
+      tabList.appendChild(tab);
+      bindDocTab(tab);
+      return tab;
+    }
+
+    function ensureDocTab(id) {
+      return activeDocTab(id) || createDocTab(id);
+    }
+
+    function renderOutline(id) {
+      let hasOutline = false;
+      document.querySelectorAll('[data-outline-for]').forEach((item) => {
+        item.hidden = item.dataset.outlineFor !== id;
+        if (!item.hidden) hasOutline = item.querySelector('.outline-item') !== null;
+      });
+      document.querySelector('[data-outline-empty]').hidden = hasOutline;
+      document.querySelectorAll('.outline-item[data-level="2"], .outline-item[data-level="3"]').forEach((item) => { item.hidden = outlineCollapsed; });
+    }
+
+    function renderStatus(doc) {
+      const text = documentView.textContent.trim();
+      const lineCount = documentView.querySelectorAll('h1, h2, h3, p, li, blockquote').length || (text ? 1 : 0);
+      document.querySelector('[data-status-doc]').textContent = doc ? `${doc.name}.${doc.type.toLowerCase()}` : '未打开文档';
+      document.querySelector('[data-status-lines]').textContent = `${lineCount} 行`;
+      document.querySelector('[data-status-chars]').textContent = `${text.replace(/\s/g, '').length} 字符`;
+    }
+
+    function renderTabOverview() {
+      const tabs = [...document.querySelectorAll('.doc-tab')];
+      document.querySelector('[data-open-tab-count]').textContent = `${tabs.length} 个`;
+      document.querySelector('[data-app-tab-count]').textContent = `${tabs.length} 个`;
+      tabOverview.querySelector('.tab-overview__list').innerHTML = tabs.length
+        ? tabs.map((tab) => {
+            const id = tab.dataset.docTab;
+            const doc = docCatalog[id];
+            return `<button type="button" class="tab-overview__item${id === activeDocId ? ' is-active' : ''}" role="menuitem" data-overview-doc="${id}"><span class="tab-overview__type">${doc.type}</span><span class="tab-overview__name">${doc.name}</span><span class="tab-overview__state">${doc.dirty ? '•' : ''}</span></button>`;
+          }).join('')
+        : '<div class="inspector-empty"><strong>没有打开的文档</strong><span>使用 + 新建，或从文档列表重新打开。</span></div>';
+    }
+
+    function setTabOverview(open) {
+      tabOverview.hidden = !open;
+      tabMore.setAttribute('aria-expanded', String(open));
+      if (open) {
+        setAppMenu(false);
+        renderTabOverview();
+        tabOverview.querySelector('[role="menuitem"]')?.focus();
+      }
+    }
+
+    function showEmptyWorkspace() {
+      activeDocId = '';
+      documentView.hidden = true;
+      workspaceEmpty.hidden = false;
+      document.querySelector('[data-current-doc-name]').textContent = '未打开文档';
+      document.querySelectorAll('[data-open-doc]').forEach((item) => item.classList.remove('active'));
+      renderOutline('');
+      renderStatus(null);
+      renderTabOverview();
+    }
+
+    function openDoc(id, options = {}) {
+      const doc = docCatalog[id];
+      const tab = ensureDocTab(id);
+      if (!doc || !tab) return;
+      activeDocId = id;
+      document.querySelectorAll('.doc-tab').forEach((item) => {
+        const active = item === tab;
+        item.classList.toggle('is-active', active);
+        item.setAttribute('aria-selected', String(active));
+        item.tabIndex = active ? 0 : -1;
+      });
+      document.querySelectorAll('[data-open-doc]').forEach((item) => item.classList.toggle('active', item.dataset.openDoc === id));
+      documentView.innerHTML = doc.content;
+      documentView.hidden = false;
+      workspaceEmpty.hidden = true;
+      document.querySelector('[data-current-doc-name]').textContent = doc.name;
+      document.querySelector('.toolbar b').textContent = doc.type === 'TXT' ? '纯文本' : 'Markdown';
+      renderOutline(id);
+      renderStatus(doc);
+      renderTabOverview();
+      tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      if (options.focusTab) tab.focus();
+      if (options.announce !== false) announce(`已切换到「${doc.name}」`);
+    }
+
+    function addDocTab() {
+      const id = `new-${Date.now()}`;
+      docCatalog[id] = {
+        name: '未命名文档', type: 'MD', dirty: true,
+        content: '<h1>未命名文档</h1><p>这是一个新的编辑上下文。保存后可为它选择本地目录。</p>'
+      };
+      createDocTab(id);
+      openDoc(id, { focusTab: true });
+    }
+
+    function performCloseTab(tab, disposition) {
+      const tabs = [...document.querySelectorAll('.doc-tab')];
+      const id = tab.dataset.docTab;
+      const wasActive = id === activeDocId;
+      const index = tabs.indexOf(tab);
+      const next = tabs[index + 1] || tabs[index - 1];
+      if (disposition === 'save') docCatalog[id].dirty = false;
+      if (disposition === 'discard') docCatalog[id].dirty = false;
+      tab.remove();
+      pendingCloseTab = null;
+      closeTabModal.hidden = true;
+      if (wasActive && next) openDoc(next.dataset.docTab, { focusTab: true, announce: false });
+      if (wasActive && !next) showEmptyWorkspace();
+      renderTabOverview();
+      announce(disposition === 'save' ? '已保存并关闭页签' : '已关闭工作区页签，原文件和文档列表保持不变');
+    }
+
+    function requestCloseTab(tab) {
+      const doc = docCatalog[tab.dataset.docTab];
+      if (!doc?.dirty) { performCloseTab(tab, 'close'); return; }
+      pendingCloseTab = tab;
+      document.querySelector('[data-close-tab-name]').textContent = doc.name;
+      closeTabModal.hidden = false;
+      closeTabModal.querySelector('[data-action="save-close-tab"]').focus();
+    }
+
+    function locateAnchor(anchor) {
+      const target = documentView.querySelector(`[data-section="${anchor}"]`);
+      if (!target) { announce('当前原型内容中没有对应位置'); return; }
+      document.querySelectorAll('.outline-item').forEach((item) => item.classList.toggle('is-current', item.dataset.anchor === anchor));
+      documentView.querySelectorAll('.is-located').forEach((item) => item.classList.remove('is-located'));
+      target.classList.add('is-located');
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      clearTimeout(locateAnchor.timer);
+      locateAnchor.timer = setTimeout(() => target.classList.remove('is-located'), 1600);
+      announce('已定位到当前文档对应内容');
+    }
+
+    function bindDocTab(tab) {
+      tab.addEventListener('keydown', (event) => {
+        const tabs = [...document.querySelectorAll('.doc-tab')];
+        const index = tabs.indexOf(tab);
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openDoc(tab.dataset.docTab); }
+        if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+          event.preventDefault();
+          const delta = event.key === 'ArrowRight' ? 1 : -1;
+          const target = tabs[(index + delta + tabs.length) % tabs.length];
+          openDoc(target.dataset.docTab, { focusTab: true });
+        }
+      });
+      tab.addEventListener('dragstart', () => tab.classList.add('is-dragging'));
+      tab.addEventListener('dragend', () => { tab.classList.remove('is-dragging'); document.querySelectorAll('.doc-tab').forEach((item) => item.classList.remove('is-drop-target')); });
+      tab.addEventListener('dragover', (event) => { event.preventDefault(); if (!tab.classList.contains('is-dragging')) tab.classList.add('is-drop-target'); });
+      tab.addEventListener('dragleave', () => tab.classList.remove('is-drop-target'));
+      tab.addEventListener('drop', (event) => {
+        event.preventDefault();
+        const dragged = document.querySelector('.doc-tab.is-dragging');
+        if (!dragged || dragged === tab) return;
+        tabList.insertBefore(dragged, event.clientX < tab.getBoundingClientRect().left + tab.offsetWidth / 2 ? tab : tab.nextSibling);
+        tab.classList.remove('is-drop-target');
+        renderTabOverview();
+        announce('文档页签顺序已调整');
+      });
+    }
+
+    function setChoice(group, value) {
+      document.querySelectorAll(`[data-setting-choice="${group}"] button`).forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.value === value)));
+      if (group === 'theme') body.dataset.previewTheme = value;
+      if (group === 'font-size') document.documentElement.style.setProperty('--doc-font-size', `${value}px`);
+      if (group === 'line-height') document.documentElement.style.setProperty('--doc-line-height', value);
+      const labels = {
+        theme: { light: '亮色主题已选择', dark: '暗色主题已选择' },
+        view: { source: '启动视图：源码', preview: '启动视图：预览', split: '启动视图：分栏' },
+        history: { 20: '原型回退步数：20', 50: '原型回退步数：50', 100: '原型回退步数：100' },
+        'font-size': { 13: '编辑器字号：小', 14: '编辑器字号：标准', 16: '编辑器字号：大' },
+        'line-height': { 1.65: '行距：紧凑', 1.85: '行距：标准', 2.1: '行距：宽松' },
+        'txt-indent': { '2em': 'TXT 段首缩进：两字', 0: 'TXT 段首缩进：不缩进' },
+        'blank-lines': { preserve: 'TXT 连续空行：保留', compact: 'TXT 连续空行：合并' },
+        'search-scope': { library: '搜索默认范围：当前文档列表', current: '搜索默认范围：当前文档' }
+      };
+      announce(labels[group]?.[value] || '设置已更新');
+    }
+
+    tabList.addEventListener('click', (event) => {
+      const close = event.target.closest('.doc-tab__close');
+      if (close) { event.stopPropagation(); requestCloseTab(close.closest('.doc-tab')); return; }
+      const tab = event.target.closest('.doc-tab');
+      if (tab) openDoc(tab.dataset.docTab);
+    });
+    document.querySelectorAll('.doc-tab').forEach(bindDocTab);
+    document.getElementById('doc-tab-add').addEventListener('click', addDocTab);
+    document.getElementById('new-doc-action').addEventListener('click', addDocTab);
+    document.querySelector('[data-action="empty-new-doc"]').addEventListener('click', addDocTab);
+    document.querySelectorAll('[data-open-doc]').forEach((item) => item.addEventListener('click', () => openDoc(item.dataset.openDoc)));
+    tabMore.addEventListener('click', (event) => { event.stopPropagation(); setTabOverview(tabOverview.hidden); });
+    tabOverview.addEventListener('click', (event) => {
+      const item = event.target.closest('[data-overview-doc]');
+      if (item) { openDoc(item.dataset.overviewDoc, { focusTab: true }); setTabOverview(false); }
+    });
+
+    document.querySelectorAll('[data-inspector-tab]').forEach((button) => button.addEventListener('click', () => {
+      const value = button.dataset.inspectorTab;
+      document.querySelectorAll('[data-inspector-tab]').forEach((item) => item.setAttribute('aria-selected', String(item === button)));
+      document.querySelectorAll('[data-inspector-panel]').forEach((item) => { item.hidden = item.dataset.inspectorPanel !== value; });
+    }));
+    document.querySelector('[data-inspector-panel="outline"]').addEventListener('click', (event) => {
+      const item = event.target.closest('.outline-item[data-anchor]');
+      if (item) locateAnchor(item.dataset.anchor);
+    });
+    document.querySelector('[data-inspector-panel="saved"]').addEventListener('click', (event) => {
+      const item = event.target.closest('[data-saved-doc]');
+      if (!item) return;
+      openDoc(item.dataset.savedDoc, { announce: false });
+      requestAnimationFrame(() => locateAnchor(item.dataset.anchor));
+    });
+    document.querySelector('[data-action="collapse-outline"]').addEventListener('click', (event) => {
+      outlineCollapsed = !outlineCollapsed;
+      renderOutline(activeDocId);
+      event.currentTarget.setAttribute('aria-label', outlineCollapsed ? '展开大纲层级' : '折叠大纲层级');
+      event.currentTarget.title = outlineCollapsed ? '展开大纲层级' : '折叠大纲层级';
+      announce(outlineCollapsed ? '已折叠二级大纲' : '已展开全部大纲');
+    });
+
+    document.querySelectorAll('[data-settings-tab]').forEach((button) => {
+      button.tabIndex = button.getAttribute('aria-selected') === 'true' ? 0 : -1;
+      button.addEventListener('click', () => openSettingsPage(button.dataset.settingsTab));
+      button.addEventListener('keydown', (event) => {
+        if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+        event.preventDefault();
+        const tabs = [...document.querySelectorAll('[data-settings-tab]')];
+        const delta = event.key === 'ArrowDown' ? 1 : -1;
+        const target = tabs[(tabs.indexOf(button) + delta + tabs.length) % tabs.length];
+        openSettingsPage(target.dataset.settingsTab);
+      });
+    });
+    document.querySelectorAll('[data-settings-open]').forEach((button) => button.addEventListener('click', () => openSettingsPage(button.dataset.settingsOpen)));
+    document.querySelectorAll('[data-action="model-config"]').forEach((button) => button.addEventListener('click', () => announce('模型配置将在正式产品中打开')));
+    document.querySelectorAll('[data-action="shortcuts"], [data-action="feedback"]').forEach((button) => button.addEventListener('click', () => announce('原型入口：待接入正式页面')));
+
+    appMenuButton.addEventListener('click', (event) => { event.stopPropagation(); setAppMenu(appMenuPanel.hidden); });
+    document.querySelector('[data-action="show-tabs"]').addEventListener('click', (event) => { event.stopPropagation(); setAppMenu(false); setTabOverview(true); });
+    document.querySelector('[data-action="settings"]').addEventListener('click', () => openSettingsPage('appearance'));
+    document.querySelector('[data-action="refresh-preview"]').addEventListener('click', () => announce('工作区已刷新，当前页签保持不变'));
+    document.querySelector('[data-action="open-auth"]').addEventListener('click', () => setAuthModal(true, 'login'));
+    document.querySelector('[data-action="check-update"]').addEventListener('click', () => {
+      const status = document.querySelector('[data-update-status]');
+      status.textContent = '检查中…';
+      clearTimeout(status.timer);
+      status.timer = setTimeout(() => { status.textContent = '已是最新'; announce('观绎 MD 1.0.26 已是最新版本'); }, 700);
+    });
+    document.querySelectorAll('[data-setting-choice]').forEach((group) => group.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-value]');
+      if (button) setChoice(group.dataset.settingChoice, button.dataset.value);
+    }));
+    document.querySelector('[data-setting-range="split"]').addEventListener('input', (event) => {
+      const value = Number(event.target.value);
+      document.querySelector('[data-setting-value="split"]').textContent = `${value} / ${100 - value}`;
+      document.querySelector('[data-settings-status]').textContent = `原型分栏比例：${value} / ${100 - value}`;
+    });
+    document.querySelectorAll('[data-action="close-settings"]').forEach((button) => button.addEventListener('click', () => setSettings(false)));
+    document.querySelectorAll('[data-auth-tab]').forEach((button) => button.addEventListener('click', () => setAuthMode(button.dataset.authTab)));
+    document.querySelectorAll('[data-action="cancel-auth"]').forEach((button) => button.addEventListener('click', () => setAuthModal(false)));
+    document.querySelectorAll('[data-auth-form]').forEach((form) => form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (form.dataset.authForm === 'register') {
+        const passwords = [...form.querySelectorAll('input[type="password"]')].map((input) => input.value);
+        if (passwords[0] !== passwords[1]) { announce('两次输入的密码不一致'); return; }
+      }
+      const email = form.querySelector('input[type="email"]').value;
+      document.querySelector('.app-menu-auth strong').textContent = '观绎用户';
+      document.querySelector('.app-menu-auth span').textContent = email;
+      document.querySelector('.app-menu-auth__action').textContent = '账户';
+      setAuthModal(false);
+      announce(form.dataset.authForm === 'register' ? '注册流程原型已完成' : '登录流程原型已完成');
+    }));
+    document.querySelector('[data-action="cancel-close-tab"]').addEventListener('click', () => { closeTabModal.hidden = true; pendingCloseTab?.focus(); pendingCloseTab = null; });
+    document.querySelector('[data-action="discard-close-tab"]').addEventListener('click', () => { if (pendingCloseTab) performCloseTab(pendingCloseTab, 'discard'); });
+    document.querySelector('[data-action="save-close-tab"]').addEventListener('click', () => { if (pendingCloseTab) performCloseTab(pendingCloseTab, 'save'); });
+    authModal.addEventListener('click', (event) => { if (event.target === authModal) setAuthModal(false); });
+    closeTabModal.addEventListener('click', (event) => { if (event.target === closeTabModal) document.querySelector('[data-action="cancel-close-tab"]').click(); });
+    document.addEventListener('click', (event) => {
+      if (!appMenuPanel.hidden && !appMenuPanel.contains(event.target) && !appMenuButton.contains(event.target)) setAppMenu(false);
+      if (!tabOverview.hidden && !tabOverview.contains(event.target) && !tabMore.contains(event.target)) setTabOverview(false);
+    });
+    document.addEventListener('keydown', (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === ',') {
+        event.preventDefault();
+        openSettingsPage('appearance');
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'w' && activeDocId) {
+        event.preventDefault();
+        requestCloseTab(activeDocTab(activeDocId));
+        return;
+      }
+      if (event.key !== 'Escape') return;
+      if (!closeTabModal.hidden) { document.querySelector('[data-action="cancel-close-tab"]').click(); return; }
+      if (!authModal.hidden) { setAuthModal(false); return; }
+      if (!settings.hidden) { setSettings(false); return; }
+      if (!tabOverview.hidden) { setTabOverview(false); appMenuButton.focus(); return; }
+      if (!appMenuPanel.hidden) { setAppMenu(false); appMenuButton.focus(); }
+    });
+
+    renderTabOverview();
+    openDoc('product', { announce: false });
+  </script>
+</body>
+</html>

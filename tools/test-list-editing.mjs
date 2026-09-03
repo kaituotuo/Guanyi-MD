@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
 const appSource = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+const cssSource = await readFile(new URL('../css/app.css', import.meta.url), 'utf8');
 const functionStart = appSource.indexOf('function continueListPure(');
 const functionEnd = appSource.indexOf('\n  function selectedLineBounds', functionStart);
 assert.notEqual(functionStart, -1, 'continueListPure should exist in js/app.js');
@@ -31,6 +32,12 @@ assert.notEqual(editingHelpersEnd, -1, 'editing helpers should end before applyS
 const computeBlockFormat = vm.runInNewContext(
   `(() => { ${appSource.slice(editingHelpersStart, editingHelpersEnd)}; return computeFormat; })()`
 );
+
+const taskMarkerStart = appSource.indexOf('function taskMarkers(');
+const taskMarkerEnd = appSource.indexOf('\n  function ensureTaskContent', taskMarkerStart);
+assert.notEqual(taskMarkerStart, -1, 'source task marker scanner should exist');
+assert.notEqual(taskMarkerEnd, -1, 'source task marker scanner should have a stable boundary');
+const taskMarkers = vm.runInNewContext(`(${appSource.slice(taskMarkerStart, taskMarkerEnd)})`);
 
 const imageInsertionStart = appSource.indexOf('function imageInsertionLines(');
 const imageInsertionEnd = appSource.indexOf('\n  function applyImageBlocks', imageInsertionStart);
@@ -63,6 +70,8 @@ const cases = [
   ['* 新增|处理', '* 新增\n* |处理'],
   ['7. 新增|处理', '7. 新增\n8. |处理'],
   ['7) 新增|处理', '7) 新增\n8) |处理'],
+  ['3. [ ] 新增|处理', '3. [ ] 新增\n4. [ ] |处理'],
+  ['3) [x] 新增|处理', '3) [x] 新增\n4) [ ] |处理'],
   ['  - [x] 新增|处理', '  - [x] 新增\n  - [ ] |处理'],
   ['> 新增|处理', '> 新增\n> |处理']
 ];
@@ -114,11 +123,61 @@ assert.equal(
   '- 第一\n\n- 第三',
   'an empty structural paragraph should collapse to one Markdown block boundary'
 );
+
+const taskDecoratorStart = appSource.indexOf('function ensureTaskContent(');
+const taskDecoratorEnd = appSource.indexOf('\n  function prepareTaskCheckboxes', taskDecoratorStart);
+assert.notEqual(taskDecoratorStart, -1, 'task content normalizer should exist');
+assert.notEqual(taskDecoratorEnd, -1, 'task content normalizer should have a stable boundary');
+const taskDecoratorSource = appSource.slice(taskDecoratorStart, taskDecoratorEnd);
+assert.match(taskDecoratorSource, /checkboxHost !== item[\s\S]*?checkboxHost\.tagName === 'P'/, 'loose task-list paragraphs should be detected');
+assert.match(taskDecoratorSource, /item\.insertBefore\(checkbox, checkboxHost\)[\s\S]*?checkboxHost\.remove\(\)/, 'a loose-list checkbox should become a direct list-item child');
+assert.match(taskDecoratorSource, /while \(checkboxHost\.firstChild\) content\.appendChild\(checkboxHost\.firstChild\)/, 'loose-list text should move into the task content cell');
+assert.match(cssSource, /\.editor-preview li\.task-list-item\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:/, 'task items should keep the checkbox and text in a stable two-column row');
 assert.equal(
   normalizePreviewStructuralMarkdown('    code\n\n正文'),
   '    code\n\n正文',
   'leading indented code must not be mistaken for an empty paragraph'
 );
+
+const mixedTaskSource = [
+  '- [x] 正文任务',
+  '```md',
+  '- [x] 围栏中的示例',
+  '```',
+  '    - [x] 缩进代码中的示例',
+  '> - [ ] 引用任务',
+  '1. [ ] 有序任务',
+  '- 项目',
+  '  - [x] 嵌套任务'
+].join('\n');
+const mixedMarkers = taskMarkers(mixedTaskSource);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(mixedMarkers.map((marker) => ({ checked: marker.checked, listType: marker.listType, quoteDepth: marker.quoteDepth, indent: marker.indent })))),
+  [
+    { checked: true, listType: 'ul', quoteDepth: 0, indent: 0 },
+    { checked: false, listType: 'ul', quoteDepth: 1, indent: 0 },
+    { checked: false, listType: 'ol', quoteDepth: 0, indent: 0 },
+    { checked: true, listType: 'ul', quoteDepth: 0, indent: 2 }
+  ],
+  'task markers must skip fenced/indented code while retaining quote, ordered, and nested tasks'
+);
+assert.equal(mixedMarkers[0].index, mixedTaskSource.indexOf('[x]') + 1, 'task state offset should point to the source state character');
+assert.equal(mixedMarkers[1].index, mixedTaskSource.indexOf('[ ]', mixedMarkers[0].index) + 1, 'quoted task state offset should remain source-relative');
+const crlfSource = '- [ ] 第一\r\n1. [x] 第二\r\n';
+assert.equal(taskMarkers(crlfSource)[1].index, crlfSource.indexOf('[x]') + 1, 'CRLF source offsets must not drift');
+
+const compactListStart = appSource.indexOf("turndownService.addRule('compactListItem'");
+const compactListEnd = appSource.indexOf('\n  }\n\n  function normalizeSettings', compactListStart);
+assert.notEqual(compactListStart, -1, 'list serializer should exist');
+const compactListSource = appSource.slice(compactListStart, compactListEnd);
+assert.match(compactListSource, /const ordered = parent\?\.nodeName === 'OL'/, 'list serializer should detect ordered parents for task items');
+assert.match(compactListSource, /prefix = checkbox \? `\$\{marker\}\[\$\{checkbox\.checked \? 'x' : ' '\}\] /, 'ordered task items should retain an ordered marker');
+assert.match(compactListSource, /body\.split\('\\n'\)\.map/, 'list serializer should normalize continuation lines one line at a time');
+
+assert.match(appSource, /function movePreviewListItem\([\s\S]*?event\.key !== 'Tab'/, 'preview lists should handle Tab indentation');
+assert.match(appSource, /function movePreviewListItem\([\s\S]*?event\.shiftKey/, 'preview lists should handle Shift+Tab outdent');
+assert.match(appSource, /if \(movePreviewListItem\(event\)\) return;/, 'preview keydown should route Tab before native editing');
+assert.match(appSource, /function previewListItemRange\([\s\S]*?A caret placed on the list-item wrapper/, 'task caret boundaries should be normalized before Enter/Tab');
 
 function assertFormat(source, start, end, action, expected, expectedStart, expectedEnd) {
   const result = computeFormat(source, start, end, action);
@@ -138,6 +197,41 @@ assertFormat('`格式测试`', 1, 5, 'inlinecode', '格式测试', 0, 4);
 assertFormat('```\n格式测试\n```', 4, 8, 'codeblock', '格式测试', 0, 4);
 
 const image = '![图](assets/test.png)';
+
+const afterLineStart = appSource.indexOf('function markdownEmptyLineAfter(');
+const afterLineEnd = appSource.indexOf('\n  function previewImageMarkdownLine', afterLineStart);
+assert.notEqual(afterLineStart, -1, 'image-following Markdown line helper should exist');
+assert.notEqual(afterLineEnd, -1, 'image-following Markdown line helper should have a stable boundary');
+const markdownEmptyLineAfter = vm.runInNewContext(`(${appSource.slice(afterLineStart, afterLineEnd)})`);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(markdownEmptyLineAfter(image, image.length))),
+  { markdown: `${image}\n\n`, start: image.length + 2, end: image.length + 2 },
+  'a terminal preview image should gain a real following Markdown line'
+);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(markdownEmptyLineAfter(`${image}\n下一行`, image.length))),
+  { markdown: `${image}\n\n\n\n下一行`, start: image.length + 2, end: image.length + 2 },
+  'an image caret placeholder before text should map to a distinct Markdown line'
+);
+
+for (const [action, broken] of [
+  ['ol', `1. ${image}`],
+  ['ul', `- ${image}`],
+  ['task', `- [ ] ${image}`],
+  ['quote', `> ${image}`],
+  ['heading', `## ${image}`]
+]) {
+  const result = computeBlockFormat(broken, 0, broken.length, action, action === 'heading' ? 2 : undefined);
+  assert.equal(result.text, image, `${action} should remove a legacy structural prefix from an atomic image row`);
+}
+
+const orderedAroundImage = `上一项\n\n${image}\n\n下一项`;
+const orderedAroundImageResult = computeBlockFormat(orderedAroundImage, 0, orderedAroundImage.length, 'ol');
+assert.equal(
+  orderedAroundImageResult.text,
+  `1. 上一项\n\n${image}\n\n2. 下一项`,
+  'formatting across an image should format text lines while preserving the image and its paragraph boundaries'
+);
 
 function imageCaretCase(source, expected, blocks = [image]) {
   const caretMarker = source.includes('¦') ? '¦' : '|';
@@ -224,4 +318,4 @@ assert.match(sequence, /^> 说明三$/m, 'ordered list then quote should retain 
 assert.match(sequence, /^- \[ \] 收尾四$/m, 'quote then task should retain the final task structure');
 assert.doesNotMatch(sequence, /^\s*[-*+]\s+\[[ xX]\]\s*$/m, 'mixed operations should not create orphan task markers');
 
-console.log(`editing matrix passed: ${cases.length + 19 + imageBoundaryCases.length + 7} scenarios`);
+console.log(`editing matrix passed: ${cases.length + 19 + imageBoundaryCases.length + 15} scenarios`);
