@@ -36,12 +36,35 @@ function assertClose(actual, expected, label, tolerance = 1) {
   }
 }
 
-async function inspectLayout(window, name, dimensions, theme) {
+async function inspectTabArc(window, index) {
+  await window.webContents.executeJavaScript(`(() => {
+    const tabs = [...document.querySelectorAll('#document-tabs .app-document-tab')];
+    tabs[${index}]?.querySelector('.app-document-tab__activate')?.click();
+  })()`);
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  return window.webContents.executeJavaScript(`(() => {
+    const container = document.getElementById('document-tabs');
+    const selected = container.querySelector('.app-document-tab[aria-selected="true"]');
+    const containerRect = container.getBoundingClientRect();
+    const selectedRect = selected.getBoundingClientRect();
+    const before = getComputedStyle(selected, '::before');
+    const after = getComputedStyle(selected, '::after');
+    return {
+      index: [...container.querySelectorAll('.app-document-tab')].indexOf(selected),
+      leftClearance: selectedRect.left - containerRect.left,
+      rightClearance: containerRect.right - selectedRect.right,
+      before: { width: before.width, height: before.height, left: before.left, radius: before.borderBottomRightRadius },
+      after: { width: after.width, height: after.height, right: after.right, radius: after.borderBottomLeftRadius }
+    };
+  })()`);
+}
+
+async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
   window.setContentSize(dimensions.width, dimensions.height);
   await new Promise((resolve) => setTimeout(resolve, 120));
   await window.webContents.executeJavaScript(`(() => {
     document.documentElement.dataset.theme = ${JSON.stringify(theme)};
-    while (document.querySelectorAll('#document-tabs .app-document-tab').length < 4) {
+    while (document.querySelectorAll('#document-tabs .app-document-tab').length < ${minimumTabs}) {
       document.getElementById('btn-new-tab').click();
     }
     if (!document.getElementById('collab-drawer').classList.contains('is-open')) {
@@ -49,6 +72,12 @@ async function inspectLayout(window, name, dimensions, theme) {
     }
   })()`);
   await new Promise((resolve) => setTimeout(resolve, 220));
+
+  const tabCount = await window.webContents.executeJavaScript("document.querySelectorAll('#document-tabs .app-document-tab').length");
+  const tabArcStates = [];
+  for (const index of new Set([0, Math.floor(tabCount / 2), tabCount - 1])) {
+    tabArcStates.push(await inspectTabArc(window, index));
+  }
 
   const layout = await window.webContents.executeJavaScript(`(() => {
     const rect = (selector) => {
@@ -75,20 +104,31 @@ async function inspectLayout(window, name, dimensions, theme) {
       selectedRadius: selected ? getComputedStyle(selected).borderRadius : '',
       brandVisible: Boolean(document.querySelector('.app-topbar__brand')?.getClientRects().length),
       sloganVisible: Boolean(document.querySelector('.app-topbar__tagline')?.getClientRects().length),
-      drawerOpen: document.getElementById('collab-drawer').classList.contains('is-open')
+      drawerOpen: document.getElementById('collab-drawer').classList.contains('is-open'),
+      tabArcSize: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--guanyi-tab-arc-size'))
     };
   })()`);
 
   if (layout.theme !== theme) throw new Error(`${name}: theme did not apply`);
   if (!layout.brandVisible || !layout.sloganVisible) throw new Error(`${name}: desktop brand or slogan is hidden`);
   if (!layout.drawerOpen) throw new Error(`${name}: collaboration drawer did not open`);
-  if (layout.tabs.length < 4) throw new Error(`${name}: multiple tabs were not rendered`);
+  if (layout.tabs.length < minimumTabs) throw new Error(`${name}: expected at least ${minimumTabs} tabs`);
   assertClose(layout.topbar.bottom, layout.formatbar.top, `${name}: formatbar must follow topbar`);
   assertClose(layout.formatbar.bottom, layout.drawer.top, `${name}: drawer must start below formatbar`);
   assertClose(layout.drawer.bottom, layout.statusbar.top, `${name}: drawer must stop above statusbar`);
   assertClose(layout.identity.right, layout.sidebar.right, `${name}: brand boundary must align with sidebar`);
   assertClose(layout.tabsBar.left, layout.identity.right, `${name}: tabs must start after brand region`);
   if (layout.selectedRadius !== '10px 10px 0px 0px') throw new Error(`${name}: selected tab radius is ${layout.selectedRadius}`);
+  for (const arc of tabArcStates) {
+    if (arc.leftClearance + 1 < layout.tabArcSize || arc.rightClearance + 1 < layout.tabArcSize) {
+      throw new Error(`${name}: tab ${arc.index} arc is clipped (${arc.leftClearance}px, ${arc.rightClearance}px)`);
+    }
+    const expected = `${layout.tabArcSize}px`;
+    if (arc.before.width !== expected || arc.before.height !== expected || arc.before.left !== `-${expected}` || arc.before.radius !== expected
+      || arc.after.width !== expected || arc.after.height !== expected || arc.after.right !== `-${expected}` || arc.after.radius !== expected) {
+      throw new Error(`${name}: tab ${arc.index} outward arcs are not mirrored: ${JSON.stringify(arc)}`);
+    }
+  }
   for (let index = 1; index < layout.tabs.length; index += 1) {
     if (layout.tabs[index].left + 1 < layout.tabs[index - 1].right) {
       throw new Error(`${name}: document tabs overlap at index ${index}`);
@@ -134,8 +174,8 @@ async function main() {
   await window.loadFile(path.join(projectRoot, 'index.html'), { query: { client: 'desktop' } });
   await waitForRenderer(window);
   const screenshots = [];
-  screenshots.push(await inspectLayout(window, 'desktop-light-1440x920', { width: 1440, height: 920 }, 'light'));
-  screenshots.push(await inspectLayout(window, 'desktop-dark-920x640', { width: 920, height: 640 }, 'dark'));
+  screenshots.push(await inspectLayout(window, 'desktop-light-two-tabs-1440x920', { width: 1440, height: 920 }, 'light', 2));
+  screenshots.push(await inspectLayout(window, 'desktop-dark-six-tabs-920x640', { width: 920, height: 640 }, 'dark', 6));
   if (consoleErrors.length) throw new Error(`renderer console errors: ${consoleErrors.join(' | ')}`);
   window.destroy();
   process.stdout.write(`Electron layout smoke passed: ${screenshots.join(', ')}\n`);

@@ -14,7 +14,8 @@ for (const declaration of [
   '--guanyi-topbar-height: 56px',
   '--guanyi-formatbar-height: 49px',
   '--guanyi-statusbar-height: 26px',
-  '--guanyi-workspace-top: calc(var(--guanyi-topbar-height) + var(--guanyi-formatbar-height))'
+  '--guanyi-workspace-top: calc(var(--guanyi-topbar-height) + var(--guanyi-formatbar-height))',
+  '--guanyi-tab-arc-size: 10px'
 ]) assert.ok(css.includes(declaration), `missing layout token: ${declaration}`);
 
 assert.match(css, /html\.is-desktop-client\s*\{\s*--guanyi-topbar-height:\s*42px;\s*\}/,

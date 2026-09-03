@@ -54,6 +54,7 @@
   --guanyi-formatbar-height: 49px;
   --guanyi-statusbar-height: 26px;
   --guanyi-workspace-top: calc(var(--guanyi-topbar-height) + var(--guanyi-formatbar-height));
+  --guanyi-tab-arc-size: 10px;
 }
 
 html.is-desktop-client { --guanyi-topbar-height: 42px; }
@@ -2415,7 +2416,9 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
   align-items: flex-end;
   gap: 1px;
   flex: 1 1 auto;
+  padding-inline: var(--guanyi-tab-arc-size);
   overflow-x: auto;
+  scroll-padding-inline: var(--guanyi-tab-arc-size);
   scrollbar-width: none;
 }
 .app-document-tabs::-webkit-scrollbar { display: none; }
@@ -2433,6 +2436,7 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
   border-radius: 10px 10px 0 0;
   color: var(--ui-color-text-secondary);
   background: transparent;
+  scroll-margin-inline: var(--guanyi-tab-arc-size);
 }
 .app-document-tab:first-child { border-left: 0; }
 .app-document-tab:hover { background: var(--ui-color-state-hover); }

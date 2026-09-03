@@ -94,6 +94,10 @@ assert.match(cssSource, /\.app-document-tabs-bar \{[\s\S]*?background: var\(--ui
   'the tab strip should provide a light contrast surface for the selected tab');
 assert.match(cssSource, /\.app-document-tabs \{[\s\S]*?flex-flow: row nowrap;/,
   'document tabs must remain in one horizontal row');
+assert.match(cssSource, /\.app-document-tabs \{[\s\S]*?padding-inline: var\(--guanyi-tab-arc-size\);[\s\S]*?scroll-padding-inline: var\(--guanyi-tab-arc-size\);/,
+  'the scroll container must reserve equal clearance for both outward tab arcs');
+assert.match(cssSource, /\.app-document-tab \{[\s\S]*?scroll-margin-inline: var\(--guanyi-tab-arc-size\);/,
+  'scrolling a tab into view must preserve both outward arcs');
 assert.match(cssSource, /html\.is-desktop-client \.app-topbar \{[\s\S]*?background: var\(--ui-color-fill-light\);/,
   'desktop titlebar must retain the light tab-strip contrast surface');
 assert.match(cssSource, /\.app-topbar__identity \{[\s\S]*?flex: 0 0 var\(--guanyi-sidebar-width\);/,
