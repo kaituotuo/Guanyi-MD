@@ -89,6 +89,8 @@ const expectedScripts = [
   'test:work-question',
     'test:desktop-ai-bridge',
     'test:desktop-menu',
+    'test:desktop-layout',
+    'test:desktop-layout-electron',
   'test:document-rename',
   'test:regression-catalog',
   'test:regression:editor',
@@ -125,8 +127,10 @@ for (const background of ['#df4b25', '#ed5a2f', '#bd3518', '#c43f20']) {
 }
 assert.match(checklist, /图标对比：[\s\S]*?不得低于 `3:1`/, '发布自检必须包含实色背景与图标的高对比通用规则');
 assert.match(checklist, /\| VW-11 \| 实色按钮图标对比 \|/, '多视图矩阵必须逐态验收实色按钮图标');
-const desktopDrawerRules = [...css.matchAll(/html\.is-desktop-client \.app-collab-drawer,\s*html\.is-desktop-client \.app-drawer-mask\s*\{\s*top:\s*(\d+)px;/g)];
-assert.equal(desktopDrawerRules.at(-1)?.[1], '91', '桌面侧栏与遮罩最终必须从格式工具栏下方开始');
+assert.match(css, /--guanyi-workspace-top:\s*calc\(var\(--guanyi-topbar-height\) \+ var\(--guanyi-formatbar-height\)\)/,
+  '侧栏顶部必须由顶栏与格式工具栏共享令牌计算');
+assert.match(css, /\.app-collab-drawer\s*\{[^}]*top:\s*var\(--guanyi-workspace-top\);/,
+  '侧栏必须从共享工作区边界开始');
 assert.match(css, /\.app-shell\.collab-open \.app-body\s*{\s*margin-right:\s*0;/, '侧栏展开时不得压缩顶部工具栏');
 assert.match(css, /\.app-shell\.collab-open \.app-main \.editor-container\s*{\s*margin-right:\s*372px;/, '侧栏展开时只为正文画布预留空间');
 

@@ -15,6 +15,8 @@ const checks = {
   'review-sidecar': [node, ['tools/test-review-sidecar.mjs']],
   'txt-preview': [node, ['tools/test-txt-preview.mjs']],
   'desktop-menu': [node, ['tools/test-desktop-menu.mjs']],
+  'desktop-layout': [node, ['tools/test-desktop-layout-contract.mjs']],
+  'desktop-layout-electron': [node, ['tools/test-electron-layout.mjs']],
   'directory-refresh': [node, ['tools/test-directory-refresh.mjs']],
   'search-navigation': [node, ['tools/test-search-navigation.mjs']],
   'desktop-file-open': [node, ['tools/test-desktop-file-open.mjs']],
@@ -39,7 +41,7 @@ const checks = {
 const groups = {
   editor: [
     'catalog', 'list-editing', 'image-editing', 'markdown-clipboard', 'editor-matrix', 'table-editing',
-    'txt-preview', 'desktop-menu', 'document-rename', 'tabs-file-actions', 'search-navigation', 'single-file-sync', 'syntax-app'
+    'txt-preview', 'desktop-menu', 'desktop-layout', 'desktop-layout-electron', 'document-rename', 'tabs-file-actions', 'search-navigation', 'single-file-sync', 'syntax-app'
   ],
   collaboration: [
     'catalog', 'review-sidecar', 'table-editing', 'editor-matrix',
@@ -47,7 +49,7 @@ const groups = {
   ],
   directory: [
     'catalog', 'directory-refresh', 'desktop-file-open', 'document-rename', 'upgrade-persistence',
-    'tabs-file-actions', 'search-navigation', 'semantic-search', 'desktop-menu', 'single-file-sync', 'syntax-app', 'syntax-main', 'syntax-preload'
+    'tabs-file-actions', 'search-navigation', 'semantic-search', 'desktop-menu', 'desktop-layout', 'desktop-layout-electron', 'single-file-sync', 'syntax-app', 'syntax-main', 'syntax-preload'
   ],
   search: [
     'catalog', 'search-navigation', 'original-answer', 'work-question', 'desktop-ai-bridge', 'semantic-search',

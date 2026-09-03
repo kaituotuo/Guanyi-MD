@@ -61,6 +61,10 @@ async function promoteLegacyElectronCache() {
   }
 }
 
+await runNode('tools/sync-single-file.mjs');
+await runNode('tools/test-single-file-sync.mjs');
+await runNode('tools/test-desktop-layout-contract.mjs');
+await runNode('tools/test-electron-layout.mjs');
 await promoteLegacyElectronCache();
 const fetchArguments = targets.length === 2 ? [] : [`--${targets[0]}`];
 await runNode('tools/fetch-meilisearch.mjs', fetchArguments);

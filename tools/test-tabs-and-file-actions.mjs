@@ -96,8 +96,8 @@ assert.match(cssSource, /\.app-document-tabs \{[\s\S]*?flex-flow: row nowrap;/,
   'document tabs must remain in one horizontal row');
 assert.match(cssSource, /html\.is-desktop-client \.app-topbar \{[\s\S]*?background: var\(--ui-color-fill-light\);/,
   'desktop titlebar must retain the light tab-strip contrast surface');
-assert.match(cssSource, /\.app-topbar__identity \{[\s\S]*?flex: 0 0 auto;/,
-  'brand and slogan must have a stable non-tab layout region');
+assert.match(cssSource, /\.app-topbar__identity \{[\s\S]*?flex: 0 0 var\(--guanyi-sidebar-width\);/,
+  'brand and slogan must share a stable boundary with the sidebar');
 assert.match(cssSource, /--guanyi-sidebar-width:\s*268px;/,
   'the desktop brand region should share one source of truth with the sidebar width');
 assert.match(cssSource, /\.app-topbar__identity \{[\s\S]*?width: var\(--guanyi-sidebar-width\);[\s\S]*?flex: 0 0 var\(--guanyi-sidebar-width\);/,
@@ -106,7 +106,7 @@ assert.match(cssSource, /\.app-topbar \{[\s\S]*?gap: 0;[\s\S]*?padding-inline: 0
   'the first document tab should start immediately after the bounded brand region');
 assert.match(cssSource, /html\.is-desktop-client \.app-topbar__identity \{[\s\S]*?padding: 0 4px 0 76px;/,
   'macOS traffic-light safe area must be included inside the bounded brand region');
-assert.match(cssSource, /html\.is-desktop-client \.app-topbar__identity \{[\s\S]*?flex: 0 1 var\(--guanyi-sidebar-width\);[\s\S]*?max-width: var\(--guanyi-sidebar-width\);/,
+assert.match(cssSource, /html\.is-desktop-client \.app-topbar__identity \{[\s\S]*?max-width: var\(--guanyi-sidebar-width\);[\s\S]*?flex: 0 0 var\(--guanyi-sidebar-width\);/,
   'desktop brand and slogan must not exceed the sidebar width');
 assert.match(cssSource, /html\.is-desktop-client \.app-topbar__brand \.guanyi-mark \{ display: none; \}/,
   'desktop titlebar should show the brand name and slogan without the web logo');

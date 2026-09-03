@@ -67,6 +67,19 @@
   --ui-shadow-raised: 0 12px 32px rgba(60, 40, 20, .16), 0 2px 6px rgba(60, 40, 20, .06);
   --ui-focus-ring: rgba(223, 75, 37, .46);
   --guanyi-sidebar-width: 268px;
+  --guanyi-topbar-height: 56px;
+  --guanyi-formatbar-height: 49px;
+  --guanyi-statusbar-height: 26px;
+  --guanyi-workspace-top: calc(var(--guanyi-topbar-height) + var(--guanyi-formatbar-height));
+}
+
+html.is-desktop-client { --guanyi-topbar-height: 42px; }
+
+@media (max-width: 760px) {
+  :root {
+    --guanyi-topbar-height: 50px;
+    --guanyi-formatbar-height: 47px;
+  }
 }
 
 html[data-theme="dark"] {
@@ -1172,7 +1185,7 @@ body.is-dragging-files .app-drop-mask[hidden] { display: flex; }
 .app-comment-badge[hidden] { display: none; }
 
 .app-collab-drawer {
-  position: fixed; top: 40px; right: 0; bottom: 0; z-index: 1100;
+  position: fixed; top: var(--guanyi-workspace-top); right: 0; bottom: var(--guanyi-statusbar-height); z-index: 1100;
   width: 340px; display: flex; flex-direction: column; overflow: hidden;
   border-left: 1px solid var(--ui-color-line-regular, rgba(13,13,13,.12));
   background: var(--ui-color-background-base, #f7f8fa); color: var(--ui-color-text-primary);
@@ -1373,7 +1386,7 @@ body.is-dragging-files .app-drop-mask[hidden] { display: flex; }
 .app-reading-error { padding: 8px; border: 1px solid var(--ui-color-line-error, #e6535f); border-radius: 5px; color: var(--ui-color-text-error, #bf3942); background: rgba(230,83,95,.06); font-size: 11px; line-height: 1.5; }
 .app-reading-stale { margin: 8px 0; color: var(--ui-color-text-warning, #9a6700); font-size: 10px; }
 
-.app-drawer-mask { position: fixed; inset: 40px 0 0; z-index: 1090; background: rgba(13,13,13,.38); }
+.app-drawer-mask { position: fixed; inset: var(--guanyi-workspace-top) 0 var(--guanyi-statusbar-height); z-index: 1090; background: rgba(13,13,13,.38); }
 .app-drawer-mask[hidden] { display: none; }
 .app-modal--compact { width: min(460px, 100%); }
 .app-delete-comment p { margin-top: 0; color: var(--ui-color-text-secondary); font-size: 12px; line-height: 1.6; }
@@ -1399,12 +1412,6 @@ body.is-dragging-files .app-drop-mask[hidden] { display: flex; }
 }
 .app-image-url-form input:focus { border-color: var(--ui-color-line-public); }
 .app-image-url-form p { margin: 0; color: var(--ui-color-text-tertiary); font-size: 11px; line-height: 1.55; }
-
-@media (min-width: 1180px) {
-  .app-shell.collab-open .app-body { margin-right: 340px; }
-  .app-shell.collab-open .app-collab-drawer { box-shadow: none; }
-  .app-shell.collab-open .app-fmtbar { overflow-x: auto; }
-}
 
 /* 响应式 */
 @media (max-width: 760px) {
@@ -1546,8 +1553,11 @@ select:focus-visible,
 }
 
 .app-topbar {
-  min-height: 56px;
-  padding: 0 20px;
+  height: var(--guanyi-topbar-height);
+  min-height: var(--guanyi-topbar-height);
+  flex: 0 0 var(--guanyi-topbar-height);
+  gap: 0;
+  padding-inline: 0;
   border-bottom-color: var(--ui-color-line-light);
   background: var(--ui-color-fill-light);
 }
@@ -1650,7 +1660,9 @@ select:focus-visible,
 
 .app-main { background: var(--ui-color-background-base); }
 .app-fmtbar {
-  min-height: 48px;
+  height: var(--guanyi-formatbar-height);
+  min-height: var(--guanyi-formatbar-height);
+  flex: 0 0 var(--guanyi-formatbar-height);
   padding: 8px 14px;
   gap: 3px;
   border-bottom-color: var(--ui-color-line-light);
@@ -1768,7 +1780,9 @@ html.is-split-resizing * { cursor: col-resize !important; user-select: none !imp
 .editor-preview pre { border-radius: 7px; background: var(--ui-color-background-container); }
 .editor-preview th { background: var(--ui-color-background-container); }
 .app-statusbar {
-  min-height: 26px;
+  height: var(--guanyi-statusbar-height);
+  min-height: var(--guanyi-statusbar-height);
+  flex: 0 0 var(--guanyi-statusbar-height);
   padding: 5px 18px;
   border-top-color: var(--ui-color-line-light);
   background: var(--ui-color-background-top);
@@ -2336,8 +2350,6 @@ html[data-theme="dark"] .editor-preview mark.app-search-match.is-primary {
 html[data-theme="dark"] .editor-preview mark.app-content-find-match { color: #ffd9a1; background: rgba(224, 151, 43, .3); }
 html[data-theme="dark"] .editor-preview mark.app-content-find-match.is-primary { color: #fff1ed; background: rgba(255, 91, 62, .46); }
 .app-collab-drawer {
-  top: 105px;
-  bottom: 26px;
   width: 360px;
   border-left-color: var(--ui-color-line-light);
   background: var(--ui-color-background-base);
@@ -2351,11 +2363,6 @@ html[data-theme="dark"] .editor-preview mark.app-content-find-match.is-primary {
   border-radius: 8px;
   box-shadow: var(--ui-shadow-soft);
 }
-.app-drawer-mask { top: 105px; bottom: 26px; }
-
-html.is-desktop-client .app-topbar { display: none; }
-html.is-desktop-client .app-collab-drawer,
-html.is-desktop-client .app-drawer-mask { top: 49px; bottom: 26px; }
 html.is-desktop-client .app-content-find-backdrop { padding-top: 60px; }
 html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px); }
 
@@ -2609,12 +2616,6 @@ html { --guanyi-editor-font-size: 15px; --guanyi-editor-line-height: 1.75; }
 html[data-txt-indent="off"] .app-plain-text-line.is-paragraph { text-indent: 0 !important; }
 html[data-txt-blank-lines="off"] .app-plain-text-line.is-blank { display: none; }
 
-/* 增加页签栏后，右侧面板从编辑区开始，不遮挡页签和工具栏。 */
-.app-collab-drawer,
-.app-drawer-mask { top: 143px; }
-html.is-desktop-client .app-collab-drawer,
-html.is-desktop-client .app-drawer-mask { top: 87px; }
-
 @media (max-width: 760px) {
   .app-document-tabs-bar { flex-basis: 36px; min-height: 36px; }
   .app-document-tab { min-width: 104px; height: 32px; padding-left: 9px; }
@@ -2625,10 +2626,6 @@ html.is-desktop-client .app-drawer-mask { top: 87px; }
   .app-settings-nav button { flex: 0 0 auto; white-space: nowrap; }
   .app-settings-content { max-height: min(62vh, 430px); padding: 16px; }
   .app-setting-row { grid-template-columns: minmax(0, 1fr) minmax(90px, 130px); gap: 10px; }
-  .app-collab-drawer,
-  .app-drawer-mask { top: 132px; }
-  html.is-desktop-client .app-collab-drawer,
-  html.is-desktop-client .app-drawer-mask { top: 84px; }
 }
 
 @media (max-width: 360px) {
@@ -2642,7 +2639,7 @@ html.is-desktop-client .app-drawer-mask { top: 87px; }
 }
 
 @media (max-width: 760px) {
-  .app-topbar { min-height: 50px; padding-inline: 12px; }
+  .app-topbar { padding-inline: 12px; }
   .app-topbar__brand { font-size: 16px; }
   .guanyi-mark,
   .guanyi-mark > svg { width: 28px; height: 28px; }
@@ -2657,15 +2654,11 @@ html.is-desktop-client .app-drawer-mask { top: 87px; }
   .app-sidebar__actions { padding-bottom: 8px; }
   .app-new-doc,
   .app-open-doc { height: 36px; }
-  .app-fmtbar { min-height: 46px; padding: 7px 8px; }
+  .app-fmtbar { padding: 7px 8px; }
   .editor-container { margin: 8px 8px 0; }
   .editor-source { padding: 18px; }
   .editor-preview { padding: 24px 20px 52px; font-size: 14px; }
-  .app-collab-drawer,
-  .app-drawer-mask { top: 96px; bottom: 0; }
   .app-collab-drawer { width: min(360px, 94vw); }
-  html.is-desktop-client .app-collab-drawer,
-  html.is-desktop-client .app-drawer-mask { top: 46px; bottom: 26px; }
   .app-search-backdrop { padding: 10px; align-items: flex-end; }
   .app-search-modal { max-height: calc(100vh - 20px); }
   .app-search-controls { padding-inline: 14px; }
@@ -2705,21 +2698,16 @@ html.is-desktop-client .app-drawer-mask { top: 87px; }
   .app-content-find__empty { margin-left: 60px; }
 }
 
-/* 页签栏的移动端最终定位，覆盖旧的抽屉顶距。 */
-@media (max-width: 760px) {
-  .app-collab-drawer,
-  .app-drawer-mask { top: 132px; }
-  html.is-desktop-client .app-collab-drawer,
-  html.is-desktop-client .app-drawer-mask { top: 84px; }
-}
-
-/* 页签栏移入顶栏后自适应剩余空间，避免继承独立行的固定 38px 宽度。 */
+/* 顶栏品牌区与侧边栏共用边界，页签在剩余空间内横向排列。 */
 .app-topbar__identity {
+  width: var(--guanyi-sidebar-width);
   min-width: 0;
+  max-width: var(--guanyi-sidebar-width);
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  flex: 0 0 auto;
+  flex: 0 0 var(--guanyi-sidebar-width);
+  padding: 0 12px 0 20px;
 }
 .app-topbar__identity .app-topbar__tagline {
   min-width: 0;
@@ -2747,14 +2735,10 @@ html.is-desktop-client .app-drawer-mask { top: 87px; }
 }
 .app-topbar > .app-topbar__spacer { flex: 0 0 8px; }
 
-/* 桌面端将文档页签放入 macOS 隐藏内嵌标题栏，保留交通灯安全区。 */
+/* macOS 隐藏内嵌标题栏：交通灯安全区包含在固定品牌区内。 */
 html.is-desktop-client .app-topbar {
   display: flex;
-  min-height: 42px;
-  height: 42px;
-  flex: 0 0 42px;
-  gap: 12px;
-  padding: 0 10px 0 86px;
+  padding: 0 10px 0 0;
   border-bottom-color: var(--ui-color-line-light);
   background: var(--ui-color-fill-light);
   -webkit-app-region: drag;
@@ -2762,21 +2746,47 @@ html.is-desktop-client .app-topbar {
 html.is-desktop-client .app-topbar__identity {
   display: inline-flex;
   align-items: center;
+  width: var(--guanyi-sidebar-width);
   min-width: 0;
-  flex: 0 1 var(--guanyi-sidebar-width);
   max-width: var(--guanyi-sidebar-width);
+  flex: 0 0 var(--guanyi-sidebar-width);
+  gap: 6px;
+  padding: 0 4px 0 76px;
+  overflow: hidden;
   -webkit-app-region: no-drag;
 }
 html.is-desktop-client .app-topbar__brand .guanyi-mark { display: none; }
-html.is-desktop-client .app-topbar__brand,
-html.is-desktop-client .app-topbar__tagline { display: inline-flex; }
-html.is-desktop-client .app-topbar__tagline { max-width: 148px; }
+html.is-desktop-client .app-topbar__brand {
+  min-width: 0;
+  display: inline-flex;
+  flex: 0 1 auto;
+  gap: 6px;
+  font-size: 15px;
+  line-height: 1;
+  white-space: nowrap;
+}
+html.is-desktop-client .app-topbar__brand > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html.is-desktop-client .app-topbar__tagline {
+  min-width: 0;
+  max-width: 132px;
+  display: inline-flex;
+  flex: 1 1 auto;
+  padding-left: 8px;
+  font-size: 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
 html.is-desktop-client .app-topbar__spacer { display: block; flex: 0 0 8px; }
 html.is-desktop-client .app-menu-wrap { display: block; flex: 0 0 auto; -webkit-app-region: no-drag; }
 html.is-desktop-client .app-topbar > .app-document-tabs-bar {
   min-width: 0;
-  min-height: 42px;
-  height: 42px;
+  min-height: var(--guanyi-topbar-height);
+  height: var(--guanyi-topbar-height);
   flex: 1 1 auto;
   align-self: stretch;
   padding: 5px 0 0;
@@ -2794,80 +2804,13 @@ html.is-desktop-client .app-document-tab {
   -webkit-app-region: no-drag;
 }
 html.is-desktop-client .app-document-tab[aria-selected="true"] { border-radius: 10px 10px 0 0; }
-html.is-desktop-client .app-document-tabs__new {
-  -webkit-app-region: no-drag;
-}
-/* 桌面端页签栏 42px + 格式工具栏 49px，审阅侧栏必须从 91px 开始。 */
-html.is-desktop-client .app-collab-drawer,
-html.is-desktop-client .app-drawer-mask { top: 91px; }
+html.is-desktop-client .app-document-tabs__new { -webkit-app-region: no-drag; }
 html.is-desktop-client .app-content-find-backdrop { padding-top: 50px; }
 html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 66px); }
 
 @media (max-width: 760px) {
   .app-topbar__identity { gap: 8px; }
   .app-topbar__tagline { display: none; }
-  html.is-desktop-client .app-topbar { gap: 8px; padding-inline: 8px; padding-left: 74px; }
-  html.is-desktop-client .app-topbar__identity { max-width: 118px; }
-  html.is-desktop-client .app-topbar__brand { font-size: 14px; }
-  html.is-desktop-client .app-topbar__tagline { display: none; }
-}
-
-/* 顶栏品牌区与侧边栏共用边界，页签从侧边栏右侧开始横向排列。 */
-.app-topbar {
-  gap: 0;
-  padding-inline: 0;
-}
-.app-topbar__identity {
-  width: var(--guanyi-sidebar-width);
-  min-width: 0;
-  max-width: var(--guanyi-sidebar-width);
-  flex: 0 0 var(--guanyi-sidebar-width);
-  padding: 0 12px 0 20px;
-}
-.app-topbar__brand { gap: 8px; font-size: 16px; }
-.app-topbar__tagline { font-size: 11px; }
-.app-topbar > .app-document-tabs-bar { flex: 1 1 auto; }
-
-/* macOS 交通灯安全区也计入品牌区宽度，避免页签侵入侧边栏范围。 */
-html.is-desktop-client .app-topbar {
-  gap: 0;
-  padding: 0 10px 0 0;
-}
-html.is-desktop-client .app-topbar__identity {
-  width: var(--guanyi-sidebar-width);
-  min-width: 0;
-  max-width: var(--guanyi-sidebar-width);
-  flex: 0 0 var(--guanyi-sidebar-width);
-  gap: 6px;
-  padding: 0 4px 0 76px;
-  overflow: hidden;
-}
-html.is-desktop-client .app-topbar__brand {
-  min-width: 0;
-  flex: 0 1 auto;
-  gap: 6px;
-  font-size: 15px;
-  line-height: 1;
-  white-space: nowrap;
-}
-html.is-desktop-client .app-topbar__brand > span:last-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-html.is-desktop-client .app-topbar__tagline {
-  min-width: 0;
-  max-width: 132px;
-  flex: 1 1 auto;
-  padding-left: 8px;
-  font-size: 10px;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-}
-
-@media (max-width: 760px) {
-  .app-topbar { gap: 8px; padding-inline: 12px; }
   .app-topbar__identity {
     width: auto;
     max-width: none;

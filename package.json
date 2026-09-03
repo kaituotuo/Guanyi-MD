@@ -17,6 +17,8 @@
     "test:review-sidecar": "node tools/test-review-sidecar.mjs",
     "test:txt-preview": "node tools/test-txt-preview.mjs",
     "test:desktop-menu": "node tools/test-desktop-menu.mjs",
+    "test:desktop-layout": "node tools/test-desktop-layout-contract.mjs",
+    "test:desktop-layout-electron": "node tools/test-electron-layout.mjs",
     "test:directory-refresh": "node tools/test-directory-refresh.mjs",
     "test:search-navigation": "node tools/test-search-navigation.mjs",
     "test:desktop-file-open": "node tools/test-desktop-file-open.mjs",
