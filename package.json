@@ -1,6 +1,6 @@
 {
   "name": "guanyi-md",
-  "version": "1.0.34",
+  "version": "1.0.36",
   "description": "观绎 MD｜俯仰观物，绎述我心。",
   "main": "desktop/main.cjs",
   "author": "Guanyi MD",
@@ -22,6 +22,7 @@
     "test:directory-refresh": "node tools/test-directory-refresh.mjs",
     "test:search-navigation": "node tools/test-search-navigation.mjs",
     "test:desktop-file-open": "node tools/test-desktop-file-open.mjs",
+    "test:desktop-file-actions": "node tools/test-electron-file-actions.mjs",
     "test:document-rename": "node tools/test-document-rename.mjs",
     "test:tabs-file-actions": "node tools/test-tabs-and-file-actions.mjs",
     "test:single-file-sync": "node tools/test-single-file-sync.mjs",

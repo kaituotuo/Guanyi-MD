@@ -10,7 +10,9 @@ const [main, preload, app, manifest] = await Promise.all([
 
 assert.equal(manifest.name, 'guanyi-md', 'package identity must stay stable across upgrades');
 assert.equal(manifest.build?.appId, 'com.guanyi.md', 'bundle identity must stay stable across upgrades');
-assert.match(main, /app\.setPath\('userData', path\.join\(app\.getPath\('appData'\), 'guanyi-md'\)\)/, 'desktop profile must use a fixed upgrade-safe path');
+assert.match(main, /testUserDataPath \|\| path\.join\(app\.getPath\('appData'\), 'guanyi-md'\)/, 'desktop profile must use a fixed upgrade-safe path');
+assert.match(main, /process\.env\.NODE_ENV === 'test'[\s\S]+GUANYI_TEST_USER_DATA/,
+  'isolated UI tests may override userData only in an explicit test environment');
 assert.match(main, /editor-state-v1\.json/, 'desktop state must have a versioned native backup');
 assert.match(main, /stateWriteQueue = stateWriteQueue[\s\S]+saveDesktopState/, 'native state writes must be serialized');
 assert.match(main, /guanyi-state:load[\s\S]+guanyi-state:save/, 'main process must expose native state restore and save');

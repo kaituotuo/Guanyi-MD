@@ -4294,7 +4294,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   let appMenuPreviousFocus = null;
   let saveMenuPreviousFocus = null;
   let fileActionPreviousFocus = null;
-  const fileActionState = { mode: null, docId: null, target: null, busy: false };
+  const fileActionState = { mode: null, docId: null, target: null, busy: false, pickerBusy: false };
   const els = {};
 
   function $(id) { return document.getElementById(id); }
@@ -6377,6 +6377,11 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     const target = [...els.imageEditPopover.querySelectorAll('[data-image-panel]')]
       .find((panel) => panel.dataset.imagePanel === panelName);
     if (!target) return;
+    // The description field is a real editing surface. Commit it before
+    // switching panels so a click on another image tool cannot discard text.
+    if (els.imageEditPopover.dataset.imagePanelOpen === 'description') {
+      commitOpenImageDescriptionPanel({ announce: false, restoreFocus: false });
+    }
     const shouldOpen = target.hidden;
     closeImageEditPanels();
     if (!shouldOpen) {
@@ -6390,6 +6395,13 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     trigger?.classList.add('is-active');
     els.imageEditPopover.dataset.imagePanelOpen = panelName;
     requestAnimationFrame(positionImageEditPopover);
+    if (panelName === 'description') {
+      requestAnimationFrame(() => {
+        if (els.imageEditPopover?.dataset.imagePanelOpen !== 'description') return;
+        els.imageDescriptionInput?.focus({ preventScroll: true });
+        els.imageDescriptionInput?.select();
+      });
+    }
   }
 
   function syncImageEditControls() {
@@ -6431,6 +6443,9 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function clearSelectedPreviewImage(options = {}) {
+    if (options.commitDescription !== false) {
+      commitOpenImageDescriptionPanel({ announce: false, restoreFocus: false });
+    }
     const previous = selectedPreviewImage;
     if (selectedPreviewImageDocId === state.currentDocId) flushPendingImageSizeCommit();
     else clearTimeout(imageSizeCommitTimer);
@@ -6449,6 +6464,9 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
 
   function selectPreviewImage(image, options = {}) {
     if (!image?.matches?.('.app-image-cell > img, .app-image-row > img') || !els.previewEditor.contains(image)) return false;
+    if (selectedPreviewImage && selectedPreviewImage !== image) {
+      commitOpenImageDescriptionPanel({ announce: false, restoreFocus: false });
+    }
     if (selectedPreviewImage && selectedPreviewImage !== image) flushPendingImageSizeCommit();
     selectedPreviewImage?.classList.remove('is-image-selected');
     selectedPreviewImage?.setAttribute('aria-selected', 'false');
@@ -6601,13 +6619,44 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     handle.addEventListener('click', (event) => event.stopPropagation());
   }
 
-  function saveSelectedImageDescription() {
-    if (!selectedPreviewImage) return;
-    const description = markdownImageAlt(els.imageDescriptionInput?.value || '');
-    selectedPreviewImage.alt = description;
-    updateImageCaption(selectedPreviewImage);
-    if (commitPreviewImageOrder()) tip(description ? '图片描述已更新' : '图片描述已清空');
+  function restoreImageDescriptionFocus(image = selectedPreviewImage) {
+    if (!image?.isConnected) return;
+    requestAnimationFrame(() => {
+      if (image.isConnected && image === selectedPreviewImage) image.focus({ preventScroll: true });
+    });
+  }
+
+  function continuePreviewEditingAfterImage(image = selectedPreviewImage) {
+    const row = image?.closest?.('.app-image-row');
+    if (!row) return false;
+    const paragraph = ensurePreviewCaretParagraphAfter(row);
+    if (!paragraph) return false;
+    clearSelectedPreviewImage();
+    placePreviewCaret(paragraph, 0);
+    return true;
+  }
+
+  function commitOpenImageDescriptionPanel(options = {}) {
+    const input = els.imageDescriptionInput;
+    const image = selectedPreviewImage;
+    if (!input || !image || !image.isConnected
+      || els.imageEditPopover?.dataset.imagePanelOpen !== 'description') return false;
+    const description = markdownImageAlt(input.value || '');
+    const changed = image.alt !== description;
+    if (changed) {
+      image.alt = description;
+      updateImageCaption(image);
+      commitPreviewImageOrder();
+    }
     syncImageEditControls();
+    closeImageEditPanels();
+    if (options.restoreFocus !== false) restoreImageDescriptionFocus(image);
+    if (changed && options.announce !== false) tip(description ? '图片描述已更新' : '图片描述已清空');
+    return changed;
+  }
+
+  function saveSelectedImageDescription() {
+    commitOpenImageDescriptionPanel({ announce: true, restoreFocus: true });
   }
 
   function cancelImageDescriptionEdit(image = selectedPreviewImage) {
@@ -6622,6 +6671,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     caption.replaceChildren();
     updateImageCaption(image);
     delete caption.dataset.imageDescriptionOriginal;
+    restoreImageDescriptionFocus(image);
     return true;
   }
 
@@ -6637,6 +6687,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     delete caption.dataset.imageDescriptionOriginal;
     const committed = commitPreviewImageOrder();
     syncImageEditControls();
+    restoreImageDescriptionFocus(image);
     if (committed) tip(description ? '图片描述已更新' : '图片描述已清空');
     return committed;
   }
@@ -6645,6 +6696,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     const image = selectedPreviewImage;
     const caption = imageCaptionFor(image);
     if (!image || !caption) return false;
+    commitOpenImageDescriptionPanel({ announce: false, restoreFocus: false });
     closeImageEditPanels();
     const existing = caption.querySelector('input');
     if (existing) {
@@ -6728,17 +6780,24 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
         event.preventDefault();
         event.stopImmediatePropagation();
         selectPreviewImage(image);
+      } else if ((event.key === 'ArrowDown' || event.key === 'ArrowRight')
+        && image === selectedPreviewImage) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        continuePreviewEditingAfterImage(image);
       } else if (event.key === 'Escape' && image === selectedPreviewImage) {
         event.preventDefault();
         clearSelectedPreviewImage({ restoreFocus: true });
       }
     });
     els.imageEditPopover?.addEventListener('click', (event) => event.stopPropagation());
-    els.btnImageEditClose?.addEventListener('click', () => clearSelectedPreviewImage({ restoreFocus: true }));
+    els.btnImageEditClose?.addEventListener('click', () => {
+      commitOpenImageDescriptionPanel({ announce: false, restoreFocus: false });
+      clearSelectedPreviewImage({ restoreFocus: true });
+    });
     els.imageEditPopover?.querySelectorAll('[data-image-tool]').forEach((button) => {
       button.addEventListener('click', () => {
-        if (button.dataset.imageTool === 'description') startSelectedImageDescriptionEdit();
-        else toggleImageEditPanel(button.dataset.imageTool);
+        toggleImageEditPanel(button.dataset.imageTool);
       });
     });
     els.imageEditPopover?.querySelectorAll('[data-image-align]').forEach((button) => {
@@ -6752,12 +6811,27 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     els.btnImageDescriptionSave?.addEventListener('click', saveSelectedImageDescription);
     els.imageDescriptionInput?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') { event.preventDefault(); saveSelectedImageDescription(); }
+      else if (event.key === 'Escape') {
+        event.preventDefault();
+        const image = selectedPreviewImage;
+        closeImageEditPanels();
+        restoreImageDescriptionFocus(image);
+      }
+    });
+    els.imageDescriptionInput?.addEventListener('focusout', () => {
+      requestAnimationFrame(() => {
+        if (!els.imageDescriptionInput?.isConnected || !selectedPreviewImage) return;
+        if (els.imageEditPopover?.contains(document.activeElement)) return;
+        commitOpenImageDescriptionPanel({ announce: false, restoreFocus: false });
+      });
     });
     els.btnImageDownload?.addEventListener('click', () => {
+      commitOpenImageDescriptionPanel({ announce: false, restoreFocus: false });
       closeImageEditPanels();
       downloadSelectedPreviewImage();
     });
     els.btnImageCrop?.addEventListener('click', () => {
+      commitOpenImageDescriptionPanel({ announce: false, restoreFocus: false });
       closeImageEditPanels();
       openSelectedImageCrop();
     });
@@ -6766,6 +6840,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       if (els.imageEditPopover?.contains(event.target)
         || els.imageResizeHandle?.contains(event.target)
         || event.target.closest?.('.app-image-row > img, .app-image-cell > img, .app-image-caption')) return;
+      commitOpenImageDescriptionPanel({ announce: false, restoreFocus: false });
       clearSelectedPreviewImage();
     });
     document.addEventListener('keydown', (event) => {
@@ -7512,6 +7587,22 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     };
   }
 
+  function markdownTableCountBefore(markdown, position) {
+    const lines = markdownLineInfos(markdown);
+    const limit = Math.max(0, Math.min(String(markdown || '').length, Number(position) || 0));
+    let count = 0;
+    for (let index = 0; index < lines.length - 1; index += 1) {
+      const header = lines[index];
+      const divider = lines[index + 1];
+      if (header.start >= limit) break;
+      if (!/^\s*\|.*\|\s*$/.test(header.raw) || !/^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(divider.raw)) continue;
+      count += 1;
+      index += 1;
+      while (index + 1 < lines.length && lines[index + 1].raw.trim().startsWith('|')) index += 1;
+    }
+    return count;
+  }
+
   function continueListPure(text, start, end) {
     if (start > end || text.slice(start, end).includes('\n')) return null;
     const lineStart = text.lastIndexOf('\n', start - 1) + 1;
@@ -8138,18 +8229,27 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
 
   function insertTable(rows, cols) {
     if (isPlainTextDocument(currentDoc())) { tip('TXT 不支持插入 Markdown 表格'); return false; }
-    const markdown = getCurrentMarkdown();
     const inPreview = state.viewMode === 'preview';
+    const anchor = inPreview ? captureImageInsertion({ surface: 'preview' }) : null;
+    const markdown = anchor?.baseMarkdown || getCurrentMarkdown();
     const source = inPreview ? null : currentSourceMarkdownSelection();
-    const start = inPreview ? markdown.length : source.selectionStart;
-    const end = inPreview ? markdown.length : source.selectionEnd;
+    const start = inPreview ? (anchor?.start ?? markdown.length) : source.selectionStart;
+    const end = inPreview ? (anchor?.end ?? start) : source.selectionEnd;
+    const tableIndex = inPreview ? markdownTableCountBefore(markdown, start) : -1;
     const result = insertTablePure(markdown, start, end, rows, cols);
     setCurrentMarkdown(result.text);
-    setProgrammaticSourceSelection(result.selStart, result.selEnd);
     renderPreview();
-    if (inPreview) els.tableBtn.focus();
-    else els.sourceEditor.focus();
+    setProgrammaticSourceSelection(result.selStart, result.selEnd);
+    if (inPreview) {
+      requestAnimationFrame(() => {
+        const table = els.previewEditor.querySelectorAll('table')[tableIndex];
+        const cell = table?.querySelector('th, td');
+        if (cell) selectPreviewTableCell(cell, { focus: true, caret: 'start' });
+        else els.previewEditor.focus({ preventScroll: true });
+      });
+    } else els.sourceEditor.focus();
     tip(`已插入 ${Math.max(2, rows)} × ${cols} 表格`);
+    return true;
   }
 
   function updateHeadingLabel(level) {
@@ -9950,8 +10050,12 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
 
   function rewriteManagedImageSources(markdown, oldBase, nextBase) {
     if (!oldBase || !nextBase || oldBase === nextBase) return String(markdown || '');
-    const pattern = new RegExp(`assets/${escapeRegularExpression(oldBase)}/`, 'g');
-    return String(markdown || '').replace(pattern, `assets/${nextBase}/`);
+    return String(markdown || '').replace(/(?<![\w./:-])(\.\/)?assets\/([^/\r\n]+)\//g, (match, prefix = '', base) => {
+      try {
+        if (decodeURIComponent(base) === oldBase) return `${prefix}assets/${encodeURIComponent(nextBase)}/`;
+      } catch (_error) { /* 保留无关或编码不完整的引用。 */ }
+      return match;
+    });
   }
 
   function fileNameWithOriginalExtension(input, doc) {
@@ -9996,17 +10100,42 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     return null;
   }
 
-  async function directoryRecordForTarget(target, addToList) {
-    if (!target?.handle || !addToList) return null;
-    if (target.directoryId) return state.directories.find((directory) => directory.id === target.directoryId) || null;
-    for (const directory of state.directories) {
-      if (directory.handle && await sameDirectoryHandle(directory.handle, target.handle)) return directory;
-    }
-    const directory = {
+  function normalizedDesktopPath(value) {
+    const slashed = String(value || '').trim().replace(/\\/g, '/');
+    const networkPrefix = slashed.startsWith('//') ? '//' : '';
+    const normalized = networkPrefix + slashed.slice(networkPrefix.length).replace(/\/{2,}/g, '/');
+    if (/^[a-zA-Z]:\/$/.test(normalized) || normalized === '/') return normalized;
+    return normalized.replace(/\/+$/, '');
+  }
+
+  function desktopParentPath(value) {
+    const normalized = normalizedDesktopPath(value);
+    const separator = normalized.lastIndexOf('/');
+    if (separator < 0) return '';
+    if (separator === 0) return '/';
+    const parent = normalized.slice(0, separator);
+    return /^[a-zA-Z]:$/.test(parent) ? `${parent}/` : parent;
+  }
+
+  function desktopPathBaseName(value) {
+    const normalized = normalizedDesktopPath(value);
+    if (!normalized || normalized === '/' || /^[a-zA-Z]:\/$/.test(normalized)) return normalized || '本地目录';
+    return normalized.slice(normalized.lastIndexOf('/') + 1) || normalized;
+  }
+
+  function desktopTargetPathKey(target) {
+    const root = normalizedDesktopPath(target?.rootPath);
+    const relative = normalizeRelativePath(target?.relativePrefix || '');
+    return [root, relative].filter(Boolean).join('/');
+  }
+
+  function newDirectoryRecord({ name, handleName, handle = null, rootPath = null }) {
+    return {
       id: `directory-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      name: target.name || target.handle.name || '本地目录',
-      handleName: target.handle.name || target.name || '本地目录',
-      handle: target.handle,
+      name: name || handleName || '本地目录',
+      handleName: handleName || name || '本地目录',
+      rootPath,
+      handle,
       permissionState: 'granted',
       scanMode: 'interval',
       lastScannedAt: 0,
@@ -10017,8 +10146,38 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       collapsedPaths: [],
       createdAt: Date.now()
     };
+  }
+
+  async function directoryRecordForTarget(target, addToList) {
+    if (!target?.handle) return null;
+    if (target.directoryId) return state.directories.find((directory) => directory.id === target.directoryId) || null;
+    for (const directory of state.directories) {
+      if (directory.handle && await sameDirectoryHandle(directory.handle, target.handle)) return directory;
+    }
+    if (!addToList) return null;
+    const directory = newDirectoryRecord({
+      name: target.name || target.handle.name,
+      handleName: target.handle.name || target.name,
+      handle: target.handle
+    });
     state.directories.push(directory);
     await persistDirectoryHandle(directory);
+    return directory;
+  }
+
+  function directoryRecordForDesktopTarget(target, addToList) {
+    if (!target?.rootPath) return null;
+    if (target.directoryId) return state.directories.find((directory) => directory.id === target.directoryId) || null;
+    const targetRoot = normalizedDesktopPath(target.rootPath);
+    const existing = state.directories.find((directory) => normalizedDesktopPath(directory.rootPath) === targetRoot);
+    if (existing) return existing;
+    if (!addToList) return null;
+    const directory = newDirectoryRecord({
+      name: target.name || desktopPathBaseName(target.rootPath),
+      handleName: desktopPathBaseName(target.rootPath),
+      rootPath: target.rootPath
+    });
+    state.directories.push(directory);
     return directory;
   }
 
@@ -10046,6 +10205,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   async function executeWebFileTransaction(options) {
+    flushPendingPreviewCommit();
     const doc = state.docs.find((item) => item.id === options.docId);
     if (!doc || !options.target?.handle) throw new Error('文档或目标位置已失效');
     const targetDirectory = options.target.handle;
@@ -10206,6 +10366,129 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     }
   }
 
+  async function executeDesktopFileTransaction(options) {
+    flushPendingPreviewCommit();
+    const doc = state.docs.find((item) => item.id === options.docId);
+    const desktopApi = desktopFileApi();
+    if (!doc || !options.target?.rootPath || typeof desktopApi?.transaction !== 'function') {
+      throw new Error('文档或目标位置已失效');
+    }
+    if (options.mode === 'move' && !doc.desktopPath) throw new Error('当前文档尚未关联原文件，请先使用“另存为”');
+    if (options.mode === 'move' && isDocDirty(doc)) {
+      if (state.currentDocId !== doc.id) await switchDoc(doc.id, { alreadyOpen: true });
+      if (!await saveCurrentDocument()) throw new Error('当前修改未能保存，已停止移动');
+    }
+
+    const requestedName = fileNameWithOriginalExtension(options.fileName, doc);
+    const sourceReviewState = cloneReviewState(doc.id);
+    const newDocId = options.mode === 'save-as'
+      ? `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+      : doc.id;
+    let writeReview = options.mode === 'save-as'
+      ? !!options.copyReview
+      : !!sourceReviewState.comments?.length;
+    let reviewContent = writeReview ? reviewMarkdown(doc) : '';
+    if (doc.desktopPath && (options.mode === 'move' || options.copyReview) && !sourceReviewState.comments?.length
+      && typeof desktopApi.readSibling === 'function') {
+      const sibling = await desktopApi.readSibling(doc.desktopPath, reviewFileNames(doc).markdown);
+      if (sibling?.exists) {
+        writeReview = true;
+        reviewContent = sibling.content;
+      }
+    }
+
+    const result = await desktopApi.transaction({
+      mode: options.mode,
+      sourcePath: doc.desktopPath,
+      expectedModifiedAt: doc.externalModifiedAt,
+      expectedSize: doc.externalSize,
+      targetRootPath: options.target.rootPath,
+      targetRelativePrefix: options.target.relativePrefix || '',
+      fileName: requestedName,
+      content: doc.content,
+      targetDocId: newDocId,
+      writeReview,
+      reviewContent,
+      conflict: options.conflict || 'keep-both'
+    });
+    if (!result || result.canceled) throw new Error('文件操作已取消');
+
+    const targetFileName = result.name;
+    const targetBase = targetFileName.replace(/\.(md|markdown|txt)$/i, '');
+    const targetContent = typeof result.content === 'string' ? result.content : doc.content;
+    const directoryRecord = directoryRecordForDesktopTarget(options.target, options.addDirectory);
+    const targetDirectoryId = directoryRecord?.id || null;
+    const targetRelativePath = normalizeRelativePath(
+      [options.target.relativePrefix, targetFileName].filter(Boolean).join('/')
+    );
+
+    if (options.mode === 'save-as') {
+      const originalContent = typeof doc.lastSavedContent === 'string' ? doc.lastSavedContent : doc.content;
+      doc.content = originalContent;
+      histories.set(doc.id, { entries: [originalContent], uiEntries: [null], index: 0, lastInputAt: 0, lastInputSource: null });
+      const newDoc = {
+        ...doc,
+        id: newDocId,
+        name: targetBase,
+        content: targetContent,
+        lastSavedContent: targetContent,
+        fileHandle: null,
+        directoryHandle: null,
+        localFileName: targetFileName,
+        desktopPath: result.path,
+        storageKind: result.storageKind || 'external',
+        sourceKind: targetDirectoryId ? 'directory-file' : 'local-file',
+        directoryId: targetDirectoryId,
+        relativePath: targetDirectoryId ? targetRelativePath : null,
+        externalModifiedAt: Number(result.lastModified) || Date.now(),
+        externalSize: Number(result.size) || new TextEncoder().encode(targetContent).byteLength,
+        syncState: 'synced',
+        lastOpenedAt: Date.now()
+      };
+      state.docs.push(newDoc);
+      const tabIndex = state.openDocIds.indexOf(doc.id);
+      if (tabIndex >= 0) state.openDocIds.splice(tabIndex, 1, newDoc.id);
+      else ensureDocOpen(newDoc.id);
+      state.currentDocId = newDoc.id;
+      histories.set(newDoc.id, { entries: [targetContent], uiEntries: [null], index: 0, lastInputAt: 0, lastInputSource: null });
+      if (options.copyReview) reviewStore.documents[newDoc.id] = sourceReviewState;
+      else delete reviewStore.documents[newDoc.id];
+      await removePersistedHandles(newDoc.id);
+    } else {
+      doc.name = targetBase;
+      doc.content = targetContent;
+      doc.lastSavedContent = targetContent;
+      doc.fileHandle = null;
+      doc.directoryHandle = null;
+      doc.localFileName = targetFileName;
+      doc.desktopPath = result.path;
+      doc.storageKind = result.storageKind || 'external';
+      doc.sourceKind = targetDirectoryId ? 'directory-file' : 'local-file';
+      doc.directoryId = targetDirectoryId;
+      doc.relativePath = targetDirectoryId ? targetRelativePath : null;
+      doc.externalModifiedAt = Number(result.lastModified) || Date.now();
+      doc.externalSize = Number(result.size) || new TextEncoder().encode(targetContent).byteLength;
+      doc.syncState = 'synced';
+      histories.set(doc.id, { entries: [targetContent], uiEntries: [null], index: 0, lastInputAt: 0, lastInputSource: null });
+      await removePersistedHandles(doc.id);
+    }
+
+    persistReviewStore();
+    markSemanticIndexDirty(doc.id);
+    if (newDocId !== doc.id) markSemanticIndexDirty(newDocId);
+    syncSourceToDOM();
+    saveState();
+    renderDocList();
+    render();
+    updateEditChrome();
+    scheduleSemanticIndexSync(300);
+    return {
+      fileName: targetFileName,
+      directoryName: result.directoryName || options.target.name || desktopPathBaseName(result.directoryPath),
+      mode: options.mode
+    };
+  }
+
   async function renameLocalFile(doc, nextBaseName) {
     if (!doc.fileHandle) throw new Error('当前文档未获得原文件写入权限，请使用「打开文档」重新打开后再重命名');
     const oldFileName = doc.fileHandle.name;
@@ -10313,26 +10596,25 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
 
     if (!opts.forceDesktopSaveAs && doc.desktopPath && window.guanyiDesktop?.files?.write) {
       try {
-        if (isDirectoryDoc(doc)) {
-          if (doc.syncState === 'conflict') {
-            updateConflictBar();
-            tip('磁盘版本已更新，请先处理版本冲突');
-            return false;
-          }
-          const latest = await window.guanyiDesktop.files.stat(doc.desktopPath);
-          if (doc.externalModifiedAt && (Number(latest.lastModified) !== Number(doc.externalModifiedAt)
-            || Number(latest.size) !== Number(doc.externalSize))) {
-            const record = (await window.guanyiDesktop.files.read([doc.desktopPath]))[0];
-            doc.externalContent = decodeTextBytes(record.bytes);
-            doc.externalModifiedAt = Number(record.lastModified) || 0;
-            doc.externalSize = Number(record.size) || 0;
-            doc.syncState = 'conflict';
-            saveState({ silent: true });
-            renderDocList();
-            updateConflictBar();
-            tip('检测到磁盘版本更新，已停止保存');
-            return false;
-          }
+        if (doc.syncState === 'conflict') {
+          updateConflictBar();
+          tip('磁盘版本已更新，请先处理版本冲突');
+          return false;
+        }
+        const latest = await window.guanyiDesktop.files.stat(doc.desktopPath);
+        if (doc.externalModifiedAt && (Number(latest.lastModified) !== Number(doc.externalModifiedAt)
+          || Number(latest.size) !== Number(doc.externalSize))) {
+          const record = (await window.guanyiDesktop.files.read([doc.desktopPath]))[0];
+          if (!record || record.error) throw new Error(record?.error || '无法读取磁盘版本');
+          doc.externalContent = decodeTextBytes(desktopBytes(record.bytes));
+          doc.externalModifiedAt = Number(record.lastModified) || 0;
+          doc.externalSize = Number(record.size) || 0;
+          doc.syncState = 'conflict';
+          saveState({ silent: true });
+          renderDocList();
+          updateConflictBar();
+          tip('检测到磁盘版本更新，已停止保存');
+          return false;
         }
         const saved = await window.guanyiDesktop.files.write(doc.desktopPath, content);
         doc.localFileName = doc.localFileName || documentFileName(doc);
@@ -10353,7 +10635,9 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
         window.__MD_EDITOR_LAST_SAVE__ = { mode: 'desktop-path', name: doc.name, size: content.length };
         return true;
       } catch (error) {
-        console.warn('写回桌面文件失败，继续使用其他保存方式', error);
+        console.warn('写回桌面文件失败', error);
+        tip(`保存失败：${error?.message || '无法写回原文件'}，修改仍保留在编辑器中`);
+        return false;
       }
     }
 
@@ -10402,7 +10686,9 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
         window.__MD_EDITOR_LAST_SAVE__ = { mode: 'handle', name: doc.name, size: content.length };
         return true;
       } catch (e) {
-        console.warn('写回原文件失败，尝试另存', e);
+        console.warn('写回原文件失败', e);
+        tip(`保存失败：${e?.message || '无法写回原文件'}，修改仍保留在编辑器中`);
+        return false;
       }
     }
 
@@ -10900,25 +11186,64 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   async function renderFileActionDestinations(doc) {
     els.fileActionDestinations.replaceChildren();
     const targets = [];
-    const currentParent = await cachedParentDirectoryForDoc(doc);
-    if (currentParent) {
+    const desktopMode = typeof desktopFileApi()?.transaction === 'function' && !!desktopDirectoryApi();
+    if (desktopMode) {
+      const directory = directoryForDoc(doc);
+      let rootPath = '';
       let relativePrefix = '';
       let directoryId = null;
-      if (isDirectoryDoc(doc)) {
+      if (directory?.rootPath && isDirectoryDoc(doc)) {
+        rootPath = directory.rootPath;
         const parts = normalizeRelativePath(doc.relativePath).split('/');
         parts.pop();
         relativePrefix = parts.join('/');
-        directoryId = doc.directoryId;
+        directoryId = directory.id;
+      } else if (doc.desktopPath) {
+        rootPath = desktopParentPath(doc.desktopPath);
       }
-      targets.push({ key: 'current', name: `当前位置·${currentParent.name || '文档所在目录'}`, handle: currentParent, directoryId, relativePrefix, current: true });
-    }
-    for (const directory of [...state.directories].sort((a, b) => a.order - b.order)) {
-      if (!directory.handle) continue;
-      let duplicate = false;
-      for (const target of targets) {
-        if (await sameDirectoryHandle(target.handle, directory.handle)) { duplicate = true; break; }
+      if (rootPath) {
+        const displayPath = [normalizedDesktopPath(rootPath), relativePrefix].filter(Boolean).join('/');
+        targets.push({
+          key: 'current',
+          name: `当前位置·${desktopPathBaseName(displayPath) || '文档所在目录'}`,
+          rootPath,
+          directoryId,
+          relativePrefix,
+          current: true
+        });
       }
-      if (!duplicate) targets.push({ key: `directory:${directory.id}`, name: directory.name, handle: directory.handle, directoryId: directory.id, relativePrefix: '' });
+      for (const directoryItem of [...state.directories].sort((a, b) => a.order - b.order)) {
+        if (!directoryItem.rootPath) continue;
+        const target = {
+          key: `directory:${directoryItem.id}`,
+          name: directoryItem.name,
+          rootPath: directoryItem.rootPath,
+          directoryId: directoryItem.id,
+          relativePrefix: ''
+        };
+        if (!targets.some((item) => desktopTargetPathKey(item) === desktopTargetPathKey(target))) targets.push(target);
+      }
+    } else {
+      const currentParent = await cachedParentDirectoryForDoc(doc);
+      if (currentParent) {
+        let relativePrefix = '';
+        let directoryId = null;
+        if (isDirectoryDoc(doc)) {
+          const parts = normalizeRelativePath(doc.relativePath).split('/');
+          parts.pop();
+          relativePrefix = parts.join('/');
+          directoryId = doc.directoryId;
+        }
+        targets.push({ key: 'current', name: `当前位置·${currentParent.name || '文档所在目录'}`, handle: currentParent, directoryId, relativePrefix, current: true });
+      }
+      for (const directory of [...state.directories].sort((a, b) => a.order - b.order)) {
+        if (!directory.handle) continue;
+        let duplicate = false;
+        for (const target of targets) {
+          if (await sameDirectoryHandle(target.handle, directory.handle)) { duplicate = true; break; }
+        }
+        if (!duplicate) targets.push({ key: `directory:${directory.id}`, name: directory.name, handle: directory.handle, directoryId: directory.id, relativePrefix: '' });
+      }
     }
     for (const target of targets) {
       const button = document.createElement('button');
@@ -10926,7 +11251,13 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       button.className = 'app-file-destination';
       button.dataset.targetKey = target.key;
       button.setAttribute('aria-pressed', 'false');
-      button.innerHTML = `<span class="ui-icon gicon" aria-hidden="true">${iconSvg('folder')}</span><span>${escapeHtml(target.name)}</span>`;
+      const icon = document.createElement('span');
+      icon.className = 'ui-icon gicon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = iconSvg('folder');
+      const label = document.createElement('span');
+      label.textContent = target.name;
+      button.append(icon, label);
       if (fileActionState.mode === 'move' && target.current) {
         button.disabled = true;
         button.title = '已在当前位置';
@@ -10940,17 +11271,20 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function closeFileActionModal() {
-    if (fileActionState.busy) return;
+    if (fileActionState.busy || fileActionState.pickerBusy) return;
     setModalOpen(els.fileActionModal, false);
     fileActionState.mode = null;
     fileActionState.docId = null;
     fileActionState.target = null;
+    fileActionState.pickerBusy = false;
     const focus = fileActionPreviousFocus;
     fileActionPreviousFocus = null;
     focus?.focus?.();
   }
 
   async function openFileActionModal(mode) {
+    if (fileActionState.busy || fileActionState.pickerBusy) return;
+    flushPendingPreviewCommit();
     const doc = currentDoc();
     if (!doc) return;
     if (!['save-as', 'move'].includes(mode)) return;
@@ -10959,6 +11293,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     fileActionState.docId = doc.id;
     fileActionState.target = null;
     fileActionState.busy = false;
+    fileActionState.pickerBusy = false;
     const moving = mode === 'move';
     els.fileActionTitle.textContent = moving ? '移动到' : '另存为';
     els.fileActionSummary.textContent = moving
@@ -10968,37 +11303,68 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     els.fileActionCopyReview.checked = true;
     els.fileActionReviewRow.hidden = moving;
     els.fileActionAddDirectory.checked = true;
+    els.fileActionForm.querySelectorAll('input[name="file-conflict"]').forEach((input) => {
+      input.checked = input.value === 'keep-both';
+    });
     els.fileActionStatus.textContent = '';
     els.fileActionStatus.classList.remove('is-error');
     els.fileActionNameError.hidden = true;
     els.btnFileActionSubmit.textContent = moving ? '移动' : '另存为';
+    els.btnFileActionSubmit.disabled = false;
+    els.btnFileActionOther.disabled = false;
     setModalOpen(els.fileActionModal, true);
     await renderFileActionDestinations(doc);
     requestAnimationFrame(() => { els.fileActionName.focus(); els.fileActionName.select(); });
   }
 
   async function chooseOtherFileActionDirectory() {
-    if (typeof window.showDirectoryPicker !== 'function') {
+    if (fileActionState.pickerBusy || fileActionState.busy || !fileActionState.mode) return;
+    const desktopApi = desktopDirectoryApi();
+    if (!desktopApi && typeof window.showDirectoryPicker !== 'function') {
       els.fileActionStatus.textContent = '当前浏览器不支持选择本地文件夹，请使用最新版 Chrome、Edge 或桌面版。';
       els.fileActionStatus.classList.add('is-error');
       return;
     }
+    fileActionState.pickerBusy = true;
+    els.btnFileActionOther.disabled = true;
+    els.fileActionStatus.textContent = '正在选择目标文件夹…';
+    els.fileActionStatus.classList.remove('is-error');
     try {
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-      if (!await ensureReadWritePermission(handle)) throw new Error('未获得文件夹读写权限');
-      setFileActionTarget({ key: `other:${Date.now()}`, name: handle.name || '其他文件夹', handle, relativePrefix: '' });
+      if (desktopApi) {
+        const selected = await desktopApi.choose({
+          title: fileActionState.mode === 'move' ? '选择移动目标文件夹' : '选择另存目标文件夹'
+        });
+        if (!selected) return;
+        setFileActionTarget({
+          key: `desktop-other:${normalizedDesktopPath(selected.path)}`,
+          name: selected.name || desktopPathBaseName(selected.path) || '其他文件夹',
+          rootPath: selected.path,
+          relativePrefix: ''
+        });
+      } else {
+        const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        if (!await ensureReadWritePermission(handle)) throw new Error('未获得文件夹读写权限');
+        setFileActionTarget({ key: `other:${Date.now()}`, name: handle.name || '其他文件夹', handle, relativePrefix: '' });
+      }
       els.fileActionStatus.textContent = '';
       els.fileActionStatus.classList.remove('is-error');
     } catch (error) {
       if (error?.name === 'AbortError') return;
-      els.fileActionStatus.textContent = `选择文件夹失败：${error?.message || '未知错误'}`;
+      const message = String(error?.message || '未知错误');
+      els.fileActionStatus.textContent = message.includes('NATIVE_PICKER_ACTIVE') || message.includes('文件选择窗口已打开')
+        ? '系统文件选择窗口已打开，请先完成或取消当前选择'
+        : `选择文件夹失败：${message}`;
       els.fileActionStatus.classList.add('is-error');
+    } finally {
+      fileActionState.pickerBusy = false;
+      els.btnFileActionOther.disabled = fileActionState.busy;
+      if (els.fileActionStatus.textContent === '正在选择目标文件夹…') els.fileActionStatus.textContent = '';
     }
   }
 
   async function submitFileAction(event) {
     event.preventDefault();
-    if (fileActionState.busy) return;
+    if (fileActionState.busy || fileActionState.pickerBusy) return;
     const doc = state.docs.find((item) => item.id === fileActionState.docId);
     if (!doc || !fileActionState.target) {
       els.fileActionStatus.textContent = '请先选择目标文件夹';
@@ -11006,10 +11372,12 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       return;
     }
     let sourceDirectoryPromise = null;
+    const useDesktopTransaction = !!fileActionState.target.rootPath
+      && typeof desktopFileApi()?.transaction === 'function';
     try {
       fileNameWithOriginalExtension(els.fileActionName.value, doc);
       els.fileActionNameError.hidden = true;
-      if (fileActionState.mode === 'move' && isLocalFileDoc(doc) && doc.fileHandle && !doc.directoryHandle) {
+      if (!useDesktopTransaction && fileActionState.mode === 'move' && isLocalFileDoc(doc) && doc.fileHandle && !doc.directoryHandle) {
         // Invoke the picker before the submit gesture expires; the transaction awaits its result below.
         sourceDirectoryPromise = selectParentDirectory(doc);
       }
@@ -11026,7 +11394,8 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     els.fileActionStatus.textContent = fileActionState.mode === 'move' ? '正在校验并迁移…' : '正在创建新文件…';
     try {
       const sourceDirectory = sourceDirectoryPromise ? await sourceDirectoryPromise : null;
-      const result = await executeWebFileTransaction({
+      const executeTransaction = useDesktopTransaction ? executeDesktopFileTransaction : executeWebFileTransaction;
+      const result = await executeTransaction({
         mode: fileActionState.mode,
         docId: fileActionState.docId,
         target: fileActionState.target,
@@ -11041,6 +11410,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       fileActionState.mode = null;
       fileActionState.docId = null;
       fileActionState.target = null;
+      fileActionState.pickerBusy = false;
       tip(`${result.mode === 'move' ? '已移动' : '已另存为'}「${result.fileName}」`);
       els.sourceEditor.focus();
     } catch (error) {
@@ -11049,7 +11419,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     } finally {
       fileActionState.busy = false;
       els.btnFileActionSubmit.disabled = false;
-      els.btnFileActionOther.disabled = false;
+      els.btnFileActionOther.disabled = fileActionState.pickerBusy;
     }
   }
 
@@ -14320,7 +14690,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     return `${base} ${index}`;
   }
 
-  async function sameDirectoryHandle(handle) {
+  async function findDirectoryByHandle(handle) {
     for (const directory of state.directories) {
       if (!directory.handle || !handle.isSameEntry) continue;
       try { if (await handle.isSameEntry(directory.handle)) return directory; }
@@ -14370,7 +14740,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     try {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
       if (!await ensureReadWritePermission(handle)) throw new Error('未获得目录读写权限');
-      const duplicate = await sameDirectoryHandle(handle);
+      const duplicate = await findDirectoryByHandle(handle);
       if (duplicate) {
         tip(`「${duplicate.name}」已经添加`);
         renderDirectoryModal();
@@ -14780,6 +15150,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   async function importDesktopFiles(paths) {
+    flushPendingPreviewCommit();
     const api = desktopFileApi();
     const requested = [...new Set((Array.isArray(paths) ? paths : [paths])
       .filter((value) => typeof value === 'string' && value.trim()))];
@@ -14853,6 +15224,8 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function activateImportedDocs(imported) {
+    flushPendingPreviewCommit();
+    captureActiveTabSession();
     const last = imported[imported.length - 1];
     imported.forEach(touchDoc);
     imported.forEach((doc) => ensureDocOpen(doc.id));
@@ -14866,7 +15239,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     render();
     updateEditChrome();
     imported.forEach(persistDocHandles);
-    els.sourceEditor.focus();
+    (state.viewMode === 'preview' ? els.previewEditor : els.sourceEditor).focus({ preventScroll: true });
     tip(imported.length === 1 ? `已打开「${last.name}」` : `已打开 ${imported.length} 个文档`);
   }
 
@@ -18920,6 +19293,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       fileNameWithOriginalExtension,
       uniqueFileName,
       executeWebFileTransaction,
+      openFileActionModal,
       snapshotEntry,
       restoreEntrySnapshot,
       generatePdfBlob,

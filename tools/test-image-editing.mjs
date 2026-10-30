@@ -410,6 +410,14 @@ assert.match(appSource, /turndownService\.addRule\('imageRowMetadata'[\s\S]+cons
 assert.match(appSource, /function preserveImageRowMetadata\([\s\S]+const tokens = markdownImageTokens\(source\)[\s\S]+renderedImages[\s\S]+insertions/, 'image row metadata should be reinjected by rendered image-token order after Turndown');
 assert.match(appSource, /function startSelectedImageDescriptionEdit\([\s\S]+app-image-caption-input/, 'image descriptions should edit inline below the selected image');
 assert.match(appSource, /function cancelImageDescriptionEdit\([\s\S]+descriptionCancelled/, 'Escape should cancel an inline description without committing it');
+assert.match(appSource, /function commitOpenImageDescriptionPanel\([\s\S]+commitPreviewImageOrder\(\)[\s\S]+closeImageEditPanels/, 'the toolbar description field should have one canonical commit path');
+assert.match(appSource, /toggleImageEditPanel\(button\.dataset\.imageTool\)/, 'the description toolbar action should open its declared panel');
+assert.match(appSource, /imageDescriptionInput\?\.addEventListener\('focusout'[\s\S]+commitOpenImageDescriptionPanel/, 'leaving the description field should not discard unsaved text');
+assert.match(appSource, /imageDescriptionInput\?\.addEventListener\('keydown'[\s\S]+event\.key === 'Escape'[\s\S]+closeImageEditPanels/, 'Escape should cancel the toolbar description edit');
+assert.match(appSource, /function continuePreviewEditingAfterImage\([\s\S]+placePreviewCaret\(paragraph, 0\)/, 'image editing should provide a direct route back to the following body paragraph');
+assert.match(appSource, /event\.key === 'ArrowDown' \|\| event\.key === 'ArrowRight'[\s\S]+continuePreviewEditingAfterImage/, 'arrow navigation should continue editing after a selected image');
+assert.match(appSource, /btnImageDownload\?\.addEventListener\('click', \(\) => \{[\s\S]+commitOpenImageDescriptionPanel/, 'switching to download should commit an open description first');
+assert.match(appSource, /btnImageCrop\?\.addEventListener\('click', \(\) => \{[\s\S]+commitOpenImageDescriptionPanel/, 'switching to crop should commit an open description first');
 assert.match(cssSource, /\.app-image-caption\s*\{[\s\S]+text-align: center/, 'image captions should use a compact centered caption treatment');
 assert.match(cssSource, /\.app-image-tool__tooltip\s*\{[\s\S]+visibility: hidden/, 'description tooltip should stay hidden until hover or focus');
 assert.match(cssSource, /\.app-export-capture \.app-image-caption\.is-placeholder\s*\{\s*display: none;/, 'empty image description placeholders should stay out of exports');

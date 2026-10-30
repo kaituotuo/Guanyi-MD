@@ -21,7 +21,10 @@ const DESKTOP_DIRECTORY_MAX_FILES = 500;
 const DESKTOP_STATE_MAX_SIZE = 128 * 1024 * 1024;
 
 // Keep upgrades on one stable profile even if product metadata changes later.
-app.setPath('userData', path.join(app.getPath('appData'), 'guanyi-md'));
+const testUserDataPath = process.env.NODE_ENV === 'test' && path.isAbsolute(process.env.GUANYI_TEST_USER_DATA || '')
+  ? process.env.GUANYI_TEST_USER_DATA
+  : null;
+app.setPath('userData', testUserDataPath || path.join(app.getPath('appData'), 'guanyi-md'));
 
 let mainWindow = null;
 let helpWindow = null;
@@ -31,6 +34,18 @@ let quittingAfterSearchShutdown = false;
 let rendererReady = false;
 let pendingOpenPaths = [];
 let stateWriteQueue = Promise.resolve();
+let nativePickerActive = false;
+
+async function runNativePicker(task) {
+  if (nativePickerActive) {
+    const error = new Error('系统文件选择窗口已打开，请先完成或取消当前选择');
+    error.code = 'NATIVE_PICKER_ACTIVE';
+    throw error;
+  }
+  nativePickerActive = true;
+  try { return await task(); }
+  finally { nativePickerActive = false; }
+}
 
 function normalizedOpenPath(rawPath) {
   if (typeof rawPath !== 'string' || !rawPath.trim()) return null;
@@ -56,7 +71,20 @@ function queueOpenPaths(rawPaths) {
   const paths = normalizedOpenPaths(rawPaths);
   if (!paths.length) return;
   pendingOpenPaths = [...new Set([...pendingOpenPaths, ...paths])];
+  showMainWindow();
   flushPendingOpenPaths();
+}
+
+function showMainWindow() {
+  if (!app.isReady()) return;
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  if (process.platform === 'darwin') app.focus({ steal: true });
+  mainWindow.focus();
 }
 
 function trustedRenderer(event) {
@@ -315,22 +343,246 @@ async function showDesktopFileInFolder(rawPath, options = {}) {
   return { path: filePath };
 }
 
+async function pathExists(fileSystem, filePath) {
+  try { await fileSystem.access(filePath); return true; }
+  catch (error) { if (error?.code === 'ENOENT') return false; throw error; }
+}
+
+async function uniqueDesktopFilePath(fileSystem, directoryPath, requestedName) {
+  const requestedPath = path.join(directoryPath, requestedName);
+  if (!await pathExists(fileSystem, requestedPath)) return requestedPath;
+  const parsed = path.parse(requestedName);
+  let number = 2;
+  while (await pathExists(fileSystem, path.join(directoryPath, `${parsed.name} ${number}${parsed.ext}`))) number += 1;
+  return path.join(directoryPath, `${parsed.name} ${number}${parsed.ext}`);
+}
+
+async function removeDesktopEntry(fileSystem, filePath) {
+  await fileSystem.rm(filePath, { recursive: true, force: true });
+}
+
+async function copyDesktopEntry(fileSystem, sourcePath, targetPath) {
+  if (!await pathExists(fileSystem, sourcePath)) return false;
+  const stats = await fileSystem.stat(sourcePath);
+  if (stats.isDirectory()) await fileSystem.cp(sourcePath, targetPath, { recursive: true });
+  else await fileSystem.copyFile(sourcePath, targetPath);
+  return true;
+}
+
+function validatedDesktopTransactionName(rawName) {
+  const value = String(rawName || '').trim();
+  const name = path.basename(value);
+  if (!value || name !== value || !DESKTOP_OPEN_EXTENSIONS.has(path.extname(name).toLowerCase())) {
+    throw new Error('目标文件名无效');
+  }
+  return name;
+}
+
+function desktopTransactionDirectory(rootPath, relativePrefix = '') {
+  const root = path.resolve(String(rootPath || ''));
+  if (!rootPath) throw new Error('目标文件夹无效');
+  const relative = String(relativePrefix || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+  return relative ? safeDirectoryEntryPath(root, relative) : root;
+}
+
+function desktopReviewHash(value) {
+  let hash = 0x811c9dc5;
+  const text = String(value || '');
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `fnv1a32:${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+function desktopTransactionReviewContent(reviewContent, targetName, targetDocId, targetContent) {
+  return String(reviewContent || '')
+    .replace(/^- 目标文件：.*$/m, () => `- 目标文件：${targetName}`)
+    .replace(/^- 文档标识：.*$/m, () => `- 文档标识：${String(targetDocId || '').trim()}`)
+    .replace(/^- 文档版本：.*$/m, () => `- 文档版本：${desktopReviewHash(targetContent)}`);
+}
+
+function rewriteDesktopManagedImageSources(content, sourceBase, targetBase) {
+  if (!sourceBase || sourceBase === targetBase) return content;
+  return content.replace(/(?<![\w./:-])(\.\/)?assets\/([^/\r\n]+)\//g, (match, prefix = '', base) => {
+    try {
+      if (decodeURIComponent(base) === sourceBase) return `${prefix}assets/${encodeURIComponent(targetBase)}/`;
+    } catch (_error) { /* Leave unrelated or malformed references intact. */ }
+    return match;
+  });
+}
+
+async function performDesktopFileTransaction(payload, options = {}) {
+  const fileSystem = options.fileSystem || fs.promises;
+  const mode = payload?.mode;
+  if (!['save-as', 'move'].includes(mode)) throw new Error('文件操作类型无效');
+  const content = String(payload?.content ?? '');
+  if (Buffer.byteLength(content, 'utf8') > DESKTOP_MAX_FILE_SIZE) throw new Error('文件超过 20 MB');
+
+  const targetRoot = desktopTransactionDirectory(payload?.targetRootPath, payload?.targetRelativePrefix);
+  const targetStats = await fileSystem.stat(targetRoot);
+  if (!targetStats.isDirectory()) throw new Error('目标位置不是文件夹');
+  const requestedName = validatedDesktopTransactionName(payload?.fileName);
+  const conflict = ['keep-both', 'replace', 'cancel'].includes(payload?.conflict) ? payload.conflict : 'keep-both';
+  let targetPath = path.join(targetRoot, requestedName);
+  const targetExists = await pathExists(fileSystem, targetPath);
+  if (targetExists && conflict === 'cancel') throw new Error('已取消：目标文件夹存在同名文件');
+  if (targetExists && conflict === 'keep-both') targetPath = await uniqueDesktopFilePath(fileSystem, targetRoot, requestedName);
+
+  const sourcePath = payload?.sourcePath ? normalizedOpenPath(payload.sourcePath) : null;
+  if (mode === 'move' && !sourcePath) throw new Error('无法确认原文件位置，已停止移动');
+  if (sourcePath) {
+    const sourceStats = await fileSystem.stat(sourcePath);
+    if (!sourceStats.isFile()) throw new Error('原位置不是文档文件');
+    if (mode === 'move' && payload.expectedModifiedAt
+      && (Number(payload.expectedModifiedAt) !== sourceStats.mtimeMs || Number(payload.expectedSize) !== sourceStats.size)) {
+      throw new Error('原文件已被其他程序修改，请重新打开后再移动');
+    }
+  }
+  if (sourcePath && mode === 'save-as' && path.resolve(sourcePath) === path.resolve(targetPath)) {
+    throw new Error('另存为不能替换原文件，请更改文件名或选择“保留两份”');
+  }
+  if (sourcePath && mode === 'move' && path.resolve(sourcePath) === path.resolve(targetPath)) {
+    throw new Error('文档已经位于所选位置');
+  }
+
+  const targetName = path.basename(targetPath);
+  const targetBase = path.parse(targetName).name;
+  const sourceDirectory = sourcePath ? path.dirname(sourcePath) : null;
+  const sourceBase = sourcePath ? path.parse(sourcePath).name : '';
+  const targetContent = rewriteDesktopManagedImageSources(content, sourceBase, targetBase);
+  if (Buffer.byteLength(targetContent, 'utf8') > DESKTOP_MAX_FILE_SIZE) throw new Error('文件超过 20 MB');
+  const sourceReviewPath = sourcePath ? path.join(sourceDirectory, `${sourceBase}.REVIEW.md`) : null;
+  const sourceAssetsPath = sourcePath ? path.join(sourceDirectory, 'assets', sourceBase) : null;
+  if (sourceAssetsPath && (targetRoot === sourceAssetsPath || targetRoot.startsWith(`${sourceAssetsPath}${path.sep}`))) {
+    throw new Error('不能将文档保存到它自身的托管图片目录');
+  }
+  const targetReviewPath = path.join(targetRoot, `${targetBase}.REVIEW.md`);
+  const targetAssetsPath = path.join(targetRoot, 'assets', targetBase);
+  const shouldWriteReview = !!payload?.writeReview;
+  const reviewContent = desktopTransactionReviewContent(
+    payload?.reviewContent,
+    targetName,
+    payload?.targetDocId,
+    targetContent
+  );
+  const stageRoot = await fileSystem.mkdtemp(path.join(targetRoot, '.guanyi-transaction-'));
+  const stagedDocument = path.join(stageRoot, targetName);
+  const stagedReview = path.join(stageRoot, `${targetBase}.REVIEW.md`);
+  const stagedAssets = path.join(stageRoot, 'assets');
+  const targetBackups = [];
+  const sourceBackups = [];
+  let sourceRemoved = false;
+  let targetDocumentInstalled = false;
+  let targetReviewInstalled = false;
+  let targetAssetsInstalled = false;
+  let rollbackComplete = true;
+
+  const backupTarget = async (entryPath, backupName) => {
+    if (!await pathExists(fileSystem, entryPath)) return;
+    const backupPath = path.join(stageRoot, backupName);
+    await fileSystem.rename(entryPath, backupPath);
+    targetBackups.push([entryPath, backupPath]);
+  };
+  const backupSource = async (entryPath, backupName) => {
+    if (!entryPath || !await pathExists(fileSystem, entryPath)) return;
+    const backupPath = path.join(stageRoot, backupName);
+    await copyDesktopEntry(fileSystem, entryPath, backupPath);
+    sourceBackups.push([entryPath, backupPath]);
+  };
+
+  try {
+    await fileSystem.writeFile(stagedDocument, targetContent, 'utf8');
+    if (shouldWriteReview && reviewContent) await fileSystem.writeFile(stagedReview, reviewContent, 'utf8');
+    if (sourceAssetsPath) await copyDesktopEntry(fileSystem, sourceAssetsPath, stagedAssets);
+    if ((await fileSystem.readFile(stagedDocument, 'utf8')) !== targetContent) throw new Error('目标文件写入后校验失败');
+
+    await backupTarget(targetPath, 'target-document.backup');
+    await backupTarget(targetReviewPath, 'target-review.backup');
+    await backupTarget(targetAssetsPath, 'target-assets.backup');
+    await fileSystem.rename(stagedDocument, targetPath);
+    targetDocumentInstalled = true;
+    if (await pathExists(fileSystem, stagedReview)) {
+      await fileSystem.rename(stagedReview, targetReviewPath);
+      targetReviewInstalled = true;
+    }
+    if (await pathExists(fileSystem, stagedAssets)) {
+      await fileSystem.mkdir(path.dirname(targetAssetsPath), { recursive: true });
+      await fileSystem.rename(stagedAssets, targetAssetsPath);
+      targetAssetsInstalled = true;
+    }
+
+    if (mode === 'move' && sourcePath) {
+      await backupSource(sourcePath, 'source-document.backup');
+      await backupSource(sourceReviewPath, 'source-review.backup');
+      await backupSource(sourceAssetsPath, 'source-assets.backup');
+      sourceRemoved = true;
+      await removeDesktopEntry(fileSystem, sourcePath);
+      await removeDesktopEntry(fileSystem, sourceReviewPath);
+      await removeDesktopEntry(fileSystem, sourceAssetsPath);
+    }
+
+    const stats = await fileSystem.stat(targetPath);
+    return {
+      canceled: false,
+      mode,
+      path: targetPath,
+      name: targetName,
+      directoryPath: targetRoot,
+      directoryName: path.basename(targetRoot) || targetRoot,
+      size: stats.size,
+      lastModified: stats.mtimeMs,
+      storageKind: 'external',
+      content: targetContent
+    };
+  } catch (error) {
+    const restore = async (task) => {
+      try { await task(); }
+      catch (_restoreError) { rollbackComplete = false; }
+    };
+    if (targetDocumentInstalled) await restore(() => removeDesktopEntry(fileSystem, targetPath));
+    if (targetReviewInstalled) await restore(() => removeDesktopEntry(fileSystem, targetReviewPath));
+    if (targetAssetsInstalled) await restore(() => removeDesktopEntry(fileSystem, targetAssetsPath));
+    for (const [entryPath, backupPath] of targetBackups.reverse()) {
+      await restore(() => fileSystem.rename(backupPath, entryPath));
+    }
+    if (sourceRemoved) {
+      for (const [entryPath, backupPath] of sourceBackups) {
+        await restore(async () => {
+          await removeDesktopEntry(fileSystem, entryPath);
+          await copyDesktopEntry(fileSystem, backupPath, entryPath);
+        });
+      }
+    }
+    const detail = rollbackComplete ? '原位置没有变化' : `恢复未完成，备份已保留在 ${stageRoot}`;
+    const failure = new Error(`${error?.message || '文件操作失败'}；${detail}`);
+    failure.cause = error;
+    throw failure;
+  } finally {
+    if (rollbackComplete) await removeDesktopEntry(fileSystem, stageRoot).catch(() => {});
+  }
+}
+
 function installDesktopFileHandlers() {
   ipcMain.handle('guanyi-files:choose', async (event) => {
     trustedRenderer(event);
-    const result = await dialog.showOpenDialog(mainWindow, {
+    const result = await runNativePicker(() => dialog.showOpenDialog(mainWindow, {
       title: '打开本地文档',
       properties: ['openFile', 'multiSelections'],
       filters: [
         { name: 'Markdown 与文本', extensions: ['md', 'markdown', 'txt'] },
         { name: '所有文件', extensions: ['*'] }
       ]
-    });
+    }));
     return result.canceled ? [] : normalizedOpenPaths(result.filePaths);
   });
   ipcMain.handle('guanyi-files:save-as', async (event, payload) => {
     trustedRenderer(event);
-    return saveDesktopFileAs(payload);
+    return runNativePicker(() => saveDesktopFileAs(payload));
+  });
+  ipcMain.handle('guanyi-files:transaction', async (event, payload) => {
+    trustedRenderer(event);
+    return performDesktopFileTransaction(payload);
   });
   ipcMain.handle('guanyi-files:create-managed', async (event, payload) => {
     trustedRenderer(event);
@@ -409,11 +661,11 @@ function installDesktopFileHandlers() {
 function installDesktopDirectoryHandlers() {
   ipcMain.handle('guanyi-directories:choose', async (event, options) => {
     trustedRenderer(event);
-    const result = await dialog.showOpenDialog(mainWindow, {
+    const result = await runNativePicker(() => dialog.showOpenDialog(mainWindow, {
       title: options?.title || '添加文档目录',
       defaultPath: typeof options?.defaultPath === 'string' ? options.defaultPath : undefined,
       properties: ['openDirectory', 'createDirectory']
-    });
+    }));
     if (result.canceled || !result.filePaths[0]) return null;
     return inspectDesktopDirectory(result.filePaths[0]);
   });
@@ -650,6 +902,7 @@ function installApplicationMenu() {
 }
 
 function createWindow() {
+  rendererReady = false;
   mainWindow = new BrowserWindow({
     title: PRODUCT_NAME,
     width: 1440,
@@ -673,12 +926,12 @@ function createWindow() {
     }
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  mainWindow.once('ready-to-show', showMainWindow);
   mainWindow.webContents.once('did-finish-load', () => {
     rendererReady = true;
     flushPendingOpenPaths();
   });
-  mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.on('closed', () => { mainWindow = null; rendererReady = false; });
 
   guardWindowNavigation(mainWindow);
 
@@ -709,9 +962,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     createWindow();
     queueOpenPaths(process.argv.slice(1));
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
+    app.on('activate', showMainWindow);
   });
 
   app.on('open-file', (event, filePath) => {
@@ -721,9 +972,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('second-instance', (_event, commandLine) => {
     queueOpenPaths(commandLine.slice(1));
-    if (!mainWindow) return;
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
+    showMainWindow();
   });
 
   app.on('window-all-closed', () => {

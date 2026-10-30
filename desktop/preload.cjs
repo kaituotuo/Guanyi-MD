@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('guanyiDesktop', Object.freeze({
     readAsset: (documentPath, source) => ipcRenderer.invoke('guanyi-files:read-asset', { documentPath, source }),
     write: (filePath, content) => ipcRenderer.invoke('guanyi-files:write', { filePath, content }),
     stat: (filePath) => ipcRenderer.invoke('guanyi-files:stat', filePath),
+    transaction: (payload) => ipcRenderer.invoke('guanyi-files:transaction', payload),
     showInFolder: (filePath) => ipcRenderer.invoke('guanyi-files:show-in-folder', filePath),
     rename: (filePath, nextName) => ipcRenderer.invoke('guanyi-files:rename', { filePath, nextName }),
     readSibling: (documentPath, name) => ipcRenderer.invoke('guanyi-files:read-sibling', { documentPath, name }),

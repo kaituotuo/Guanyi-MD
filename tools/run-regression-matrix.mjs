@@ -20,6 +20,7 @@ const checks = {
   'directory-refresh': [node, ['tools/test-directory-refresh.mjs']],
   'search-navigation': [node, ['tools/test-search-navigation.mjs']],
   'desktop-file-open': [node, ['tools/test-desktop-file-open.mjs']],
+  'desktop-file-actions': [node, ['tools/test-electron-file-actions.mjs']],
   'document-rename': [node, ['tools/test-document-rename.mjs']],
   'tabs-file-actions': [node, ['tools/test-tabs-and-file-actions.mjs']],
   'single-file-sync': [node, ['tools/test-single-file-sync.mjs']],
@@ -48,7 +49,7 @@ const groups = {
     'original-answer', 'work-question', 'desktop-ai-bridge', 'search-navigation', 'single-file-sync', 'syntax-app'
   ],
   directory: [
-    'catalog', 'directory-refresh', 'desktop-file-open', 'document-rename', 'upgrade-persistence',
+    'catalog', 'directory-refresh', 'desktop-file-open', 'desktop-file-actions', 'document-rename', 'upgrade-persistence',
     'tabs-file-actions', 'search-navigation', 'semantic-search', 'desktop-menu', 'desktop-layout', 'desktop-layout-electron', 'single-file-sync', 'syntax-app', 'syntax-main', 'syntax-preload'
   ],
   search: [

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +20,7 @@ for (const marker of [
   "guanyi:open-files",
   "guanyi-files:choose",
   "guanyi-files:save-as",
+  "guanyi-files:transaction",
   "guanyi-files:create-managed",
   "guanyi-files:read",
   "guanyi-files:read-asset",
@@ -26,10 +28,12 @@ for (const marker of [
   "guanyi-files:stat",
   "guanyi-files:show-in-folder",
   "guanyi-files:rename",
+  'runNativePicker',
+  'performDesktopFileTransaction',
   '20 * 1024 * 1024'
 ]) assert.ok(main.includes(marker), `desktop/main.cjs 缺少 ${marker}`);
 
-for (const marker of ['choose', 'saveAs', 'createManaged', 'onOpen', 'queuedOpenFiles', 'readAsset', 'write', 'stat', 'showInFolder', 'rename']) {
+for (const marker of ['choose', 'saveAs', 'transaction', 'createManaged', 'onOpen', 'queuedOpenFiles', 'readAsset', 'write', 'stat', 'showInFolder', 'rename']) {
   assert.match(preload, new RegExp(marker), `desktop/preload.cjs 缺少 ${marker}`);
 }
 
@@ -208,7 +212,7 @@ await assert.rejects(
 );
 
 const revealStart = main.indexOf('async function showDesktopFileInFolder(');
-const revealEnd = main.indexOf('\nfunction installDesktopFileHandlers', revealStart);
+const revealEnd = main.indexOf('\nasync function pathExists', revealStart);
 assert.notEqual(revealStart, -1, 'desktop reveal implementation should exist');
 assert.notEqual(revealEnd, -1, 'desktop reveal implementation should have a stable boundary');
 const showDesktopFileInFolder = vm.runInNewContext(
@@ -232,6 +236,231 @@ await assert.rejects(
   /目标不是文件/
 );
 await assert.rejects(showDesktopFileInFolder('/docs/脚本.exe', {}), /文件路径无效/);
+
+const pickerStart = main.indexOf('let nativePickerActive = false;');
+const pickerEnd = main.indexOf('\nfunction normalizedOpenPath', pickerStart);
+assert.notEqual(pickerStart, -1, 'native picker lock should exist');
+assert.notEqual(pickerEnd, -1, 'native picker lock should have a stable boundary');
+const { runNativePicker } = vm.runInNewContext(`(() => {
+  ${main.slice(pickerStart, pickerEnd)}
+  return { runNativePicker };
+})()`);
+let releasePicker;
+const activePicker = runNativePicker(() => new Promise((resolve) => { releasePicker = resolve; }));
+await Promise.resolve();
+await assert.rejects(
+  runNativePicker(async () => 'duplicate'),
+  (error) => error?.code === 'NATIVE_PICKER_ACTIVE' && /文件选择窗口已打开/.test(error.message),
+  'only one OS file picker may be active at a time'
+);
+releasePicker('done');
+assert.equal(await activePicker, 'done');
+assert.equal(await runNativePicker(async () => 'reopened'), 'reopened', 'picker cancellation/completion must release the lock');
+
+const transactionStart = main.indexOf('async function pathExists(');
+const transactionEnd = main.indexOf('\nfunction installDesktopFileHandlers', transactionStart);
+assert.notEqual(transactionStart, -1, 'desktop transaction helpers should exist');
+assert.notEqual(transactionEnd, -1, 'desktop transaction helpers should have a stable boundary');
+const { performDesktopFileTransaction } = vm.runInNewContext(`(() => {
+  ${main.slice(transactionStart, transactionEnd)}
+  return { performDesktopFileTransaction };
+})()`, {
+  Buffer,
+  fs,
+  path,
+  DESKTOP_MAX_FILE_SIZE: 20 * 1024 * 1024,
+  DESKTOP_OPEN_EXTENSIONS: new Set(['.md', '.markdown', '.txt']),
+  normalizedOpenPath: (value) => {
+    const resolved = path.resolve(String(value || ''));
+    return ['.md', '.markdown', '.txt'].includes(path.extname(resolved).toLowerCase()) ? resolved : null;
+  },
+  safeDirectoryEntryPath: (rootPath, relativePath) => {
+    const root = path.resolve(String(rootPath || ''));
+    const relative = String(relativePath || '').replace(/\\/g, '/');
+    if (!rootPath || !relative || path.isAbsolute(relative) || relative.split('/').some((part) => !part || part === '.' || part === '..')) {
+      throw new Error('目录内路径无效');
+    }
+    const candidate = path.resolve(root, ...relative.split('/'));
+    if (!candidate.startsWith(`${root}${path.sep}`)) throw new Error('路径超出已添加目录');
+    return candidate;
+  }
+});
+
+const transactionRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'guanyi-desktop-transaction-'));
+const sourceRoot = path.join(transactionRoot, 'source');
+const targetRoot = path.join(transactionRoot, 'target');
+fs.mkdirSync(path.join(sourceRoot, 'assets', 'book'), { recursive: true });
+fs.mkdirSync(targetRoot, { recursive: true });
+const sourceBook = path.join(sourceRoot, 'book.md');
+fs.writeFileSync(sourceBook, 'source-on-disk', 'utf8');
+fs.writeFileSync(path.join(sourceRoot, 'book.REVIEW.md'), 'source-review', 'utf8');
+fs.writeFileSync(path.join(sourceRoot, 'assets', 'book', 'cover.png'), 'image', 'utf8');
+const reviewTemplate = [
+  '# 文档协作任务',
+  '- 目标文件：book.md',
+  '- 文档标识：source-id',
+  '- 文档版本：fnv1a32:00000000'
+].join('\n');
+
+try {
+  const savedCopy = await performDesktopFileTransaction({
+    mode: 'save-as',
+    sourcePath: sourceBook,
+    targetRootPath: targetRoot,
+    fileName: 'copy.md',
+    content: '![cover](assets/book/cover.png)',
+    targetDocId: 'copy-id',
+    writeReview: true,
+    reviewContent: reviewTemplate,
+    conflict: 'keep-both'
+  });
+  assert.equal(savedCopy.name, 'copy.md');
+  assert.equal(savedCopy.content, '![cover](assets/copy/cover.png)');
+  assert.equal(fs.readFileSync(savedCopy.path, 'utf8'), savedCopy.content);
+  assert.equal(fs.readFileSync(path.join(targetRoot, 'assets', 'copy', 'cover.png'), 'utf8'), 'image');
+  const savedReview = fs.readFileSync(path.join(targetRoot, 'copy.REVIEW.md'), 'utf8');
+  assert.match(savedReview, /- 目标文件：copy\.md/);
+  assert.match(savedReview, /- 文档标识：copy-id/);
+  assert.doesNotMatch(savedReview, /fnv1a32:00000000/);
+  assert.equal(fs.readFileSync(sourceBook, 'utf8'), 'source-on-disk', 'save-as must preserve the original file');
+
+  const keptCopy = await performDesktopFileTransaction({
+    mode: 'save-as', sourcePath: sourceBook, targetRootPath: targetRoot, fileName: 'copy.md',
+    content: '![cover](assets/book/cover.png)', targetDocId: 'copy-2-id', writeReview: true,
+    reviewContent: reviewTemplate, conflict: 'keep-both'
+  });
+  assert.equal(keptCopy.name, 'copy 2.md');
+  assert.equal(keptCopy.content, '![cover](assets/copy%202/cover.png)');
+  assert.equal(fs.readFileSync(path.join(targetRoot, 'assets', 'copy 2', 'cover.png'), 'utf8'), 'image');
+
+  const replacePath = path.join(targetRoot, 'replace.md');
+  fs.mkdirSync(path.join(targetRoot, 'assets', 'replace'), { recursive: true });
+  fs.writeFileSync(replacePath, 'old-target', 'utf8');
+  fs.writeFileSync(path.join(targetRoot, 'replace.REVIEW.md'), 'old-review', 'utf8');
+  fs.writeFileSync(path.join(targetRoot, 'assets', 'replace', 'old.png'), 'old-image', 'utf8');
+  await performDesktopFileTransaction({
+    mode: 'save-as', sourcePath: sourceBook, targetRootPath: targetRoot, fileName: 'replace.md',
+    content: 'new-target', targetDocId: 'replace-id', writeReview: false, reviewContent: '', conflict: 'replace'
+  });
+  assert.equal(fs.readFileSync(replacePath, 'utf8'), 'new-target');
+  assert.equal(fs.existsSync(path.join(targetRoot, 'replace.REVIEW.md')), false, 'replace without review copy must remove stale target review');
+  assert.equal(fs.existsSync(path.join(targetRoot, 'assets', 'replace', 'old.png')), false, 'replace must not retain stale target assets');
+  assert.equal(fs.readFileSync(path.join(targetRoot, 'assets', 'replace', 'cover.png'), 'utf8'), 'image');
+
+  const moveSourceRoot = path.join(transactionRoot, 'move-source');
+  fs.mkdirSync(path.join(moveSourceRoot, 'assets', 'move-me'), { recursive: true });
+  const moveSource = path.join(moveSourceRoot, 'move-me.md');
+  fs.writeFileSync(moveSource, 'move-source', 'utf8');
+  fs.writeFileSync(path.join(moveSourceRoot, 'move-me.REVIEW.md'), 'move-review', 'utf8');
+  fs.writeFileSync(path.join(moveSourceRoot, 'assets', 'move-me', 'move.png'), 'move-image', 'utf8');
+  const moved = await performDesktopFileTransaction({
+    mode: 'move', sourcePath: moveSource, targetRootPath: targetRoot, fileName: 'moved.md',
+    content: '![move](assets/move-me/move.png)', targetDocId: 'move-id', writeReview: true,
+    reviewContent: reviewTemplate, conflict: 'keep-both'
+  });
+  assert.equal(fs.existsSync(moveSource), false);
+  assert.equal(fs.existsSync(path.join(moveSourceRoot, 'move-me.REVIEW.md')), false);
+  assert.equal(fs.existsSync(path.join(moveSourceRoot, 'assets', 'move-me')), false);
+  assert.equal(fs.readFileSync(moved.path, 'utf8'), '![move](assets/moved/move.png)');
+  assert.equal(fs.readFileSync(path.join(targetRoot, 'assets', 'moved', 'move.png'), 'utf8'), 'move-image');
+
+  const protectedPath = path.join(targetRoot, 'protected.md');
+  fs.writeFileSync(protectedPath, 'must-survive-staging-failure', 'utf8');
+  const stagingFailureFs = new Proxy(fs.promises, {
+    get(target, property) {
+      if (property === 'writeFile') return async (filePath, ...args) => {
+        if (String(filePath).includes('.guanyi-transaction-') && path.basename(filePath) === 'protected.md') {
+          throw new Error('injected staging failure');
+        }
+        return target.writeFile(filePath, ...args);
+      };
+      const value = Reflect.get(target, property);
+      return typeof value === 'function' ? value.bind(target) : value;
+    }
+  });
+  await assert.rejects(performDesktopFileTransaction({
+    mode: 'save-as', sourcePath: sourceBook, targetRootPath: targetRoot, fileName: 'protected.md',
+    content: 'new-content', targetDocId: 'protected-id', writeReview: false, conflict: 'replace'
+  }, { fileSystem: stagingFailureFs }), /injected staging failure.*原位置没有变化/);
+  assert.equal(fs.readFileSync(protectedPath, 'utf8'), 'must-survive-staging-failure',
+    'a failure before installation must never delete the pre-existing target');
+
+  const rollbackSourceRoot = path.join(transactionRoot, 'rollback-source');
+  fs.mkdirSync(path.join(rollbackSourceRoot, 'assets', 'rollback'), { recursive: true });
+  const rollbackSource = path.join(rollbackSourceRoot, 'rollback.md');
+  const rollbackReview = path.join(rollbackSourceRoot, 'rollback.REVIEW.md');
+  fs.writeFileSync(rollbackSource, 'rollback-source-content', 'utf8');
+  fs.writeFileSync(rollbackReview, 'rollback-source-review', 'utf8');
+  fs.writeFileSync(path.join(rollbackSourceRoot, 'assets', 'rollback', 'rollback.png'), 'rollback-image', 'utf8');
+  let injectedRemovalFailure = false;
+  const removalFailureFs = new Proxy(fs.promises, {
+    get(target, property) {
+      if (property === 'rm') return async (filePath, ...args) => {
+        if (!injectedRemovalFailure && filePath === rollbackReview) {
+          injectedRemovalFailure = true;
+          throw new Error('injected source removal failure');
+        }
+        return target.rm(filePath, ...args);
+      };
+      const value = Reflect.get(target, property);
+      return typeof value === 'function' ? value.bind(target) : value;
+    }
+  });
+  await assert.rejects(performDesktopFileTransaction({
+    mode: 'move', sourcePath: rollbackSource, targetRootPath: targetRoot, fileName: 'rollback-target.md',
+    content: 'rollback-new-content', targetDocId: 'rollback-id', writeReview: true,
+    reviewContent: reviewTemplate, conflict: 'replace'
+  }, { fileSystem: removalFailureFs }), /injected source removal failure.*原位置没有变化/);
+  assert.equal(fs.readFileSync(rollbackSource, 'utf8'), 'rollback-source-content');
+  assert.equal(fs.readFileSync(rollbackReview, 'utf8'), 'rollback-source-review');
+  assert.equal(fs.readFileSync(path.join(rollbackSourceRoot, 'assets', 'rollback', 'rollback.png'), 'utf8'), 'rollback-image');
+  assert.equal(fs.existsSync(path.join(targetRoot, 'rollback-target.md')), false);
+
+  const chineseSource = path.join(sourceRoot, '中文 书稿.md');
+  fs.mkdirSync(path.join(sourceRoot, 'assets', '中文 书稿'), { recursive: true });
+  fs.writeFileSync(chineseSource, 'original');
+  fs.writeFileSync(path.join(sourceRoot, 'assets', '中文 书稿', 'cover.png'), 'chinese-image');
+  const chineseCopy = await performDesktopFileTransaction({
+    mode: 'save-as', sourcePath: chineseSource, targetRootPath: targetRoot, fileName: '中文 副本.md',
+    content: `![cover](assets/${encodeURIComponent('中文 书稿')}/cover.png)`, conflict: 'keep-both'
+  });
+  assert.equal(chineseCopy.content, `![cover](assets/${encodeURIComponent('中文 副本')}/cover.png)`);
+  assert.equal(fs.readFileSync(path.join(targetRoot, 'assets', '中文 副本', 'cover.png'), 'utf8'), 'chinese-image');
+  await assert.rejects(performDesktopFileTransaction({
+    mode: 'move', sourcePath: path.join(sourceRoot, 'missing.md'), targetRootPath: targetRoot,
+    fileName: 'missing-target.md', content: 'must-not-create'
+  }), /ENOENT/);
+  assert.equal(fs.existsSync(path.join(targetRoot, 'missing-target.md')), false);
+  await assert.rejects(performDesktopFileTransaction({
+    mode: 'move', sourcePath: chineseSource, targetRootPath: targetRoot,
+    fileName: 'conflict-target.md', content: 'stale', expectedModifiedAt: 1, expectedSize: 1
+  }), /原文件已被其他程序修改/);
+  assert.equal(fs.readFileSync(chineseSource, 'utf8'), 'original');
+
+  const restoreFailureFs = new Proxy(fs.promises, {
+    get(target, property) {
+      if (property === 'rm') return async (filePath, ...args) => {
+        if (filePath === rollbackReview) throw new Error('injected removal failure');
+        return target.rm(filePath, ...args);
+      };
+      if (property === 'copyFile') return async (from, to, ...args) => {
+        if (to === rollbackSource) throw new Error('injected restore failure');
+        return target.copyFile(from, to, ...args);
+      };
+      const value = Reflect.get(target, property);
+      return typeof value === 'function' ? value.bind(target) : value;
+    }
+  });
+  await assert.rejects(performDesktopFileTransaction({
+    mode: 'move', sourcePath: rollbackSource, targetRootPath: targetRoot, fileName: 'restore-failure.md',
+    content: 'new', conflict: 'keep-both'
+  }, { fileSystem: restoreFailureFs }), /恢复未完成，备份已保留/);
+  const retainedStage = fs.readdirSync(targetRoot).find((name) => name.startsWith('.guanyi-transaction-'));
+  assert.ok(retainedStage, 'incomplete rollback must retain backups');
+  assert.equal(fs.readFileSync(path.join(targetRoot, retainedStage, 'source-document.backup'), 'utf8'), 'rollback-source-content');
+} finally {
+  fs.rmSync(transactionRoot, { recursive: true, force: true });
+}
 
 const assetPathStart = main.indexOf('function decodedDesktopAssetSourceParts(');
 const assetPathEnd = main.indexOf('\nasync function saveDesktopFileAs', assetPathStart);

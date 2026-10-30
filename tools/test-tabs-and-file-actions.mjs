@@ -38,8 +38,18 @@ const rewriteHelpers = vm.runInNewContext(`(() => {
 })()`);
 assert.equal(
   rewriteHelpers.rewriteManagedImageSources('![a](assets/旧文档/a.png)\n![b](/external/b.png)', '旧文档', '新文档'),
-  '![a](assets/新文档/a.png)\n![b](/external/b.png)',
+  `![a](assets/${encodeURIComponent('新文档')}/a.png)\n![b](/external/b.png)`,
   'save-as should rewrite only Guanyi-managed image paths'
+);
+assert.equal(
+  rewriteHelpers.rewriteManagedImageSources(`![a](assets/${encodeURIComponent('旧文档')}/a.png)`, '旧文档', '新文档 2'),
+  `![a](assets/${encodeURIComponent('新文档 2')}/a.png)`,
+  'encoded managed paths must follow the new file name, including spaces'
+);
+assert.equal(
+  rewriteHelpers.rewriteManagedImageSources('![a](assets/book/a.png) ![b](https://example.com/assets/book/a.png)', 'book', '$& 2'),
+  '![a](assets/%24%26%202/a.png) ![b](https://example.com/assets/book/a.png)',
+  'replacement characters must stay literal and external image paths must remain intact'
 );
 
 const nameStart = appSource.indexOf('  function fileNameWithOriginalExtension(');
@@ -55,6 +65,91 @@ const nameHelper = vm.runInNewContext(`(() => {
 assert.equal(nameHelper('新书', {}), '新书.txt', 'missing extensions should inherit the source format');
 assert.throws(() => nameHelper('新书.md', {}), /请保留原文档格式 \.txt/,
   'save-as and move must not silently convert TXT to Markdown');
+
+const desktopPathStart = appSource.indexOf('  function normalizedDesktopPath(');
+const desktopPathEnd = appSource.indexOf('\n\n  function newDirectoryRecord', desktopPathStart);
+assert.ok(desktopPathStart >= 0 && desktopPathEnd > desktopPathStart, 'desktop path helpers should be extractable');
+const desktopPathHelpers = vm.runInNewContext(`(() => {
+  const normalizeRelativePath = (value) => String(value || '').replace(/\\\\/g, '/').replace(/^\\/+|\\/+$/g, '');
+  ${appSource.slice(desktopPathStart, desktopPathEnd)}
+  return { normalizedDesktopPath, desktopParentPath, desktopPathBaseName, desktopTargetPathKey };
+})()`);
+assert.equal(desktopPathHelpers.desktopParentPath('/Users/test/Documents/文档.md'), '/Users/test/Documents');
+assert.equal(desktopPathHelpers.desktopParentPath('C:\\Users\\test\\Documents\\文档.md'), 'C:/Users/test/Documents');
+assert.equal(desktopPathHelpers.desktopParentPath('C:\\文档.md'), 'C:/');
+assert.equal(desktopPathHelpers.desktopParentPath('\\\\server\\share\\文档.md'), '//server/share');
+assert.equal(desktopPathHelpers.desktopPathBaseName('C:\\Users\\test\\Documents'), 'Documents');
+assert.equal(
+  desktopPathHelpers.desktopTargetPathKey({ rootPath: 'C:\\Users\\test\\Documents\\', relativePrefix: '书稿\\长篇' }),
+  'C:/Users/test/Documents/书稿/长篇'
+);
+
+const chooseDirectoryStart = appSource.indexOf('  async function chooseOtherFileActionDirectory(');
+const chooseDirectoryEnd = appSource.indexOf('\n\n  async function submitFileAction', chooseDirectoryStart);
+assert.ok(chooseDirectoryStart >= 0 && chooseDirectoryEnd > chooseDirectoryStart,
+  'file-action directory chooser should be extractable');
+
+function createChooserHarness({ desktopChoose = null, webChoose = null } = {}) {
+  const targets = [];
+  const classNames = new Set();
+  const fileActionState = { mode: 'save-as', docId: 'doc-1', target: null, busy: false, pickerBusy: false };
+  const els = {
+    btnFileActionOther: { disabled: false },
+    fileActionStatus: {
+      textContent: '',
+      classList: {
+        add: (value) => classNames.add(value),
+        remove: (value) => classNames.delete(value)
+      }
+    }
+  };
+  const harness = vm.runInNewContext(`(() => {
+    ${appSource.slice(desktopPathStart, desktopPathEnd)}
+    ${appSource.slice(chooseDirectoryStart, chooseDirectoryEnd)}
+    return { chooseOtherFileActionDirectory };
+  })()`, {
+    Date,
+    fileActionState,
+    els,
+    normalizeRelativePath: (value) => String(value || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''),
+    desktopDirectoryApi: () => desktopChoose ? { choose: desktopChoose } : null,
+    ensureReadWritePermission: async () => true,
+    setFileActionTarget: (target) => { fileActionState.target = target; targets.push(target); },
+    window: { showDirectoryPicker: webChoose }
+  });
+  return { ...harness, fileActionState, els, targets, classNames };
+}
+
+let releaseDesktopPicker;
+let desktopPickerCalls = 0;
+const chooser = createChooserHarness({
+  desktopChoose: async () => {
+    desktopPickerCalls += 1;
+    if (desktopPickerCalls === 1) return new Promise((resolve) => { releaseDesktopPicker = resolve; });
+    return { path: '/Users/test/文稿', name: '文稿' };
+  },
+  webChoose: async () => { throw new Error('desktop must not call showDirectoryPicker'); }
+});
+const firstPicker = chooser.chooseOtherFileActionDirectory();
+await Promise.resolve();
+await chooser.chooseOtherFileActionDirectory();
+assert.equal(desktopPickerCalls, 1, 'repeated clicks while the native picker is open must be ignored');
+assert.equal(chooser.els.btnFileActionOther.disabled, true, 'the chooser button must be disabled while selecting');
+releaseDesktopPicker(null);
+await firstPicker;
+assert.equal(chooser.fileActionState.pickerBusy, false, 'canceling must release picker state');
+assert.equal(chooser.els.btnFileActionOther.disabled, false, 'canceling must re-enable the chooser');
+assert.equal(chooser.els.fileActionStatus.textContent, '', 'canceling must clear the selecting status');
+await chooser.chooseOtherFileActionDirectory();
+assert.equal(desktopPickerCalls, 2, 'the chooser must be reusable after cancellation');
+assert.equal(chooser.targets[0].rootPath, '/Users/test/文稿');
+
+let webPickerCalls = 0;
+const webHandle = { name: '网页目录' };
+const webChooser = createChooserHarness({ webChoose: async () => { webPickerCalls += 1; return webHandle; } });
+await webChooser.chooseOtherFileActionDirectory();
+assert.equal(webPickerCalls, 1, 'the browser build must retain the File System Access picker');
+assert.equal(webChooser.targets[0].handle, webHandle);
 
 assert.match(indexSource, /id="document-tabs"[^>]+role="tablist"/);
 assert.match(indexSource, /id="btn-save-more"[^>]+aria-controls="save-menu"/);
@@ -83,6 +178,18 @@ assert.match(appSource, /rollbackFileTransaction\(context\)[\s\S]+原位置没�
   'failed transactions should roll back and explicitly preserve the original location');
 assert.match(appSource, /sourceDirectoryPromise = selectParentDirectory\(doc\)[\s\S]+sourceDirectoryPromise \? await sourceDirectoryPromise[\s\S]+executeWebFileTransaction/,
   'moving a directly opened web file should request its parent directory inside the submit gesture');
+assert.match(appSource, /const fileActionState = \{[^}]*pickerBusy:\s*false[^}]*\}/,
+  'file actions must keep a dedicated directory-picker lock');
+assert.match(appSource, /async function chooseOtherFileActionDirectory[\s\S]+desktopApi\.choose\([\s\S]+window\.showDirectoryPicker/,
+  'desktop file actions must prefer the native directory picker while preserving the web fallback');
+assert.match(appSource, /async function renderFileActionDestinations[\s\S]+directoryItem\.rootPath[\s\S]+desktopTargetPathKey/,
+  'desktop current and added directories must render from native root paths');
+assert.match(appSource, /const label = document\.createElement\('span'\);[\s\S]+label\.textContent = target\.name;[\s\S]+button\.append\(icon, label\);/,
+  'directory labels must render through DOM text rather than an undefined or unsafe HTML escape helper');
+assert.match(appSource, /const executeTransaction = useDesktopTransaction \? executeDesktopFileTransaction : executeWebFileTransaction;/,
+  'desktop targets must route to the native file transaction');
+assert.equal((appSource.match(/async function sameDirectoryHandle\(/g) || []).length, 1,
+  'web directory identity comparison must not be overridden by a duplicate function declaration');
 assert.match(appSource, /if \(k === 's' && !e\.altKey && e\.shiftKey\)[\s\S]+openFileActionModal\('save-as'\)/,
   'Shift+Command/Ctrl+S should open save-as');
 assert.match(appSource, /captureActiveTabSession\(\)[\s\S]+state\.currentDocId = id[\s\S]+restoreActiveTabSession\(doc\)/,
