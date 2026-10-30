@@ -51,8 +51,10 @@ node tools/dev-server.mjs --port 9929
 
 正式安装包位于 `release/current/`，历史版本位于 `release/archive/`，解包验收内容位于 `release/build/`：
 
-- macOS Apple Silicon（M1 / M2 / M3 / M4 等）：`release/current/Guanyi-MD-1.0.34-mac-arm64.dmg`
+- macOS Apple Silicon（M1 / M2 / M3 / M4 等）：`release/current/Guanyi-MD-1.0.36-mac-arm64.dmg`
 - Windows Intel / AMD 64 位：`release/current/Guanyi-MD-Setup-1.0.34-win-x64.exe`
+
+macOS `1.0.36` 包含保存、另存为、移动和打开文件后窗口置前的修复；同时保留预览最后输入、中文及空格文件名的图片路径和已有磁盘批注。完整 31 项回归、只读 DMG 挂载、包内源码与签名核验、实际应用启动保存和包内语义搜索均已通过。本次只更新 Mac 安装包。
 
 macOS 版使用 ad-hoc 本地签名，Windows 版未使用商业代码签名证书；两者均未发布到应用商店。在未加入 Apple Developer 签名与公证、Windows Authenticode 签名前，首次安装时系统可能显示开发者信任提示。
 
