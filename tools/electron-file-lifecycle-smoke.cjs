@@ -189,7 +189,9 @@ async function main() {
   await evaluate(`(async () => {
     const api = window.__MD_EDITOR_TEST__;
     const state = api.getState();
-    const draft = { id: 'unlinked-draft', name: '无路径草稿', content: '旧版恢复的编辑内容', lastSavedContent: '' };
+    const draft = { id: 'unlinked-draft', name: '无路径草稿', localFileName: '无路径草稿.md',
+      sourceKind: 'local-file', desktopPath: null, openedWithoutHandle: true,
+      content: '旧版恢复的编辑内容', lastSavedContent: '' };
     state.docs.push(draft); state.openDocIds.push(draft.id); state.currentDocId = draft.id;
     api.setCurrentMarkdown(draft.content);
     await api.openFileActionModal('save-as');

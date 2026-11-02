@@ -2535,7 +2535,11 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
 }
 
 .app-file-action-modal { width: min(560px, calc(100vw - 28px)); }
-.app-file-action-form { display: grid; gap: 15px; padding: 18px 20px 20px; }
+.app-file-action-modal > .app-modal__header { flex: 0 0 auto; }
+.app-file-action-form { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow: hidden; }
+.app-file-action-body { display: grid; flex: 1 1 auto; align-content: start; gap: 15px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 20px; }
+.app-file-action-footer { flex: 0 0 auto; flex-direction: column; align-items: stretch; background: var(--ui-color-background-top); }
+.app-file-action-buttons { display: flex; justify-content: flex-end; gap: 8px; }
 .app-field { display: grid; gap: 7px; color: var(--ui-color-text-secondary); font-size: 12px; font-weight: 600; }
 .app-field input,
 .app-settings-content select {
@@ -2590,7 +2594,8 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
 .app-file-conflict legend { width: 100%; }
 .app-file-conflict label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; }
 .app-file-conflict input { accent-color: var(--ui-color-public-normal); }
-.app-file-action-status { min-height: 18px; margin: 0; color: var(--ui-color-text-secondary); font-size: 11px; }
+.app-file-action-status { min-height: 18px; max-height: 80px; overflow: auto; overflow-wrap: anywhere; margin: 0; color: var(--ui-color-text-secondary); font-size: 11px; }
+.app-file-action-status:empty { display: none; }
 .app-tab-close-modal { width: min(460px, calc(100vw - 28px)); }
 .app-tab-close-actions { padding: 0 20px 20px; }
 
@@ -2636,7 +2641,7 @@ html[data-txt-blank-lines="off"] .app-plain-text-line.is-blank { display: none; 
   .app-document-tab { min-width: 94px; max-width: 132px; }
   .app-settings-modal,
   .app-file-action-modal { width: calc(100vw - 16px); }
-  .app-file-action-form { padding: 14px; }
+  .app-file-action-body { padding: 14px; }
   .app-setting-row { grid-template-columns: 1fr; align-items: start; padding: 10px 0; }
   .app-setting-row input[type="checkbox"] { justify-self: start; }
   .app-modal__actions { min-height: 58px; padding-inline: 14px; }
@@ -3445,14 +3450,15 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 66px);
     <section class="app-modal app-file-action-modal" role="dialog" aria-modal="true" aria-labelledby="file-action-title">
       <header class="app-modal__header"><div><h2 id="file-action-title">另存为</h2><p id="file-action-summary">原文件会保留，当前页签将切换到新文件。</p></div><button type="button" class="app-modal__close" id="btn-file-action-close" aria-label="关闭">×</button></header>
       <form class="app-file-action-form" id="file-action-form">
+        <div class="app-file-action-body">
         <label class="app-field"><span>文件名</span><input type="text" id="file-action-name" autocomplete="off" spellcheck="false" required><small id="file-action-name-error" class="app-field__error" hidden></small></label>
         <fieldset class="app-file-destinations"><legend>目标位置</legend><div id="file-action-destinations" class="app-file-destination-list"></div><button type="button" class="app-button" id="btn-file-action-other"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-folder-plus"/></svg></span>选择其他文件夹…</button></fieldset>
         <div class="app-file-action-selected" id="file-action-selected">尚未选择目标位置</div>
         <label class="app-check-row" id="file-action-review-row"><input type="checkbox" id="file-action-copy-review" checked><span><strong>复制已有批注</strong><small>在新文件旁生成对应 `.REVIEW.md`</small></span></label>
         <label class="app-check-row"><input type="checkbox" id="file-action-add-directory" checked><span><strong>将目标文件夹加入文档列表</strong><small>后续可扫描该文件夹中的 Markdown 和 TXT</small></span></label>
         <fieldset class="app-file-conflict"><legend>如果已有同名文件</legend><label><input type="radio" name="file-conflict" value="keep-both" checked>保留两份</label><label><input type="radio" name="file-conflict" value="replace">替换</label><label><input type="radio" name="file-conflict" value="cancel">取消操作</label></fieldset>
-        <p class="app-file-action-status" id="file-action-status" role="status" aria-live="polite"></p>
-        <footer class="app-modal__actions"><button type="button" class="app-button" id="btn-file-action-cancel">取消</button><button type="submit" class="app-button app-button--primary" id="btn-file-action-submit">另存为</button></footer>
+        </div>
+        <footer class="app-modal__actions app-file-action-footer"><p class="app-file-action-status" id="file-action-status" role="status" aria-live="polite"></p><div class="app-file-action-buttons"><button type="button" class="app-button" id="btn-file-action-cancel">取消</button><button type="submit" class="app-button app-button--primary" id="btn-file-action-submit">另存为</button></div></footer>
       </form>
     </section>
   </div>
@@ -10370,9 +10376,9 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     flushPendingPreviewCommit();
     const doc = state.docs.find((item) => item.id === options.docId);
     const desktopApi = desktopFileApi();
-    if (!doc || !options.target?.rootPath || typeof desktopApi?.transaction !== 'function') {
-      throw new Error('文档或目标位置已失效');
-    }
+    if (!doc) throw new Error('当前文档已从列表移除，请重新打开后再操作');
+    if (!options.target?.rootPath) throw new Error('目标文件夹尚未选定，请重新选择');
+    if (typeof desktopApi?.transaction !== 'function') throw new Error('客户端文件功能未就绪，请完整退出观绎 MD 后重新打开');
     if (options.mode === 'move' && !doc.desktopPath) throw new Error('当前文档尚未关联原文件，请先使用“另存为”');
     if (options.mode === 'move' && isDocDirty(doc)) {
       if (state.currentDocId !== doc.id) await switchDoc(doc.id, { alreadyOpen: true });

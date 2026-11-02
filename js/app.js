@@ -6223,9 +6223,9 @@
     flushPendingPreviewCommit();
     const doc = state.docs.find((item) => item.id === options.docId);
     const desktopApi = desktopFileApi();
-    if (!doc || !options.target?.rootPath || typeof desktopApi?.transaction !== 'function') {
-      throw new Error('文档或目标位置已失效');
-    }
+    if (!doc) throw new Error('当前文档已从列表移除，请重新打开后再操作');
+    if (!options.target?.rootPath) throw new Error('目标文件夹尚未选定，请重新选择');
+    if (typeof desktopApi?.transaction !== 'function') throw new Error('客户端文件功能未就绪，请完整退出观绎 MD 后重新打开');
     if (options.mode === 'move' && !doc.desktopPath) throw new Error('当前文档尚未关联原文件，请先使用“另存为”');
     if (options.mode === 'move' && isDocDirty(doc)) {
       if (state.currentDocId !== doc.id) await switchDoc(doc.id, { alreadyOpen: true });

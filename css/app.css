@@ -2518,7 +2518,11 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
 }
 
 .app-file-action-modal { width: min(560px, calc(100vw - 28px)); }
-.app-file-action-form { display: grid; gap: 15px; padding: 18px 20px 20px; }
+.app-file-action-modal > .app-modal__header { flex: 0 0 auto; }
+.app-file-action-form { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow: hidden; }
+.app-file-action-body { display: grid; flex: 1 1 auto; align-content: start; gap: 15px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 20px; }
+.app-file-action-footer { flex: 0 0 auto; flex-direction: column; align-items: stretch; background: var(--ui-color-background-top); }
+.app-file-action-buttons { display: flex; justify-content: flex-end; gap: 8px; }
 .app-field { display: grid; gap: 7px; color: var(--ui-color-text-secondary); font-size: 12px; font-weight: 600; }
 .app-field input,
 .app-settings-content select {
@@ -2573,7 +2577,8 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
 .app-file-conflict legend { width: 100%; }
 .app-file-conflict label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; }
 .app-file-conflict input { accent-color: var(--ui-color-public-normal); }
-.app-file-action-status { min-height: 18px; margin: 0; color: var(--ui-color-text-secondary); font-size: 11px; }
+.app-file-action-status { min-height: 18px; max-height: 80px; overflow: auto; overflow-wrap: anywhere; margin: 0; color: var(--ui-color-text-secondary); font-size: 11px; }
+.app-file-action-status:empty { display: none; }
 .app-tab-close-modal { width: min(460px, calc(100vw - 28px)); }
 .app-tab-close-actions { padding: 0 20px 20px; }
 
@@ -2619,7 +2624,7 @@ html[data-txt-blank-lines="off"] .app-plain-text-line.is-blank { display: none; 
   .app-document-tab { min-width: 94px; max-width: 132px; }
   .app-settings-modal,
   .app-file-action-modal { width: calc(100vw - 16px); }
-  .app-file-action-form { padding: 14px; }
+  .app-file-action-body { padding: 14px; }
   .app-setting-row { grid-template-columns: 1fr; align-items: start; padding: 10px 0; }
   .app-setting-row input[type="checkbox"] { justify-self: start; }
   .app-modal__actions { min-height: 58px; padding-inline: 14px; }

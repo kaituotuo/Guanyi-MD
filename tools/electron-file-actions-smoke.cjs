@@ -60,18 +60,18 @@ async function main() {
       contentLoaded: true,
       lastOpenedAt: Date.now()
     }],
-    directories: [{
-      id: 'desktop-added-directory',
-      name: '已添加目录',
+    directories: Array.from({ length: 8 }, (_value, index) => ({
+      id: index === 0 ? 'desktop-added-directory' : `desktop-directory-${index}`,
+      name: index === 0 ? '已添加目录' : `目录 ${index} · 较长的目录名称`,
       handleName: path.basename(addedDirectory),
-      rootPath: addedDirectory,
+      rootPath: index === 0 ? addedDirectory : path.join(addedDirectory, String(index)),
       permissionState: 'granted',
       scanMode: 'manual',
-      order: 0,
+      order: index,
       collapsed: false,
       collapsedPaths: [],
       createdAt: Date.now()
-    }],
+    })),
     currentDocId: 'desktop-file-action-smoke',
     openDocIds: ['desktop-file-action-smoke'],
     viewMode: 'preview',
@@ -164,6 +164,46 @@ async function main() {
   const image = await window.webContents.capturePage();
   if (image.isEmpty()) throw new Error('file-action screenshot is empty');
   await fs.promises.writeFile(screenshot, image.toPNG());
+
+  // The primary action must remain visible with many folders and short/zoomed windows.
+  for (const scenario of [
+    { width: 1280, height: 820, zoom: 1, theme: 'light' },
+    { width: 920, height: 640, zoom: 1.25, theme: 'dark' },
+    { width: 640, height: 480, zoom: 1, theme: 'light', error: true },
+    { width: 320, height: 568, zoom: 1, theme: 'dark' }
+  ]) {
+    window.setContentSize(scenario.width, scenario.height);
+    window.webContents.setZoomFactor(scenario.zoom);
+    await window.webContents.executeJavaScript(`document.documentElement.dataset.theme = ${JSON.stringify(scenario.theme)}`);
+    await window.webContents.executeJavaScript(`(() => {
+      const status = document.getElementById('file-action-status');
+      status.textContent = ${JSON.stringify(scenario.error ? '目标文件夹无法写入，请选择其他文件夹。修改和原文件均已保留。'.repeat(4) : '')};
+      status.classList.toggle('is-error', ${!!scenario.error});
+    })()`);
+    await wait(100);
+    const geometry = await window.webContents.executeJavaScript(`(() => {
+      const modal = document.querySelector('.app-file-action-modal').getBoundingClientRect();
+      const button = document.getElementById('btn-file-action-submit').getBoundingClientRect();
+      const center = document.elementFromPoint(button.x + button.width / 2, button.y + button.height / 2);
+      const body = document.querySelector('.app-file-action-body');
+      const before = button.top;
+      if (body) body.scrollTop = body.scrollHeight;
+      return { buttonTop: button.top, buttonBottom: button.bottom, modalBottom: modal.bottom,
+        viewportHeight: innerHeight, reachable: center?.closest('button')?.id === 'btn-file-action-submit',
+        footerStable: Math.abs(before - document.getElementById('btn-file-action-submit').getBoundingClientRect().top) < 1,
+        bodyScrollable: !!body && body.scrollHeight > body.clientHeight,
+        overflow: document.querySelector('.app-file-action-modal').scrollWidth > modal.width + 1 };
+    })()`);
+    await fs.promises.writeFile(path.join(outputDirectory, `file-modal-${scenario.width}x${scenario.height}-${scenario.zoom}-${scenario.theme}.png`), (await window.webContents.capturePage()).toPNG());
+    if (geometry.buttonBottom > Math.min(geometry.modalBottom, geometry.viewportHeight) || !geometry.reachable || !geometry.footerStable || geometry.overflow) {
+      throw new Error(`file-action buttons are clipped or obscured: ${JSON.stringify({ scenario, geometry })}`);
+    }
+    if (scenario.width <= 640 && !geometry.bodyScrollable) throw new Error('short modal body should scroll independently');
+  }
+  window.setContentSize(1280, 820);
+  window.webContents.setZoomFactor(1);
+  await window.webContents.executeJavaScript("document.documentElement.dataset.theme = 'light'");
+  await window.webContents.executeJavaScript("document.getElementById('file-action-status').textContent = ''; document.getElementById('file-action-status').classList.remove('is-error')");
 
   await window.webContents.executeJavaScript(`(() => {
     const button = document.getElementById('btn-file-action-other');
