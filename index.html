@@ -3030,7 +3030,7 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 66px);
                 </span>
               </span>
             </button>
-            <input type="file" id="file-open" class="app-file-input" accept=".md,.markdown,.txt" multiple hidden />
+            <input type="file" id="file-open" class="app-file-input" accept=".md,.markdown,.txt,.epub,.pdf" multiple hidden />
             <input type="file" id="image-file-open" class="app-file-input" accept=".png,.jpg,.jpeg,.gif,.webp,.avif,image/png,image/jpeg,image/gif,image/webp,image/avif" multiple hidden />
           </div>
           <div class="app-sidebar__section app-sidebar__section--row">
@@ -3526,6 +3526,1122 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 66px);
   </div>
 
   <!-- Third-party libraries and application code are inlined for offline file:// use. -->
+<!-- FORMAT READERS START -->
+<style id="format-reader-styles">
+/* ===== css/reader-host.css ===== */
+.app-main.has-format-reader #fmtbar,
+.app-main.has-format-reader #editor-container,
+.app-main.has-format-reader #conflict-bar { display: none; }
+.app-reader-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 var(--guanyi-formatbar-height, 56px);
+  min-height: var(--guanyi-formatbar-height, 56px);
+  padding: 7px 16px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--ui-color-border-primary, #e4e0dc);
+  background: var(--ui-color-background-top, #fff);
+  color: var(--ui-color-text-primary, #302b27);
+}
+.app-reader-toolbar > * { flex-shrink: 0; }
+.app-reader-toolbar .fmt-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.app-reader-toolbar button { min-width: 32px; min-height: 32px; }
+.app-reader-toolbar input, .app-reader-toolbar select {
+  font: inherit;
+  color: inherit;
+  background: var(--ui-color-background-top, #fff);
+  border: 1px solid var(--ui-color-border-primary, #ddd);
+  border-radius: 6px;
+  min-height: 30px;
+  padding: 3px 6px;
+}
+.app-reader-toolbar :focus-visible { outline: 2px solid var(--ui-color-text-brand, #da4d27); outline-offset: 2px; }
+.app-reader-toolbar .app-reader-save { margin-left: auto; }
+.app-reader-container { flex: 1 1 0; min-height: 0; min-width: 0; overflow: auto; position: relative; }
+.app-reader-error { margin: 32px; color: var(--ui-color-text-primary, #302b27); }
+.app-reader-error + button { margin: 0 32px; }
+
+.app-reader-container[hidden], .app-reader-toolbar[hidden] { display: none; }
+/* ===== css/epub-reader.css ===== */
+.epub-reader { display: flex; width: 100%; height: 100%; min-height: 280px; overflow: hidden; background: #fffdf9; color: #302b27; }
+.epub-reader__viewer { flex: 1 1 0; min-width: 0; height: 100%; overflow: hidden; }
+.epub-reader__viewer iframe { border: 0; }
+.epub-reader__previous .ui-icon { transform: rotate(180deg); }
+.epub-reader__chapters { width: clamp(100px, 18vw, 220px); }
+.epub-reader__location { min-width: 42px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ui-color-text-secondary, #746c64); }
+.epub-reader__notes { flex: 0 0 290px; width: 290px; box-sizing: border-box; max-width: 70%; height: 100%; overflow-y: auto; padding: 12px; border-left: 1px solid var(--ui-color-line-regular, #e4e0dc); background: var(--ui-color-background-top, #fff); color: var(--ui-color-text-primary, #302b27); }
+.epub-reader__notes[hidden] { display: none; }
+.epub-reader__notes-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.epub-reader__notes h2 { font-size: 15px; margin: 0; }
+.epub-reader__storage-note { font-size: 12px; color: var(--ui-color-text-secondary, #746c64); line-height: 1.6; margin: 10px 0 16px; }
+.epub-reader__note { border: 1px solid var(--ui-color-line-regular, #e4e0dc); border-left: 3px solid var(--epub-mark-color); border-radius: 7px; padding: 10px; margin: 12px 0; }
+.epub-reader__note small { color: var(--ui-color-text-secondary, #746c64); display: block; margin-bottom: 6px; }
+.epub-reader__quote { display: block; width: 100%; font: inherit; font-size: 13px; line-height: 1.65; color: inherit; background: transparent; border: 0; text-align: left; padding: 0; cursor: pointer; max-height: 130px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.epub-reader__quote:hover { text-decoration: underline; }
+.epub-reader__note textarea { display: block; width: 100%; box-sizing: border-box; resize: vertical; min-height: 76px; max-height: 300px; margin-top: 10px; padding: 8px; border: 1px solid var(--ui-color-line-regular, #ddd); border-radius: 5px; font: inherit; font-size: 13px; line-height: 1.6; color: inherit; background: transparent; }
+.epub-reader__note-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.epub-reader__note-actions select { font: inherit; font-size: 12px; color: inherit; background: var(--ui-color-background-top, #fff); border: 1px solid var(--ui-color-line-regular, #ddd); border-radius: 4px; padding: 4px; }
+.epub-reader__notes :focus-visible { outline: 2px solid var(--ui-color-text-brand, #da4d27); outline-offset: 2px; }
+.app-reader-toolbar .fmt-btn:disabled { opacity: .4; cursor: default; }
+.app-reader-toolbar .fmt-btn[aria-expanded="true"] { background: var(--ui-color-state-pressed-public, #f9e6dd); color: var(--ui-color-text-brand, #be4625); }
+html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
+@media (max-width: 680px) {
+  .epub-reader__notes { position: absolute; right: 0; top: 0; bottom: 0; z-index: 3; max-width: 90%; box-shadow: -8px 0 24px #0002; }
+  .epub-reader__chapters { width: 120px; }
+}
+/* ===== css/pdf-reader.css ===== */
+/* The embedded official PDF.js viewer owns page and annotation styling. */
+.guanyi-pdf-frame { display:block; border:0; width:100%; height:100%; min-height:240px; background:var(--ui-color-background-base,#f3f1ed); }
+.guanyi-pdf-tool { flex-shrink:0; gap:4px; }
+.guanyi-pdf-tool[aria-pressed="true"] { color:var(--ui-color-text-brand,#d74725); background:var(--ui-color-state-pressed-public,rgba(215,71,37,.12)); }
+.guanyi-pdf-tool:disabled { opacity:.35; cursor:default; }
+.guanyi-pdf-previous svg { transform:rotate(180deg); }
+.guanyi-pdf-page-number { width:54px; min-width:42px; height:28px; border:1px solid var(--ui-color-line-regular,rgba(13,13,13,.16)); border-radius:6px; padding:0 4px; color:var(--ui-color-text-primary,#37332e); background:var(--ui-color-fill-base,#fff); font:inherit; text-align:center; }
+.guanyi-pdf-page-count { flex-shrink:0; white-space:nowrap; font-size:13px; color:var(--ui-color-text-secondary,#777); }
+</style>
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/epub.min.js"></script>
+<script id="format-readers">
+/* ===== js/reader-host.js ===== */
+(function () {
+  'use strict';
+
+  const MAX_BYTES = 100 * 1024 * 1024;
+  let active = null;
+  let saving = false;
+  let database;
+  const retiring = new Set();
+
+  function format(name) {
+    return String(name || '').match(/\.(epub|pdf)$/i)?.[1].toLowerCase() || null;
+  }
+
+  function isDocument(doc) {
+    return doc?.readerFormat === 'pdf' || doc?.readerFormat === 'epub';
+  }
+
+  function openDatabase() {
+    if (!database) database = new Promise((resolve, reject) => {
+      const request = indexedDB.open('guanyi-reader-originals-v1', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('originals');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return database;
+  }
+
+  async function browserCache(id, bytes) {
+    const db = await openDatabase();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('originals', bytes ? 'readwrite' : 'readonly');
+      const store = transaction.objectStore('originals');
+      const request = bytes ? store.put(bytes, id) : store.get(id);
+      transaction.oncomplete = () => resolve(request.result);
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error || new Error('文档缓存写入中断'));
+    });
+  }
+
+  async function cache(id, bytes) {
+    if (window.guanyiDesktop?.files?.cacheBinary) {
+      await window.guanyiDesktop.files.cacheBinary(id, bytes);
+    } else {
+      await browserCache(id, bytes);
+    }
+  }
+
+  async function original(doc) {
+    const files = window.guanyiDesktop?.files;
+    const cached = files?.readCachedBinary
+      ? await files.readCachedBinary(doc.readerDraftKey || doc.id)
+      : await browserCache(doc.readerDraftKey || doc.id);
+    if (cached) return new Uint8Array(cached);
+    if (doc.readerDraftKey) throw new Error('批注缓存不可用，已保留阅读记录；请恢复缓存或打开已导出的 PDF');
+    if (doc.desktopPath && files?.read) {
+      const [record] = await files.read([doc.desktopPath]);
+      if (record && !record.error && record.lastModified === doc.externalModifiedAt && record.size === doc.externalSize) {
+        const bytes = new Uint8Array(record.bytes);
+        await cache(doc.id, bytes);
+        return bytes;
+      }
+    }
+    throw new Error('文档缓存不可用，请重新打开原文件');
+  }
+
+  async function reuse(doc, bytes) {
+    const files = window.guanyiDesktop?.files;
+    const key = doc.readerDraftKey || doc.id;
+    const cached = files?.readCachedBinary ? await files.readCachedBinary(key) : await browserCache(key);
+    if (cached) return true;
+    // Reopening the source cannot reconstruct missing PDF annotations. Keep
+    // that record intact and let the host open a separate copy of the source.
+    if (doc.readerDraftKey) return false;
+    await cache(doc.id, new Uint8Array(bytes));
+    return true;
+  }
+
+  async function prepare({ id, name, bytes }) {
+    const readerFormat = format(name);
+    const data = new Uint8Array(bytes);
+    if (!readerFormat) throw new Error('不支持的阅读格式');
+    if (!data.length || data.byteLength > MAX_BYTES) throw new Error('请选择小于 100 MB 的有效文档');
+    const prefix = new TextDecoder().decode(data.subarray(0, 1024));
+    if (readerFormat === 'pdf' ? !prefix.includes('%PDF-') : !prefix.startsWith('PK')) {
+      throw new Error(`文件内容不是有效的 ${readerFormat.toUpperCase()}`);
+    }
+    await cache(id, data);
+    const content = readerFormat === 'pdf' ? JSON.stringify({ revision: 'original' }) : '{}';
+    return { readerFormat, content, lastSavedContent: content, readerPosition: null };
+  }
+
+  function retire(session) {
+    retiring.add(session);
+    session.closeFailed = false;
+    session.disposePromise = Promise.resolve(session.ready).then(instance => instance?.dispose()).then(() => {
+      retiring.delete(session);
+      session.container.remove(); session.toolbar.remove();
+    }, error => {
+      session.closeFailed = true;
+      session.hooks.notify(`保存阅读记录失败，批注仍保留在页签中：${error.message}`);
+      throw error;
+    });
+    // Keep the failed session and its iframe available for retry/reopening.
+    session.disposePromise.catch(() => {});
+  }
+
+  function resume(session) {
+    retiring.delete(session);
+    active = session;
+    session.container.hidden = false;
+    session.toolbar.hidden = false;
+    return session.ready;
+  }
+
+  function hide() {
+    const previous = active;
+    active = null;
+    if (previous) {
+      previous.container.hidden = true;
+      previous.toolbar.hidden = true;
+      clearTimeout(previous.positionTimer);
+      previous.hooks.persist();
+      retire(previous);
+    }
+    document.querySelector('.app-main')?.classList.remove('has-format-reader');
+  }
+
+  function show(doc, hooks) {
+    if (active?.doc === doc) return active.ready;
+    hide();
+    const main = document.querySelector('.app-main');
+    main.classList.add('has-format-reader');
+    const failed = [...retiring].find(session => session.doc === doc && session.closeFailed);
+    if (failed) return resume(failed);
+    const pending = [...retiring].filter(session => session.doc === doc).map(session => session.disposePromise);
+    const toolbar = document.createElement('div');
+    toolbar.className = 'app-reader-toolbar';
+    toolbar.setAttribute('role', 'toolbar');
+    toolbar.setAttribute('aria-label', `${doc.readerFormat.toUpperCase()} 阅读与编辑`);
+    const container = document.createElement('section');
+    container.className = 'app-reader-container';
+    container.setAttribute('aria-label', `${doc.readerFormat.toUpperCase()} 文档`);
+    container.textContent = '正在打开文档…';
+    main.insertBefore(toolbar, document.getElementById('fmtbar'));
+    main.insertBefore(container, document.getElementById('editor-container'));
+    const session = { doc, hooks, toolbar, container, instance: null, ready: null, positionTimer: null };
+    active = session;
+    session.ready = (async () => {
+      try {
+        await Promise.all(pending);
+        const bytes = await original(doc);
+        if (active !== session) return null;
+        container.replaceChildren();
+        const engine = doc.readerFormat === 'pdf' ? window.GuanyiPdfReader : window.GuanyiEpubReader;
+        const instance = await engine.open({
+          bytes, container, toolbar, icon: hooks.icon, notify: hooks.notify,
+          edits: JSON.parse(doc.content || '{}'), position: doc.readerPosition,
+          onChange(edits) {
+            doc.content = JSON.stringify(edits);
+            if (doc.readerFormat === 'epub') doc.lastSavedContent = doc.content;
+            hooks.changed();
+          },
+          async onSnapshot(bytes) {
+            const key = `${doc.id}-pdf-draft`;
+            await cache(key, bytes);
+            doc.readerDraftKey = key;
+            await hooks.persist(true);
+          },
+          onPosition(position) {
+            if (active !== session) return;
+            doc.readerPosition = position;
+            clearTimeout(session.positionTimer);
+            session.positionTimer = setTimeout(hooks.persist, 500);
+          }
+        });
+        if (active !== session) return instance;
+        session.instance = instance;
+        const saveButton = document.createElement('button');
+        saveButton.type = 'button';
+        saveButton.className = 'fmt-btn app-reader-save';
+        saveButton.innerHTML = hooks.icon('save') + `<span>${doc.readerFormat === 'epub' ? '导出笔记' : '另存为'}</span>`;
+        saveButton.title = doc.readerFormat === 'epub' ? '导出高亮与笔记为 Markdown' : '另存含批注的 PDF（⌘/Ctrl+S）';
+        saveButton.addEventListener('click', () => hooks.save());
+        toolbar.append(saveButton);
+        return instance;
+      } catch (error) {
+        if (active !== session) return null;
+        const failed = [...retiring].find(previous => previous.doc === doc && previous.closeFailed);
+        if (failed) {
+          container.remove(); toolbar.remove();
+          return resume(failed);
+        }
+        container.replaceChildren();
+        toolbar.replaceChildren();
+        const message = document.createElement('p');
+        message.className = 'app-reader-error';
+        message.setAttribute('role', 'alert');
+        message.textContent = `无法打开文档：${error.message || error}`;
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'fmt-btn';
+        retry.textContent = '重新尝试';
+        retry.addEventListener('click', () => { hide(); show(doc, hooks); });
+        container.append(message, retry);
+        return null;
+      }
+    })();
+    return session.ready;
+  }
+
+  async function flush() {
+    for (const session of retiring) if (session.closeFailed) retire(session);
+    await Promise.all([...retiring].map(session => session.disposePromise));
+    const session = active;
+    const instance = await session?.ready;
+    await instance?.flush?.();
+    await session?.hooks.persist(true);
+  }
+
+  async function exportNotes(session, instance) {
+    const content = instance.exportNotes();
+    const name = `${session.doc.name}-阅读笔记.md`;
+    if (window.guanyiDesktop?.files?.saveAs) {
+      const result = await window.guanyiDesktop.files.saveAs(name, content);
+      if (!result || result.canceled) return false;
+    } else {
+      const url = URL.createObjectURL(new Blob([content], { type: 'text/markdown;charset=utf-8' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = name;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+    session.hooks.notify('已导出阅读笔记');
+    return true;
+  }
+
+  async function saveAs(doc) {
+    const session = active;
+    if (saving || !session || session.doc !== doc) return false;
+    saving = true;
+    try {
+      const instance = await session.ready;
+      if (!instance || active !== session) return false;
+      if (doc.readerFormat === 'epub') return await exportNotes(session, instance);
+      const exported = await instance.serializeSnapshot();
+      const bytes = exported.bytes;
+      const snapshot = JSON.stringify({ revision: exported.revision });
+      const name = (doc.localFileName || `${doc.name}.${doc.readerFormat}`)
+        .replace(/\.(epub|pdf)$/i, `-编辑.${doc.readerFormat}`);
+      const mime = doc.readerFormat === 'pdf' ? 'application/pdf' : 'application/epub+zip';
+      if (window.guanyiDesktop?.files?.saveBinaryAs) {
+        const result = await window.guanyiDesktop.files.saveBinaryAs(name, bytes);
+        if (!result || result.canceled) return false;
+      } else if (window.showSaveFilePicker) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: doc.readerFormat.toUpperCase(), accept: { [mime]: [`.${doc.readerFormat}`] } }]
+        });
+        const writable = await handle.createWritable();
+        try { await writable.write(bytes); await writable.close(); }
+        catch (error) { await writable.abort().catch(() => {}); throw error; }
+      } else {
+        const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = name;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      }
+      doc.lastSavedContent = snapshot;
+      session.hooks.changed();
+      session.hooks.notify(`已另存 ${doc.readerFormat.toUpperCase()}`);
+      return true;
+    } catch (error) {
+      if (error.name !== 'AbortError') session.hooks.notify(`另存失败：${error.message || error}`);
+      return false;
+    } finally {
+      saving = false;
+    }
+  }
+
+  window.GuanyiReaderHost = { format, isDocument, prepare, reuse, show, hide, saveAs, flush };
+})();
+/* ===== js/epub-reader.js ===== */
+(function () {
+  'use strict';
+
+  const COLORS = { yellow: '#f2cd55', green: '#7cce9c', blue: '#80b8eb', pink: '#eba6be' };
+  const COLOR_NAMES = { yellow: '黄色', green: '绿色', blue: '蓝色', pink: '粉色' };
+  const MAX_ANNOTATIONS = 1000;
+
+  async function withTimeout(promise, label) {
+    let timer;
+    try {
+      return await Promise.race([promise, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label}超时，请检查书籍是否完整`)), 20000);
+      })]);
+    } finally { clearTimeout(timer); }
+  }
+
+  async function inspectArchive(bytes) {
+    const zip = await window.JSZip.loadAsync(bytes);
+    const files = Object.values(zip.files).filter((entry) => !entry.dir);
+    if (files.length > 10000) throw new Error('书籍包含过多资源');
+    // JSZip reads these sizes from the central directory without inflating entries.
+    const expandedSize = files.reduce((sum, entry) => sum + (entry._data?.uncompressedSize || 0), 0);
+    if (expandedSize > 200 * 1024 * 1024 || files.some((entry) => entry._data?.uncompressedSize > 40 * 1024 * 1024)) {
+      throw new Error('书籍解压后的资源过大');
+    }
+    if (!zip.file('META-INF/container.xml')) throw new Error('缺少 EPUB 书籍描述文件');
+    const encryption = zip.file('META-INF/encryption.xml');
+    if (encryption) {
+      const xml = new DOMParser().parseFromString(await encryption.async('string'), 'application/xml');
+      const supported = ['http://www.idpf.org/2008/embedding', 'http://ns.adobe.com/pdf/enc#RC'];
+      const methods = [...xml.getElementsByTagNameNS('*', 'EncryptionMethod')];
+      if (!methods.length || methods.some((element) => !supported.includes(element.getAttribute('Algorithm')))) {
+        throw new Error('此书含 DRM 加密资源，请使用未加密的 EPUB');
+      }
+    }
+  }
+
+  function normalizeAnnotations(edits) {
+    const result = [];
+    const seen = new Set();
+    for (const item of Array.isArray(edits?.annotations) ? edits.annotations.slice(0, MAX_ANNOTATIONS) : []) {
+      if (!item || typeof item.cfi !== 'string' || item.cfi.length > 4096 || !item.cfi.startsWith('epubcfi(') || seen.has(item.cfi)) continue;
+      try { new window.ePub.CFI(item.cfi); } catch (_) { continue; }
+      seen.add(item.cfi);
+      result.push({
+        id: typeof item.id === 'string' ? item.id.slice(0, 100) : crypto.randomUUID(),
+        cfi: item.cfi,
+        quote: String(item.quote || '').slice(0, 20000),
+        note: String(item.note || '').slice(0, 20000),
+        color: Object.hasOwn(COLORS, item.color) ? item.color : 'yellow',
+        chapter: String(item.chapter || '').slice(0, 500),
+        createdAt: Number.isFinite(item.createdAt) ? item.createdAt : Date.now()
+      });
+    }
+    return result;
+  }
+
+  // The content hook runs before epub.js serializes a chapter into its sandboxed view.
+  // Keep publication scripts and network requests disabled independently of the host page.
+  function protectChapter(document, section) {
+    document.querySelectorAll('script,iframe,frame,frameset,object,embed,form,input,button,textarea,select,base').forEach((node) => node.remove());
+    document.querySelectorAll('meta[http-equiv]').forEach((node) => node.remove());
+    for (const element of document.querySelectorAll('*')) {
+      for (const attribute of [...element.attributes]) {
+        const name = attribute.name.toLowerCase();
+        const value = attribute.value.replace(/[\u0000-\u0020]/g, '').toLowerCase();
+        if (name.startsWith('on') || name === 'srcdoc' || name === 'formaction'
+          || ((name === 'href' || name === 'src' || name === 'xlink:href') && /^(?:javascript|vbscript):/.test(value))) {
+          element.removeAttribute(attribute.name);
+        }
+      }
+    }
+    const policy = document.createElement('meta');
+    policy.setAttribute('http-equiv', 'Content-Security-Policy');
+    policy.setAttribute('content', "default-src 'none'; script-src 'none'; connect-src 'none'; img-src blob: data:; media-src blob: data:; style-src 'unsafe-inline' blob: data:; font-src blob: data:; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'self'");
+    document.head.prepend(policy);
+    const base = document.createElement('base');
+    base.setAttribute('href', section.url);
+    document.head.append(base);
+  }
+
+  async function open(options) {
+    if (typeof window.ePub !== 'function') throw new Error('EPUB 阅读组件未加载');
+    const { container, toolbar, icon, onChange, onPosition } = options;
+    const notify = options.notify || (() => {});
+    const original = new Uint8Array(options.bytes).slice();
+    await inspectArchive(original);
+    const buffer = original.buffer.slice(original.byteOffset, original.byteOffset + original.byteLength);
+    const book = window.ePub({ replacements: 'blobUrl', requestMethod: () => Promise.reject(new Error('书籍外部资源已停用')) });
+    let rendition;
+    let disposed = false;
+    let selected = null;
+    let currentChapter = '';
+    let currentCfi = '';
+    let fontSize = Math.max(80, Math.min(180, Number(options.position?.fontSize) || 100));
+    const annotations = normalizeAnnotations(options.edits);
+    const controls = [];
+    const painted = new Set();
+    const chapterLabels = new Map();
+    const shell = document.createElement('div');
+    shell.className = 'epub-reader';
+    const viewer = document.createElement('div');
+    viewer.className = 'epub-reader__viewer';
+    viewer.setAttribute('aria-label', 'EPUB 正文');
+    const notesPanel = document.createElement('aside');
+    notesPanel.className = 'epub-reader__notes';
+    notesPanel.setAttribute('aria-label', 'EPUB 高亮与笔记');
+    notesPanel.hidden = true;
+    shell.append(viewer, notesPanel);
+    container.replaceChildren(shell);
+
+    function button(action, label, glyph, handler) {
+      const element = document.createElement('button');
+      element.type = 'button';
+      element.className = 'fmt-btn';
+      element.dataset.epubAction = action;
+      element.title = label;
+      element.setAttribute('aria-label', label);
+      element.innerHTML = icon(glyph);
+      element.addEventListener('click', () => Promise.resolve(handler()).catch((error) => notify(error.message || String(error))));
+      toolbar.append(element);
+      controls.push(element);
+      return element;
+    }
+
+    function emitChange() {
+      onChange?.({ version: 1, annotations: annotations.map((item) => ({ ...item })) });
+    }
+
+    function emitPosition() {
+      if (!disposed) onPosition?.({ cfi: currentCfi, fontSize });
+    }
+
+    function updateSelection(value) {
+      selected = value;
+      highlightButton.disabled = !value;
+      noteButton.disabled = !value;
+      copyButton.disabled = !value;
+    }
+
+    function paint(item) {
+      try {
+        rendition.annotations.highlight(item.cfi, { id: item.id }, () => {
+          showNotes(true);
+          notesPanel.querySelector(`[data-annotation-id="${CSS.escape(item.id)}"]`)?.scrollIntoView({ block: 'nearest' });
+        }, 'guanyi-epub-highlight', { fill: COLORS[item.color], 'fill-opacity': '0.35', 'mix-blend-mode': 'multiply' });
+        painted.add(item.cfi);
+      } catch (_) { /* A stored annotation can outlive a changed publication. Keep its note available. */ }
+    }
+
+    function repaint(item) {
+      if (painted.has(item.cfi)) rendition.annotations.remove(item.cfi, 'highlight');
+      paint(item);
+    }
+
+    async function navigate(target) {
+      if (disposed) return;
+      updateSelection(null);
+      await rendition.display(target);
+    }
+
+    const previous = button('previous', '上一页', 'chevron-right', async () => { updateSelection(null); await rendition.prev(); });
+    previous.classList.add('epub-reader__previous');
+    const next = button('next', '下一页', 'chevron-right', async () => { updateSelection(null); await rendition.next(); });
+    const chapters = document.createElement('select');
+    chapters.className = 'epub-reader__chapters';
+    chapters.setAttribute('aria-label', 'EPUB 章节目录');
+    chapters.addEventListener('change', () => navigate(chapters.value).catch((error) => notify(error.message)));
+    toolbar.append(chapters);
+    controls.push(chapters);
+    const location = document.createElement('output');
+    location.className = 'epub-reader__location';
+    location.setAttribute('aria-label', '阅读进度');
+    toolbar.append(location);
+    controls.push(location);
+    const font = document.createElement('select');
+    font.setAttribute('aria-label', 'EPUB 字号');
+    for (const size of [80, 90, 100, 110, 125, 150, 180]) {
+      const option = document.createElement('option');
+      option.value = String(size);
+      option.textContent = `${size}%`;
+      font.append(option);
+    }
+    if (![80, 90, 100, 110, 125, 150, 180].includes(fontSize)) fontSize = 100;
+    font.value = String(fontSize);
+    font.addEventListener('change', () => {
+      fontSize = Number(font.value);
+      rendition.themes.fontSize(`${fontSize}%`);
+      emitPosition();
+    });
+    toolbar.append(font);
+    controls.push(font);
+    const highlightButton = button('highlight', '高亮选中文字', 'rename', () => addAnnotation(false));
+    const noteButton = button('note', '为选中文字添加笔记', 'comment-add', () => addAnnotation(true));
+    const copyButton = button('copy', '复制选中文字', 'copy', async () => {
+      if (!selected) return;
+      await navigator.clipboard.writeText(selected.quote);
+      notify('已复制选中文字');
+    });
+    const notesButton = button('notes', '高亮与笔记', 'review', () => showNotes(notesPanel.hidden));
+    notesButton.setAttribute('aria-expanded', 'false');
+    updateSelection(null);
+
+    function showNotes(visible) {
+      notesPanel.hidden = !visible;
+      notesButton.setAttribute('aria-expanded', String(visible));
+      if (visible) renderNotes();
+    }
+
+    function addAnnotation(withNote) {
+      if (!selected) return;
+      let item = annotations.find((entry) => entry.cfi === selected.cfi);
+      if (!item) {
+        if (annotations.length >= MAX_ANNOTATIONS) { notify('本书最多保存 1000 条标注，请先导出或整理笔记'); return; }
+        item = { id: crypto.randomUUID(), ...selected, note: '', color: 'yellow', chapter: currentChapter, createdAt: Date.now() };
+        annotations.push(item);
+        paint(item);
+        emitChange();
+      }
+      if (withNote) {
+        showNotes(true);
+        notesPanel.querySelector(`[data-annotation-id="${CSS.escape(item.id)}"] textarea`)?.focus();
+      } else {
+        if (!notesPanel.hidden) renderNotes();
+        notify('已高亮，标注自动保存');
+      }
+    }
+
+    function renderNotes() {
+      notesPanel.replaceChildren();
+      const header = document.createElement('div');
+      header.className = 'epub-reader__notes-header';
+      const heading = document.createElement('h2');
+      heading.textContent = `高亮与笔记 · ${annotations.length}`;
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'fmt-btn';
+      close.setAttribute('aria-label', '关闭高亮与笔记');
+      close.innerHTML = icon('close');
+      close.addEventListener('click', () => showNotes(false));
+      header.append(heading, close);
+      notesPanel.append(header);
+      const storageNote = document.createElement('p');
+      storageNote.className = 'epub-reader__storage-note';
+      storageNote.textContent = '自动保存在观绎 MD，可导出为 Markdown 笔记。';
+      notesPanel.append(storageNote);
+      if (!annotations.length) {
+        const empty = document.createElement('p');
+        empty.textContent = '选中文字后，点击工具栏的高亮或笔记按钮。';
+        notesPanel.append(empty);
+      }
+      for (const item of annotations) {
+        const card = document.createElement('article');
+        card.className = 'epub-reader__note';
+        card.dataset.annotationId = item.id;
+        card.style.setProperty('--epub-mark-color', COLORS[item.color]);
+        const jump = document.createElement('button');
+        jump.type = 'button';
+        jump.className = 'epub-reader__quote';
+        jump.title = '跳转到原文';
+        jump.textContent = item.quote || '跳转到标注位置';
+        jump.addEventListener('click', () => navigate(item.cfi).catch(() => notify('原文位置暂时无法定位，笔记仍已保留')));
+        const chapter = document.createElement('small');
+        chapter.textContent = item.chapter;
+        const textarea = document.createElement('textarea');
+        textarea.setAttribute('aria-label', '标注笔记');
+        textarea.placeholder = '添加阅读笔记…';
+        textarea.maxLength = 20000;
+        textarea.value = item.note;
+        textarea.addEventListener('input', () => { item.note = textarea.value; emitChange(); });
+        const actions = document.createElement('div');
+        actions.className = 'epub-reader__note-actions';
+        const color = document.createElement('select');
+        color.setAttribute('aria-label', '高亮颜色');
+        for (const key of Object.keys(COLORS)) {
+          const option = document.createElement('option');
+          option.value = key;
+          option.textContent = COLOR_NAMES[key];
+          color.append(option);
+        }
+        color.value = item.color;
+        color.addEventListener('change', () => {
+          item.color = color.value;
+          card.style.setProperty('--epub-mark-color', COLORS[item.color]);
+          repaint(item);
+          emitChange();
+        });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'fmt-btn';
+        remove.setAttribute('aria-label', '移除此标注');
+        remove.title = '移除此标注';
+        remove.innerHTML = icon('delete');
+        remove.addEventListener('click', () => {
+          if (painted.has(item.cfi)) rendition.annotations.remove(item.cfi, 'highlight');
+          painted.delete(item.cfi);
+          annotations.splice(annotations.indexOf(item), 1);
+          emitChange();
+          renderNotes();
+        });
+        actions.append(color, remove);
+        card.append(chapter, jump, textarea, actions);
+        notesPanel.append(card);
+      }
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (rendition && !disposed && viewer.clientWidth && viewer.clientHeight) rendition.resize(viewer.clientWidth, viewer.clientHeight);
+    });
+    const themeObserver = new MutationObserver(() => applyTheme());
+
+    function applyTheme() {
+      if (!rendition || disposed) return;
+      const dark = document.documentElement.dataset.theme === 'dark';
+      rendition.themes.override('color', dark ? '#e7e1db' : '#302b27', true);
+      rendition.themes.override('background', dark ? '#24211f' : '#fffdf9', true);
+    }
+
+    function dispose() {
+      if (disposed) return;
+      disposed = true;
+      resizeObserver.disconnect();
+      themeObserver.disconnect();
+      rendition?.destroy();
+      book.destroy();
+      controls.forEach((control) => control.remove());
+      shell.remove();
+    }
+
+    try {
+      await withTimeout(book.open(buffer), '解析 EPUB ');
+      await withTimeout(Promise.all([book.ready, book.opened]), '准备 EPUB ');
+      if (disposed) return { dispose, serialize: async () => original.slice(), exportNotes: () => '' };
+      book.spine.hooks.content.register(protectChapter);
+      const navigation = await book.loaded.navigation;
+      function addChapters(items, level = 0) {
+        for (const item of items) {
+          if (!item.href || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(item.href)) continue;
+          const option = document.createElement('option');
+          option.value = item.href;
+          option.textContent = `${'　'.repeat(Math.min(level, 4))}${item.label.trim() || '章节'}`;
+          chapters.append(option);
+          chapterLabels.set(item.href.split('#')[0], item.label.trim());
+          if (item.subitems?.length) addChapters(item.subitems, level + 1);
+        }
+      }
+      addChapters(navigation.toc || []);
+      if (!chapters.options.length) book.spine.each((section) => {
+        const option = document.createElement('option');
+        option.value = section.href;
+        option.textContent = `第 ${section.index + 1} 节`;
+        chapters.append(option);
+      });
+      rendition = book.renderTo(viewer, {
+        width: '100%', height: '100%', flow: 'paginated', spread: 'none',
+        allowScriptedContent: false, allowPopups: false
+      });
+      rendition.themes.fontSize(`${fontSize}%`);
+      rendition.hooks.content.register((contents) => {
+        const doc = contents.document;
+        doc.addEventListener('click', (event) => {
+          const link = event.target.closest?.('a[href]');
+          if (link && /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(link.getAttribute('href') || '')) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            notify('外部链接已停用，请复制链接后在浏览器打开');
+          }
+        }, true);
+        doc.addEventListener('keydown', (event) => {
+          if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+          if (event.key === 'ArrowRight') { event.preventDefault(); next.click(); }
+          if (event.key === 'ArrowLeft') { event.preventDefault(); previous.click(); }
+        });
+      });
+      rendition.on('selected', async (cfi, contents) => {
+        try {
+          const range = contents.range(cfi);
+          const quote = range.toString().trim().slice(0, 20000);
+          if (!disposed && quote) updateSelection({ cfi, quote });
+        } catch (_) { updateSelection(null); }
+      });
+      rendition.on('relocated', (value) => {
+        if (disposed || !value?.start) return;
+        currentCfi = value.start.cfi;
+        currentChapter = chapterLabels.get(value.start.href) || `第 ${value.start.index + 1} 节`;
+        const match = [...chapters.options].find((option) => option.value.split('#')[0] === value.start.href);
+        if (match) chapters.value = match.value;
+        const shown = value.start.displayed;
+        location.textContent = shown ? `${shown.page} / ${shown.total}` : '';
+        previous.disabled = !!value.atStart;
+        next.disabled = !!value.atEnd;
+        emitPosition();
+      });
+      for (const item of annotations) paint(item);
+      applyTheme();
+      const firstLocation = new Promise((resolve) => rendition.once('relocated', resolve));
+      const savedCfi = typeof options.position?.cfi === 'string' && options.position.cfi.startsWith('epubcfi(') ? options.position.cfi : undefined;
+      try { await rendition.display(savedCfi); }
+      catch (error) {
+        if (!savedCfi) throw error;
+        await rendition.display();
+        notify('原阅读位置无法恢复，已打开书籍开头');
+      }
+      // A resize before epub.js establishes its first CFI clears the view without
+      // a location to redisplay. Observe the container only after that location exists.
+      await withTimeout(firstLocation, '显示 EPUB ');
+      resizeObserver.observe(viewer);
+      themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      return {
+        dispose,
+        serialize: async () => original.slice(),
+        exportNotes() {
+          const title = String(book.package?.metadata?.title || 'EPUB 阅读笔记').replace(/[\r\n]/g, ' ');
+          const lines = [`# ${title} · 阅读笔记`, '', '标注保存在观绎 MD。本文件包含摘录与笔记。', ''];
+          for (const item of annotations) {
+            lines.push(`## ${item.chapter || '阅读标注'}`, '', item.quote.split('\n').map((line) => `> ${line}`).join('\n'), '');
+            if (item.note) lines.push(item.note, '');
+            lines.push(`位置：\`${item.cfi}\``, '');
+          }
+          if (!annotations.length) lines.push('暂无标注。', '');
+          return lines.join('\n');
+        }
+      };
+    } catch (error) {
+      dispose();
+      throw new Error(`EPUB 加载失败：${error.message || error}`);
+    }
+  }
+
+  window.GuanyiEpubReader = { open };
+})();
+/* ===== js/pdf-reader.js ===== */
+/* PDF.js GENERIC viewer adapter. Rendering and annotations belong to upstream. */
+(function () {
+  'use strict';
+
+  const VIEWER_URL = 'vendor/pdfjs/web/viewer.html?file=';
+  const copyBytes = (bytes) => new Uint8Array(bytes).slice();
+
+  async function open(options) {
+    const { container, toolbar, icon, onChange, onSnapshot, notify, onPosition } = options;
+    const frame = document.createElement('iframe');
+    frame.className = 'guanyi-pdf-frame';
+    frame.title = 'PDF 阅读与批注';
+    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-modals');
+    let viewer;
+    let disposed = false;
+    let closing = false;
+    let checkpointTimer;
+    let positionTimer;
+    let revision = String(options.edits?.revision || 'original');
+    let savedRevision = revision;
+    let savedBytes = copyBytes(options.bytes);
+    let checkpointQueue = Promise.resolve();
+    let themeObserver;
+    let storageHash;
+    const listeners = new AbortController();
+    const controls = [];
+
+    function button(label, symbol, action) {
+      const element = document.createElement('button');
+      element.type = 'button';
+      element.className = 'fmt-btn guanyi-pdf-tool';
+      element.setAttribute('aria-label', label);
+      element.title = label;
+      element.innerHTML = icon(symbol);
+      element.addEventListener('mousedown', event => event.preventDefault());
+      element.addEventListener('click', action, { signal: listeners.signal });
+      toolbar.append(element);
+      controls.push(element);
+      return element;
+    }
+
+    function scheduleCheckpoint() {
+      clearTimeout(checkpointTimer);
+      checkpointTimer = setTimeout(() => {
+        // Keep the user's insertion point until their current text edit commits.
+        const focused = frame.contentDocument?.activeElement;
+        if (focused?.isContentEditable || /^(INPUT|TEXTAREA)$/.test(focused?.tagName || '')) return;
+        checkpoint().catch(error => notify(`PDF 草稿保存失败：${error.message}`));
+      }, 450);
+    }
+
+    function markChanged() {
+      if (disposed || closing) return;
+      revision = crypto.randomUUID();
+      onChange({ revision });
+      scheduleCheckpoint();
+    }
+
+    function endEditing() {
+      const childDocument = frame.contentDocument;
+      // PDF.js comments use their own dialog, outside the FreeText editor.
+      // Commit through its native action so text still being typed also survives
+      // a tab switch, Save As, or the application's awaited close handshake.
+      const commentDialog = childDocument.getElementById('commentManagerDialog');
+      const commentSave = childDocument.getElementById('commentManagerSaveButton');
+      if (commentDialog?.open && !commentSave?.disabled) commentSave.click();
+      viewer.pdfViewer._layerProperties.annotationEditorUIManager?.endCurrentEditing();
+      childDocument.activeElement?.blur();
+    }
+
+    function syncStorageRevision() {
+      if (disposed || closing || storageHash === undefined) return;
+      const hash = viewer.pdfDocument.annotationStorage.serializable.hash;
+      if (hash !== storageHash) {
+        storageHash = hash;
+        markChanged();
+      }
+    }
+
+    function checkpoint(commit = false) {
+      if (commit && !disposed) endEditing();
+      // Flush native undo/delete/commit synchronously before the host takes its
+      // saved revision, rather than depending on a later pointer/key event.
+      syncStorageRevision();
+      clearTimeout(checkpointTimer);
+      const job = checkpointQueue.catch(() => {}).then(async () => {
+        if (disposed || savedRevision === revision) return { bytes: copyBytes(savedBytes), revision: savedRevision };
+        const capturedRevision = revision;
+        const documentProxy = viewer.pdfDocument;
+        const bytes = documentProxy.annotationStorage.size
+          ? await documentProxy.saveDocument()
+          : await documentProxy.getData();
+        if (onSnapshot) await onSnapshot(copyBytes(bytes), capturedRevision);
+        savedBytes = copyBytes(bytes);
+        savedRevision = capturedRevision;
+        return { bytes: copyBytes(bytes), revision: capturedRevision };
+      });
+      checkpointQueue = job;
+      return job;
+    }
+
+    function reportPosition() {
+      clearTimeout(positionTimer);
+      positionTimer = setTimeout(() => {
+        if (disposed) return;
+        onPosition?.({ page: viewer.pdfViewer.currentPageNumber, zoom: viewer.pdfViewer.currentScaleValue });
+      }, 150);
+    }
+
+    function applyFrameAppearance() {
+      const root = frame.contentDocument.documentElement;
+      const dark = document.documentElement.dataset.theme === 'dark';
+      root.style.colorScheme = dark ? 'dark' : 'light';
+      root.style.setProperty('--body-bg-color', dark ? '#222222' : '#f3f1ed');
+      root.style.setProperty('--toolbar-bg-color', dark ? '#2b2b2b' : '#ffffff');
+      root.style.setProperty('--toolbar-fg-color', dark ? '#eeeeee' : '#37332e');
+    }
+
+    let readyTimeout;
+    const ready = new Promise((resolve, reject) => {
+      readyTimeout = setTimeout(() => reject(new Error('PDF 阅读器加载超时，请重新打开')), 30000);
+      document.addEventListener('webviewerloaded', event => {
+        if (event.detail?.source !== frame.contentWindow) return;
+        const appOptions = frame.contentWindow.PDFViewerApplicationOptions;
+        appOptions.setAll({
+          defaultUrl: '', disablePreferences: true, disableHistory: true,
+          enableScripting: false, isEvalSupported: false,
+          localeProperties: { lang: 'zh-CN' },
+          enableComment: true, enableHighlightFloatingButton: true,
+          enableSplitMerge: false, enableMerge: false, enableSignatureEditor: false,
+          enableAltTextModelDownload: false, enableGuessAltText: false,
+          enablePermissions: true, supportsPrinting: false,
+          maxCanvasPixels: 16777216, maxCanvasDim: 8192
+        });
+        viewer = frame.contentWindow.PDFViewerApplication;
+        viewer.initializedPromise.then(resolve, reject);
+      }, { signal: listeners.signal });
+      frame.addEventListener('error', () => reject(new Error('PDF 阅读器资源无法加载')), { once: true });
+    });
+    frame.src = new URL(VIEWER_URL, document.baseURI).href;
+    container.append(frame);
+
+    try {
+      await ready;
+      clearTimeout(readyTimeout);
+      const childDocument = frame.contentDocument;
+      const style = childDocument.createElement('link');
+      style.rel = 'stylesheet';
+      style.href = 'guanyi.css';
+      childDocument.head.append(style);
+      for (const id of ['findbar', 'viewsManager', 'editorHighlightParamsToolbar', 'editorFreeTextParamsToolbar', 'editorCommentParamsToolbar']) {
+        const popover = childDocument.getElementById(id);
+        if (popover) {
+          popover.classList.add('guanyi-pdf-popover');
+          childDocument.body.append(popover);
+        }
+      }
+      applyFrameAppearance();
+      themeObserver = new MutationObserver(applyFrameAppearance);
+      themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      // Route both the upstream download command and Ctrl/Cmd+S to the host.
+      viewer.downloadOrSave = async () => {
+        const save = toolbar.querySelector('.app-reader-save');
+        if (save) save.click();
+      };
+      const upstreamHasChanges = viewer._hasChanges.bind(viewer);
+      viewer._hasChanges = () => upstreamHasChanges() && (!onSnapshot || savedRevision !== revision);
+      childDocument.addEventListener('keydown', event => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          viewer.downloadOrSave();
+        }
+      }, { capture: true, signal: listeners.signal });
+      if (viewer.downloadManager) {
+        viewer.downloadManager.download = () => notify('请使用顶部“另存为”保存 PDF');
+        viewer.downloadManager.openOrDownloadData = () => notify('请先另存 PDF，再使用系统阅读器打开附件');
+      }
+      viewer.pdfLinkService.externalLinkEnabled = false;
+      await viewer.open({ data: copyBytes(options.bytes), filename: 'document.pdf', isEvalSupported: false });
+      const eventBus = viewer.eventBus;
+      if (!viewer.pdfViewer.pagesCount) {
+        await new Promise(resolve => eventBus.on('pagesinit', resolve, { once: true }));
+      }
+      const dispatch = (name, detail = {}) => eventBus.dispatch(name, { source: frame.contentWindow, ...detail });
+      // PDF.js interprets detail=0 as a keyboard action and immediately inserts
+      // an editor at page centre. Host toolbar activation should only select the
+      // tool; the following pointer click determines the annotation position.
+      const nativeClick = id => {
+        const element = childDocument.getElementById(id);
+        if (!element || element.disabled) return;
+        element.dispatchEvent(new frame.contentWindow.MouseEvent('click', {
+          bubbles: true, detail: 1, view: frame.contentWindow
+        }));
+      };
+      button('目录与页面缩略图', 'list-ul', () => nativeClick('viewsManagerToggleButton'));
+      button('在 PDF 中查找', 'search', () => viewer.findBar.toggle());
+      const previous = button('上一页', 'chevron-right', () => dispatch('previouspage'));
+      previous.classList.add('guanyi-pdf-previous');
+      const pageInput = document.createElement('input');
+      pageInput.className = 'guanyi-pdf-page-number';
+      pageInput.type = 'number';
+      pageInput.min = '1';
+      pageInput.max = String(viewer.pdfDocument.numPages);
+      pageInput.setAttribute('aria-label', 'PDF 页码');
+      pageInput.addEventListener('change', () => {
+        const number = Math.max(1, Math.min(viewer.pdfDocument.numPages, Number(pageInput.value) || 1));
+        viewer.pdfViewer.currentPageNumber = number;
+      });
+      const pageCount = document.createElement('span');
+      pageCount.className = 'guanyi-pdf-page-count';
+      pageCount.textContent = `/ ${viewer.pdfDocument.numPages}`;
+      toolbar.append(pageInput, pageCount);
+      controls.push(pageInput, pageCount);
+      const next = button('下一页', 'chevron-right', () => dispatch('nextpage'));
+      button('缩小', 'collapse-all', () => dispatch('zoomout'));
+      button('放大', 'expand-all', () => dispatch('zoomin'));
+      const fit = button('适合页宽', 'description', () => { viewer.pdfViewer.currentScaleValue = 'page-width'; });
+      fit.insertAdjacentHTML('beforeend', '<span>页宽</span>');
+      const highlighter = button('高亮批注', 'review', () => {
+        if (childDocument.getSelection()?.toString().trim()) dispatch('editingaction', { name: 'highlightSelection' });
+        else nativeClick('editorHighlightButton');
+      });
+      const textNote = button('文字笔记', 'rename', () => nativeClick('editorFreeTextButton'));
+      const comment = button('评论笔记', 'comment-add', () => {
+        if (childDocument.getSelection()?.toString().trim()) dispatch('editingaction', { name: 'commentSelection' });
+        else nativeClick('editorCommentButton');
+      });
+      const undo = button('撤销批注', 'undo', () => dispatch('editingaction', { name: 'undo' }));
+      const redo = button('恢复批注', 'redo', () => dispatch('editingaction', { name: 'redo' }));
+      undo.disabled = redo.disabled = true;
+      function updatePage() {
+        const page = viewer.pdfViewer.currentPageNumber;
+        pageInput.value = page;
+        previous.disabled = page <= 1;
+        next.disabled = page >= viewer.pdfDocument.numPages;
+        reportPosition();
+      }
+      eventBus.on('pagechanging', updatePage);
+      eventBus.on('scalechanging', reportPosition);
+      eventBus.on('annotationeditormodechanged', ({ mode }) => {
+        // Reuse upstream's state to keep toolbar buttons in sync with Escape.
+        for (const [buttonElement, id] of [[highlighter, 'editorHighlightButton'], [textNote, 'editorFreeTextButton'], [comment, 'editorCommentButton']]) {
+          buttonElement.setAttribute('aria-pressed', String(childDocument.getElementById(id).classList.contains('toggled')));
+        }
+      });
+      eventBus.on('editingstateschanged', ({ details }) => {
+        undo.disabled = !details?.hasSomethingToUndo;
+        redo.disabled = !details?.hasSomethingToRedo;
+        scheduleCheckpoint();
+      });
+      const annotationStorage = viewer.pdfDocument.annotationStorage;
+      const originalModified = annotationStorage.onSetModified;
+      annotationStorage.onSetModified = () => { originalModified?.(); markChanged(); };
+      childDocument.addEventListener('input', event => {
+        if (event.target.closest('.annotationEditorLayer, .annotationLayer, #commentManagerDialog')) markChanged();
+      }, { capture: true, signal: listeners.signal });
+      childDocument.addEventListener('focusout', () => scheduleCheckpoint(), { signal: listeners.signal });
+      frame.contentWindow.addEventListener('beforeunload', () => {
+        endEditing();
+        syncStorageRevision();
+        // The GENERIC viewer warns whenever annotationStorage is non-empty,
+        // including annotations already saved. The host keeps that live storage
+        // for undo/editing, and has a native awaited close handshake. Suppress
+        // the upstream download warning only for an acknowledged binary draft,
+        // through its _hasChanges bridge above. Unpersisted changes still block.
+      }, { capture: true, signal: listeners.signal });
+      // Once storage is dirty, its onSetModified callback does not fire again.
+      // Editor commit/delete/undo signals therefore also need a revision.
+      storageHash = annotationStorage.serializable.hash;
+      const detectCommittedChange = () => {
+        setTimeout(syncStorageRevision, 0);
+      };
+      childDocument.addEventListener('pointerup', detectCommittedChange, { signal: listeners.signal });
+      childDocument.addEventListener('keyup', detectCommittedChange, { signal: listeners.signal });
+      eventBus.on('editingstateschanged', detectCommittedChange);
+      eventBus.on('annotationeditorparamschanged', detectCommittedChange);
+      const initial = options.position || {};
+      const restorePosition = () => {
+        viewer.pdfViewer.currentScaleValue = initial.zoom || 'page-width';
+        viewer.pdfViewer.currentPageNumber = Math.max(1, Math.min(viewer.pdfDocument.numPages, Number(initial.page) || 1));
+        updatePage();
+      };
+      if (viewer.pdfViewer.pageViewsReady) restorePosition();
+      else eventBus.on('pagesloaded', restorePosition, { once: true });
+      updatePage();
+      return {
+        async serialize() { return (await checkpoint(true)).bytes; },
+        async serializeSnapshot() { return checkpoint(true); },
+        async flush() { return (await checkpoint(true)).bytes; },
+        async dispose() {
+          if (disposed) return;
+          endEditing();
+          await checkpoint();
+          closing = true;
+          disposed = true;
+          clearTimeout(checkpointTimer);
+          clearTimeout(positionTimer);
+          listeners.abort();
+          themeObserver.disconnect();
+          // Host has persisted the draft; suppress upstream's auto-download-on-close.
+          viewer.pdfDocument.annotationStorage.resetModified();
+          await viewer.close();
+          frame.remove();
+          controls.forEach(control => control.remove());
+        }
+      };
+    } catch (error) {
+      clearTimeout(readyTimeout);
+      clearTimeout(checkpointTimer);
+      listeners.abort();
+      themeObserver?.disconnect();
+      await viewer?.pdfLoadingTask?.destroy().catch(() => {});
+      frame.remove();
+      controls.forEach(control => control.remove());
+      throw error;
+    }
+  }
+  window.GuanyiPdfReader = { open };
+})();
+</script><!-- FORMAT READERS END -->
   <script>
 /* ===== vendor/marked.min.js ===== */
 !function(e,t){"object"==typeof exports&&typeof module<"u"?module.exports=t():"function"==typeof define&&define.amd?define("marked",t):e.marked=t()}(typeof globalThis<"u"?globalThis:typeof self<"u"?self:this,function(){var e,t={},n=t,r={exports:t},s=Object.defineProperty,l=Object.getOwnPropertyDescriptor,i=Object.getOwnPropertyNames,a=Object.prototype.hasOwnProperty,o={};function c(){return{async:!1,breaks:!1,extensions:null,gfm:!0,hooks:null,pedantic:!1,renderer:null,silent:!1,tokenizer:null,walkTokens:null}}((e,t)=>{for(var n in t)s(e,n,{get:t[n],enumerable:!0})})(o,{Hooks:()=>Le,Lexer:()=>_e,Marked:()=>Ie,Parser:()=>Pe,Renderer:()=>ze,TextRenderer:()=>Ae,Tokenizer:()=>Te,defaults:()=>p,getDefaults:()=>c,lexer:()=>je,marked:()=>Ce,options:()=>Be,parse:()=>Oe,parseInline:()=>Ze,parser:()=>Qe,setOptions:()=>ve,use:()=>qe,walkTokens:()=>De}),r.exports=(e=o,((e,t,n,r)=>{if(t&&"object"==typeof t||"function"==typeof t)for(let o of i(t))!a.call(e,o)&&o!==n&&s(e,o,{get:()=>t[o],enumerable:!(r=l(t,o))||r.enumerable});return e})(s({},"__esModule",{value:!0}),e));var p={async:!1,breaks:!1,extensions:null,gfm:!0,hooks:null,pedantic:!1,renderer:null,silent:!1,tokenizer:null,walkTokens:null};function h(e){p=e}var u={exec:()=>null};function g(e){let t=[];return n=>{let r=Math.max(0,Math.min(3,n-1)),s=t[r];return s||(s=e(r),t[r]=s),s}}function k(e,t=""){let n="string"==typeof e?e:e.source,r={replace:(e,t)=>{let s="string"==typeof t?t:t.source;return s=s.replace(f.caret,"$1"),n=n.replace(e,s),r},getRegex:()=>new RegExp(n,t)};return r}var d=((e="")=>{try{return!!new RegExp("(?<=1)(?<!1)"+e)}catch{return!1}})(),f={codeRemoveIndent:/^(?: {1,4}| {0,3}\t)/gm,outputLinkReplace:/\\([\[\]])/g,indentCodeCompensation:/^(\s+)(?:```)/,beginningSpace:/^\s+/,endingHash:/#$/,startingSpaceChar:/^ /,endingSpaceChar:/ $/,nonSpaceChar:/[^ ]/,newLineCharGlobal:/\n/g,tabCharGlobal:/\t/g,multipleSpaceGlobal:/\s+/g,blankLine:/^[ \t]*$/,doubleBlankLine:/\n[ \t]*\n[ \t]*$/,blockquoteStart:/^ {0,3}>/,blockquoteSetextReplace:/\n {0,3}((?:=+|-+) *)(?=\n|$)/g,blockquoteSetextReplace2:/^ {0,3}>[ \t]?/gm,listReplaceNesting:/^ {1,4}(?=( {4})*[^ ])/g,listIsTask:/^\[[ xX]\] +\S/,listReplaceTask:/^\[[ xX]\] +/,listTaskCheckbox:/\[[ xX]\]/,anyLine:/\n.*\n/,hrefBrackets:/^<(.*)>$/,tableDelimiter:/[:|]/,tableAlignChars:/^\||\| *$/g,tableRowBlankLine:/\n[ \t]*$/,tableAlignRight:/^ *-+: *$/,tableAlignCenter:/^ *:-+: *$/,tableAlignLeft:/^ *:-+ *$/,startATag:/^<a /i,endATag:/^<\/a>/i,startPreScriptTag:/^<(pre|code|kbd|script)(\s|>)/i,endPreScriptTag:/^<\/(pre|code|kbd|script)(\s|>)/i,startAngleBracket:/^</,endAngleBracket:/>$/,pedanticHrefTitle:/^([^'"]*[^\s])\s+(['"])(.*)\2/,unicodeAlphaNumeric:/[\p{L}\p{N}]/u,escapeTest:/[&<>"']/,escapeReplace:/[&<>"']/g,escapeTestNoEncode:/[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/,escapeReplaceNoEncode:/[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/g,caret:/(^|[^\[])\^/g,percentDecode:/%25/g,findPipe:/\|/g,splitPipe:/ \|/,slashPipe:/\\\|/g,carriageReturn:/\r\n|\r/g,spaceLine:/^ +$/gm,notSpaceStart:/^\S*/,endingNewline:/\n$/,listItemRegex:e=>new RegExp(`^( {0,3}${e})((?:[\t ][^\\n]*)?(?:\\n|$))`),nextBulletRegex:g(e=>new RegExp(`^ {0,${e}}(?:[*+-]|\\d{1,9}[.)])((?:[ \t][^\\n]*)?(?:\\n|$))`)),hrRegex:g(e=>new RegExp(`^ {0,${e}}((?:- *){3,}|(?:_ *){3,}|(?:\\* *){3,})(?:\\n+|$)`)),fencesBeginRegex:g(e=>new RegExp(`^ {0,${e}}(?:\`\`\`|~~~)`)),headingBeginRegex:g(e=>new RegExp(`^ {0,${e}}#`)),htmlBeginRegex:g(e=>new RegExp(`^ {0,${e}}<(?:[a-z].*>|!--)`,"i")),blockquoteBeginRegex:g(e=>new RegExp(`^ {0,${e}}>`))},x=/^ {0,3}((?:-[\t ]*){3,}|(?:_[ \t]*){3,}|(?:\*[ \t]*){3,})(?:\n+|$)/,b=/ {0,3}(?:[*+-]|\d{1,9}[.)])/,w=/^(?!bull |blockCode|fences|blockquote|heading|html|table)((?:.|\n(?!\s*?\n|bull |blockCode|fences|blockquote|heading|html|table))+?)\n {0,3}(=+|-+) *(?:\n+|$)/,m=k(w).replace(/bull/g,b).replace(/blockCode/g,/(?: {4}| {0,3}\t)/).replace(/fences/g,/ {0,3}(?:`{3,}|~{3,})/).replace(/blockquote/g,/ {0,3}>/).replace(/heading/g,/ {0,3}#{1,6}(?:\s|$)/).replace(/html/g,/ {0,3}<[^\n>]+>\n/).replace(/\|table/g,"").getRegex(),y=k(w).replace(/bull/g,b).replace(/blockCode/g,/(?: {4}| {0,3}\t)/).replace(/fences/g,/ {0,3}(?:`{3,}|~{3,})/).replace(/blockquote/g,/ {0,3}>/).replace(/heading/g,/ {0,3}#{1,6}(?:\s|$)/).replace(/html/g,/ {0,3}<[^\n>]+>\n/).replace(/table/g,/ {0,3}\|?(?:[:\- ]*\|)+[\:\- ]*\n/).getRegex(),S=/^([^\n]+(?:\n(?!hr|heading|lheading|blockquote|fences|list|html|table|[ \t]+\n)[^\n]+)*)/,$=/(?!\s*\])(?:\\[\s\S]|[^\[\]\\])+/,R=k(/^ {0,3}\[(label)\]: *(?:\n[ \t]*)?([^<\s][^\s]*|<.*?>)(?:(?: +(?:\n[ \t]*)?| *\n[ \t]*)(title))? *(?:\n+|$)/).replace("label",$).replace("title",/(?:"(?:\\"?|[^"\\])*"|'[^'\n]*(?:\n[^'\n]+)*\n?'|\([^()]*\))/).getRegex(),T=k(/^(bull)([ \t][^\n]*?)?(?:\n|$)/).replace(/bull/g,b).getRegex(),_="address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul",z=/<!--(?:-?>|[\s\S]*?(?:-->|$))/,A=k("^ {0,3}(?:<(script|pre|style|textarea)[\\s>][\\s\\S]*?(?:</\\1>[^\\n]*\\n*|$)|comment[^\\n]*(\\n+|$)|<\\?[\\s\\S]*?(?:\\?>[^\\n]*\\n*|$)|<![A-Z][\\s\\S]*?(?:>[^\\n]*\\n*|$)|<!\\[CDATA\\[[\\s\\S]*?(?:\\]\\]>[^\\n]*\\n*|$)|</?(tag)(?: +|\\n|/?>)[\\s\\S]*?(?:(?:\\n[ \t]*)+\\n|$)|<(?!script|pre|style|textarea)([a-z][\\w-]*)(?:attribute)*? */?>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ \t]*)+\\n|$)|</(?!script|pre|style|textarea)[a-z][\\w-]*\\s*>(?=[ \\t]*(?:\\n|$))[\\s\\S]*?(?:(?:\\n[ \t]*)+\\n|$))","i").replace("comment",z).replace("tag",_).replace("attribute",/ +[a-zA-Z:_][\w.:-]*(?: *= *"[^"\n]*"| *= *'[^'\n]*'| *= *[^\s"'=<>`]+)?/).getRegex(),P=e=>k(S).replace("hr",x).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("|lheading","").replace("|table","").replace("blockquote"," {0,3}>").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~~~)[^\\n]*\\n").replace("list",e).replace("html","</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag",_).getRegex(),L=P(/ {0,3}(?:[*+-]|1[.)])[ \t]+[^ \t\n]/),I=P(/ {0,3}(?:[*+-]|\d{1,9}[.)])(?:[ \t]|\n|$)/),E={blockquote:k(/^( {0,3}> ?(paragraph|[^\n]*)(?:\n|$))+/).replace("paragraph",I).getRegex(),code:/^((?: {4}| {0,3}\t)[^\n]+(?:\n(?:[ \t]*(?:\n|$))*)?)+/,def:R,fences:/^ {0,3}(`{3,}(?=[^`\n]*(?:\n|$))|~{3,})([^\n]*)(?:\n|$)(?:|([\s\S]*?)(?:\n|$))(?: {0,3}\1[~`]* *(?=\n|$)|$)/,heading:/^ {0,3}(#{1,6})(?=\s|$)(.*)(?:\n+|$)/,hr:x,html:A,lheading:m,list:T,newline:/^(?:[ \t]*(?:\n|$))+/,paragraph:L,table:u,text:/^[^\n]+/},C=k("^ *([^\\n ].*)\\n {0,3}((?:\\| *)?:?-+:? *(?:\\| *:?-+:? *)*(?:\\| *)?)(?:\\n((?:(?! *\\n|hr|heading|blockquote|code|fences|list|html).*(?:\\n|$))*)\\n*|$)").replace("hr",x).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("blockquote"," {0,3}>").replace("code","(?: {4}| {0,3}\t)[^\\n]").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~~~)[^\\n]*\\n").replace("list"," {0,3}(?:[*+-]|1[.)])[ \\t]").replace("html","</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag",_).getRegex(),q={...E,lheading:y,table:C,paragraph:k(S).replace("hr",x).replace("heading"," {0,3}#{1,6}(?:\\s|$)").replace("|lheading","").replace("table",C).replace("blockquote"," {0,3}>").replace("fences"," {0,3}(?:`{3,}(?=[^`\\n]*\\n)|~~~)[^\\n]*\\n").replace("list"," {0,3}(?:[*+-]|1[.)])[ \\t]+[^ \\t\\n]").replace("html","</?(?:tag)(?: +|\\n|/?>)|<(?:script|pre|style|textarea|!--)").replace("tag",_).getRegex()},B={...E,html:k("^ *(?:comment *(?:\\n|\\s*$)|<(tag)[\\s\\S]+?</\\1> *(?:\\n{2,}|\\s*$)|<tag(?:\"[^\"]*\"|'[^']*'|\\s[^'\"/>\\s]*)*?/?> *(?:\\n{2,}|\\s*$))").replace("comment",z).replace(/tag/g,"(?!(?:a|em|strong|small|s|cite|q|dfn|abbr|data|time|code|var|samp|kbd|sub|sup|i|b|u|mark|ruby|rt|rp|bdi|bdo|span|br|wbr|ins|del|img)\\b)\\w+(?!:|[^\\w\\s@]*@)\\b").getRegex(),def:/^ *\[([^\]]+)\]: *<?([^\s>]+)>?(?: +(["(][^\n]+[")]))? *(?:\n+|$)/,heading:/^(#{1,6})(.*)(?:\n+|$)/,fences:u,lheading:/^(.+?)\n {0,3}(=+|-+) *(?:\n+|$)/,paragraph:k(S).replace("hr",x).replace("heading"," *#{1,6} *[^\n]").replace("lheading",m).replace("|table","").replace("blockquote"," {0,3}>").replace("|fences","").replace("|list","").replace("|html","").replace("|tag","").getRegex()},v=/^( {2,}|\\)\n(?!\s*$)/,D=/[\p{P}\p{S}]/u,Z=/[\s\p{P}\p{S}]/u,O=/[^\s\p{P}\p{S}]/u,Q=k(/^((?![*_])punctSpace)/,"u").replace(/punctSpace/g,Z).getRegex(),j=/(?!~)[\p{P}\p{S}]/u,M=k(/link|precode-code|html/,"g").replace("link",/\[(?:[^\[\]`]|(?<a>`+)[^`]+\k<a>(?!`))*?\]\((?:\\[\s\S]|[^\\\(\)]|\((?:\\[\s\S]|[^\\\(\)])*\))*\)/).replace("precode-",d?"(?<!`)()":"(^^|[^`])").replace("code",/(?<b>`+)[^`]+\k<b>(?!`)/).replace("html",/<(?! )[^<>]*?>/).getRegex(),H=/^(?:\*+(?:((?!\*)punct)|([^\s*]))?)|^_+(?:((?!_)punct)|([^\s_]))?/,N=k(H,"u").replace(/punct/g,D).getRegex(),G=k(H,"u").replace(/punct/g,j).getRegex(),X=k(/^(?:\*+(?:((?!\*)(?!openQuote)punct)|([^\s*]))?)|^_+(?:((?!_)(?!openQuote)punct)|([^\s_]))?/,"u").replace(/openQuote/g,/[\p{Pi}\p{Ps}"']/u).replace(/punct/g,D).getRegex(),U="^[^_*]*?__[^_*]*?\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\*)punct(\\*+)(?=[\\s]|$)|notPunctSpace(\\*+)(?!\\*)(?=punctSpace|$)|(?!\\*)punctSpace(\\*+)(?=notPunctSpace)|[\\s](\\*+)(?!\\*)(?=punct)|(?!\\*)punct(\\*+)(?!\\*)(?=punct)|notPunctSpace(\\*+)(?=notPunctSpace)",W=k(U,"gu").replace(/notPunctSpace/g,O).replace(/punctSpace/g,Z).replace(/punct/g,D).getRegex(),F=k(U,"gu").replace(/notPunctSpace/g,/(?:[^\s\p{P}\p{S}]|~)/u).replace(/punctSpace/g,/(?!~)[\s\p{P}\p{S}]/u).replace(/punct/g,j).getRegex(),J=k("^[^_*]*?__[^_*]*?\\*[^_*]*?(?=__)|[^*]+(?=[^*])|(?!\\*)punct(\\*+)(?=[\\s]|$)|notPunctSpace(\\*+)(?!\\*)(?=punctSpace|$)|(?!\\*)[\\s](\\*+)(?=notPunctSpace)|[\\s](\\*+)(?!\\*)(?=punct)|(?!\\*)punct(\\*+)(?!\\*)(?=punct)|(?:(?!\\*)punct|notPunctSpace)(\\*+)(?!\\*)(?=notPunctSpace)","gu").replace(/notPunctSpace/g,O).replace(/punctSpace/g,Z).replace(/punct/g,D).getRegex(),K=k("^[^_*]*?\\*\\*[^_*]*?_[^_*]*?(?=\\*\\*)|[^_]+(?=[^_])|(?!_)punct(_+)(?=[\\s]|$)|notPunctSpace(_+)(?!_)(?=punctSpace|$)|(?!_)punctSpace(_+)(?=notPunctSpace)|[\\s](_+)(?!_)(?=punct)|(?!_)punct(_+)(?!_)(?=punct)","gu").replace(/notPunctSpace/g,O).replace(/punctSpace/g,Z).replace(/punct/g,D).getRegex(),V=k("^[^_*]*?\\*\\*[^_*]*?_[^_*]*?(?=\\*\\*)|[^_]+(?=[^_])|(?!_)punct(_+)(?=[\\s]|$)|notPunctSpace(_+)(?!_)(?=punctSpace|$)|(?!_)[\\s](_+)(?=notPunctSpace)|[\\s](_+)(?!_)(?=punct)|(?!_)punct(_+)(?!_)(?=punct)|(?:(?!_)punct|notPunctSpace)(_+)(?!_)(?=notPunctSpace)","gu").replace(/notPunctSpace/g,O).replace(/punctSpace/g,Z).replace(/punct/g,D).getRegex(),Y=k(/^~~?(?:((?!~)punct)|[^\s~])/,"u").replace(/punct/g,D).getRegex(),ee=k("^[^~]+(?=[^~])|(?!~)punct(~~?)(?=[\\s]|$)|notPunctSpace(~~?)(?!~)(?=punctSpace|$)|(?!~)punctSpace(~~?)(?=notPunctSpace)|[\\s](~~?)(?!~)(?=punct)|(?!~)punct(~~?)(?!~)(?=punct)|notPunctSpace(~~?)(?=notPunctSpace)","gu").replace(/notPunctSpace/g,O).replace(/punctSpace/g,Z).replace(/punct/g,D).getRegex(),te=k(/\\(punct)/,"gu").replace(/punct/g,D).getRegex(),ne=k(/^<(scheme:[^\s\x00-\x1f<>]*|email)>/).replace("scheme",/[a-zA-Z][a-zA-Z0-9+.-]{1,31}/).replace("email",/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+(@)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?![-_])/).getRegex(),re=k(z).replace("(?:--\x3e|$)","--\x3e").getRegex(),se=k("^comment|^</[a-zA-Z][\\w:-]*\\s*>|^<[a-zA-Z][\\w-]*(?:attribute)*?\\s*/?>|^<\\?[\\s\\S]*?\\?>|^<![a-zA-Z]+\\s[\\s\\S]*?>|^<!\\[CDATA\\[[\\s\\S]*?\\]\\]>").replace("comment",re).replace("attribute",/\s+[a-zA-Z:_][\w.:-]*(?:\s*=\s*"[^"]*"|\s*=\s*'[^']*'|\s*=\s*[^\s"'=<>`]+)?/).getRegex(),le=/(?:\[(?:\\[\s\S]|[^\[\]\\])*\]|\\[\s\S]|`+(?!`)[^`]*?`+(?!`)|``+(?=\])|[^\[\]\\`])*?/,ie=k(/^!?\[(label)\]\(\s*(href)(?:(?:[ \t]+(?:\n[ \t]*)?|\n[ \t]*)(title))?\s*\)/).replace("label",le).replace("href",/<(?:\\.|[^\n<>\\])+>|[^ \t\n\x00-\x1f]+|(?=\))/).replace("title",/"(?:\\"?|[^"\\])*"|'(?:\\'?|[^'\\])*'|\((?:\\\)?|[^)\\])*\)/).getRegex(),ae=k(/^!?\[(label)\]\[(ref)\]/).replace("label",le).replace("ref",$).getRegex(),oe=k(/^!?\[(ref)\](?:\[\])?/).replace("ref",$).getRegex(),ce=/[hH][tT][tT][pP][sS]?|[fF][tT][pP]/,pe={_backpedal:u,anyPunctuation:te,autolink:ne,blockSkip:M,br:v,code:/^(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/,del:u,delLDelim:u,delRDelim:u,emStrongLDelim:N,emStrongRDelimAst:W,emStrongRDelimUnd:K,escape:/^\\([!"#$%&'()*+,\-./:;<=>?@\[\]\\^_`{|}~])/,link:ie,nolink:oe,punctuation:Q,reflink:ae,reflinkSearch:k("reflink|nolink(?!\\()","g").replace("reflink",ae).replace("nolink",oe).getRegex(),tag:se,text:/^(`+|[^`])(?:(?= {2,}\n)|[\s\S]*?(?:(?=[\\<!\[`*_]|\b_|$)|[^ ](?= {2,}\n)))/,url:u},he={...pe,emStrongLDelim:X,emStrongRDelimAst:J,emStrongRDelimUnd:V,link:k(/^!?\[(label)\]\((.*?)\)/).replace("label",le).getRegex(),reflink:k(/^!?\[(label)\]\s*\[([^\]]*)\]/).replace("label",le).getRegex()},ue={...pe,emStrongRDelimAst:F,emStrongLDelim:G,delLDelim:Y,delRDelim:ee,url:k(/^((?:protocol):\/\/|www\.)(?:[a-zA-Z0-9\-]+\.?)+[^\s<]*|^email/).replace("protocol",ce).replace("email",/[A-Za-z0-9._+-]+(@)[a-zA-Z0-9-_]+(?:\.[a-zA-Z0-9-_]*[a-zA-Z0-9])+(?![-_])/).getRegex(),_backpedal:/(?:[^?!.,:;*_'"~()&]+|\([^)]*\)|&(?![a-zA-Z0-9]+;$)|[?!.,:;*_'"~)]+(?!$))+/,del:/^(~~?)(?=[^\s~])((?:\\[\s\S]|[^\\])*?(?:\\[\s\S]|[^\s~\\]))\1(?=[^~]|$)/,text:k(/^(`+|~+|[^`~])(?:(?=[`~])|(?= {2,}\n)|(?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@)|[\s\S]*?(?:(?=[\\<!\[`*~_]|\b_|protocol:\/\/|www\.|$)|[^ ](?= {2,}\n)|[^a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-](?=[a-zA-Z0-9.!#$%&'*+\/=?_`{\|}~-]+@)))/).replace("protocol",ce).getRegex()},ge={...ue,br:k(v).replace("{2,}","*").getRegex(),text:k(ue.text).replace("\\b_","\\b_| {2,}\\n").replace(/\{2,\}/g,"*").getRegex()},ke={normal:E,gfm:q,pedantic:B},de={normal:pe,gfm:ue,breaks:ge,pedantic:he},fe={"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"},xe=e=>fe[e];function be(e,t){if(t){if(f.escapeTest.test(e))return e.replace(f.escapeReplace,xe)}else if(f.escapeTestNoEncode.test(e))return e.replace(f.escapeReplaceNoEncode,xe);return e}function we(e){try{e=encodeURI(e).replace(f.percentDecode,"%")}catch{return null}return e}function me(e,t){let n=e.replace(f.findPipe,(e,t,n)=>{let r=!1,s=t;for(;--s>=0&&"\\"===n[s];)r=!r;return r?"|":" |"}).split(f.splitPipe),r=0;if(n[0].trim()||n.shift(),n.length>0&&!n.at(-1)?.trim()&&n.pop(),t)if(n.length>t)n.splice(t);else for(;n.length<t;)n.push("");for(;r<n.length;r++)n[r]=n[r].trim().replace(f.slashPipe,"|");return n}function ye(e,t,n){let r=e.length;if(0===r)return"";let s=0;for(;s<r;){let l=e.charAt(r-s-1);if(l!==t||n){if(l===t||!n)break;s++}else s++}return e.slice(0,r-s)}function Se(e){let t=e.split("\n"),n=t.length-1;for(;n>=0&&f.blankLine.test(t[n]);)n--;return t.length-n<=2?e:t.slice(0,n+1).join("\n")}function $e(e,t=0){let n=t,r="";for(let t of e)if("\t"===t){let e=4-n%4;r+=" ".repeat(e),n+=e}else r+=t,n++;return r}function Re(e,t,n,r,s){let l=t.href,i=t.title||null,a=e[1].replace(s.other.outputLinkReplace,"$1");r.state.inLink=!0;let o={type:"!"===e[0].charAt(0)?"image":"link",raw:n,href:l,title:i,text:a,tokens:r.inlineTokens(a)};return r.state.inLink=!1,o}var Te=class{options;rules;lexer;constructor(e){this.options=e||p}space(e){let t=this.rules.block.newline.exec(e);if(t&&t[0].length>0)return{type:"space",raw:t[0]}}code(e){let t=this.rules.block.code.exec(e);if(t){let e=this.options.pedantic?t[0]:Se(t[0]),n=e.replace(this.rules.other.codeRemoveIndent,"");return{type:"code",raw:e,codeBlockStyle:"indented",text:n}}}fences(e){let t=this.rules.block.fences.exec(e);if(t){let e=t[0],n=function(e,t,n){let r=e.match(n.other.indentCodeCompensation);if(null===r)return t;let s=r[1];return t.split("\n").map(e=>{let t=e.match(n.other.beginningSpace);if(null===t)return e;let[r]=t;return r.length>=s.length?e.slice(s.length):e}).join("\n")}(e,t[3]||"",this.rules);return{type:"code",raw:e,lang:t[2]?t[2].trim().replace(this.rules.inline.anyPunctuation,"$1"):t[2],text:n}}}heading(e){let t=this.rules.block.heading.exec(e);if(t){let e=t[2].trim();if(this.rules.other.endingHash.test(e)){let t=ye(e,"#");(this.options.pedantic||!t||this.rules.other.endingSpaceChar.test(t))&&(e=t.trim())}return{type:"heading",raw:ye(t[0],"\n"),depth:t[1].length,text:e,tokens:this.lexer.inline(e)}}}hr(e){let t=this.rules.block.hr.exec(e);if(t)return{type:"hr",raw:ye(t[0],"\n")}}blockquote(e){let t=this.rules.block.blockquote.exec(e);if(t){let e=ye(t[0],"\n").split("\n"),n="",r="",s=[];for(;e.length>0;){let t,l=!1,i=[];for(t=0;t<e.length;t++)if(this.rules.other.blockquoteStart.test(e[t]))i.push(e[t]),l=!0;else{if(l)break;i.push(e[t])}e=e.slice(t);let a=i.join("\n"),o=a.replace(this.rules.other.blockquoteSetextReplace,"\n    $1").replace(this.rules.other.blockquoteSetextReplace2,"");n=n?`${n}\n${a}`:a,r=r?`${r}\n${o}`:o;let c=this.lexer.state.top;if(this.lexer.state.top=!0,this.lexer.blockTokens(o,s,!0),this.lexer.state.top=c,0===e.length)break;let p=s.at(-1);if("code"===p?.type)break;if("blockquote"===p?.type){let t=p,l=e.join("\n"),i=t.raw+"\n"+l.replace(this.rules.other.blockquoteSetextReplace2,""),a=this.blockquote(i);s[s.length-1]=a,n=`${n}\n${l}`,r=r.substring(0,r.length-t.text.length)+a.text;break}if("list"===p?.type){let t=p,l=t.raw+"\n"+e.join("\n"),i=this.list(l);s[s.length-1]=i,n=n.substring(0,n.length-p.raw.length)+i.raw,r=r.substring(0,r.length-t.raw.length)+i.raw,e=l.substring(s.at(-1).raw.length).split("\n");continue}}return{type:"blockquote",raw:n,tokens:s,text:r}}}list(e){let t=this.rules.block.list.exec(e);if(t){let n=t[1].trim(),r=n.length>1,s={type:"list",raw:"",ordered:r,start:r?+n.slice(0,-1):"",loose:!1,items:[]};n=r?`\\d{1,9}\\${n.slice(-1)}`:`\\${n}`,this.options.pedantic&&(n=r?n:"[*+-]");let l=this.rules.other.listItemRegex(n),i=!1;for(;e;){let n=!1,r="",a="";if(!(t=l.exec(e))||this.rules.block.hr.test(e))break;r=t[0],e=e.substring(r.length);let o=$e(t[2].split("\n",1)[0],t[1].length),c=e.split("\n",1)[0],p=!o.trim(),h=0;if(this.options.pedantic?(h=2,a=o.trimStart()):p?h=t[1].length+1:(h=o.search(this.rules.other.nonSpaceChar),h=h>4?1:h,a=o.slice(h),h+=t[1].length),p&&this.rules.other.blankLine.test(c)&&(r+=c+"\n",e=e.substring(c.length+1),n=!0),!n){let t=this.rules.other.nextBulletRegex(h),n=this.rules.other.hrRegex(h),s=this.rules.other.fencesBeginRegex(h),l=this.rules.other.headingBeginRegex(h),i=this.rules.other.htmlBeginRegex(h),u=this.rules.other.blockquoteBeginRegex(h);for(;e;){let g,k=e.split("\n",1)[0];if(c=k,this.options.pedantic?(c=c.replace(this.rules.other.listReplaceNesting,"  "),g=c):g=c.replace(this.rules.other.tabCharGlobal,"    "),s.test(c)||l.test(c)||i.test(c)||u.test(c)||t.test(c)||n.test(c))break;if(g.search(this.rules.other.nonSpaceChar)>=h||!c.trim())a+="\n"+g.slice(h);else{if(p||o.replace(this.rules.other.tabCharGlobal,"    ").search(this.rules.other.nonSpaceChar)>=4||s.test(o)||l.test(o)||n.test(o))break;a+="\n"+c}p=!c.trim(),r+=k+"\n",e=e.substring(k.length+1),o=g.slice(h)}}s.loose||(i?s.loose=!0:this.rules.other.doubleBlankLine.test(r)&&(i=!0)),s.items.push({type:"list_item",raw:r,task:!!this.options.gfm&&this.rules.other.listIsTask.test(a),loose:!1,text:a,tokens:[]}),s.raw+=r}let a=s.items.at(-1);if(!a)return;a.raw=a.raw.trimEnd(),a.text=a.text.trimEnd(),s.raw=s.raw.trimEnd();for(let e of s.items){this.lexer.state.top=!1,e.tokens=this.lexer.blockTokens(e.text,[]);let t=e.tokens[0];if(!e.task||"text"!==t?.type&&"paragraph"!==t?.type)e.task&&(e.task=!1);else{e.text=e.text.replace(this.rules.other.listReplaceTask,""),t.raw=t.raw.replace(this.rules.other.listReplaceTask,""),t.text=t.text.replace(this.rules.other.listReplaceTask,"");for(let e=this.lexer.inlineQueue.length-1;e>=0;e--)if(this.rules.other.listIsTask.test(this.lexer.inlineQueue[e].src)){this.lexer.inlineQueue[e].src=this.lexer.inlineQueue[e].src.replace(this.rules.other.listReplaceTask,"");break}let n=this.rules.other.listTaskCheckbox.exec(e.raw);if(n){let t={type:"checkbox",raw:n[0]+" ",checked:"[ ]"!==n[0]};e.checked=t.checked,s.loose?e.tokens[0]&&["paragraph","text"].includes(e.tokens[0].type)&&"tokens"in e.tokens[0]&&e.tokens[0].tokens?(e.tokens[0].raw=t.raw+e.tokens[0].raw,e.tokens[0].text=t.raw+e.tokens[0].text,e.tokens[0].tokens.unshift(t)):e.tokens.unshift({type:"paragraph",raw:t.raw,text:t.raw,tokens:[t]}):e.tokens.unshift(t)}}if(!s.loose){let t=e.tokens.filter(e=>"space"===e.type),n=t.length>0&&t.some(e=>this.rules.other.anyLine.test(e.raw));s.loose=n}}if(s.loose)for(let e of s.items){e.loose=!0;for(let t of e.tokens)"text"===t.type&&(t.type="paragraph")}return s}}html(e){let t=this.rules.block.html.exec(e);if(t){let e=Se(t[0]);return{type:"html",block:!0,raw:e,pre:"pre"===t[1]||"script"===t[1]||"style"===t[1],text:e}}}def(e){let t=this.rules.block.def.exec(e);if(t){let e=t[1].toLowerCase().replace(this.rules.other.multipleSpaceGlobal," "),n=t[2]?t[2].replace(this.rules.other.hrefBrackets,"$1").replace(this.rules.inline.anyPunctuation,"$1"):"",r=t[3]?t[3].substring(1,t[3].length-1).replace(this.rules.inline.anyPunctuation,"$1"):t[3];return{type:"def",tag:e,raw:ye(t[0],"\n"),href:n,title:r}}}table(e){let t=this.rules.block.table.exec(e);if(!t||!this.rules.other.tableDelimiter.test(t[2]))return;let n=me(t[1]),r=t[2].replace(this.rules.other.tableAlignChars,"").split("|"),s=t[3]?.trim()?t[3].replace(this.rules.other.tableRowBlankLine,"").split("\n"):[],l={type:"table",raw:ye(t[0],"\n"),header:[],align:[],rows:[]};if(n.length===r.length){for(let e of r)this.rules.other.tableAlignRight.test(e)?l.align.push("right"):this.rules.other.tableAlignCenter.test(e)?l.align.push("center"):this.rules.other.tableAlignLeft.test(e)?l.align.push("left"):l.align.push(null);for(let e=0;e<n.length;e++)l.header.push({text:n[e],tokens:this.lexer.inline(n[e]),header:!0,align:l.align[e]});for(let e of s)l.rows.push(me(e,l.header.length).map((e,t)=>({text:e,tokens:this.lexer.inline(e),header:!1,align:l.align[t]})));return l}}lheading(e){let t=this.rules.block.lheading.exec(e);if(t){let e=t[1].trim();return{type:"heading",raw:ye(t[0],"\n"),depth:"="===t[2].charAt(0)?1:2,text:e,tokens:this.lexer.inline(e)}}}paragraph(e){let t=this.rules.block.paragraph.exec(e);if(t){let e="\n"===t[1].charAt(t[1].length-1)?t[1].slice(0,-1):t[1];return{type:"paragraph",raw:t[0],text:e,tokens:this.lexer.inline(e)}}}text(e){let t=this.rules.block.text.exec(e);if(t)return{type:"text",raw:t[0],text:t[0],tokens:this.lexer.inline(t[0])}}escape(e){let t=this.rules.inline.escape.exec(e);if(t)return{type:"escape",raw:t[0],text:t[1]}}tag(e){let t=this.rules.inline.tag.exec(e);if(t)return!this.lexer.state.inLink&&this.rules.other.startATag.test(t[0])?this.lexer.state.inLink=!0:this.lexer.state.inLink&&this.rules.other.endATag.test(t[0])&&(this.lexer.state.inLink=!1),!this.lexer.state.inRawBlock&&this.rules.other.startPreScriptTag.test(t[0])?this.lexer.state.inRawBlock=!0:this.lexer.state.inRawBlock&&this.rules.other.endPreScriptTag.test(t[0])&&(this.lexer.state.inRawBlock=!1),{type:"html",raw:t[0],inLink:this.lexer.state.inLink,inRawBlock:this.lexer.state.inRawBlock,block:!1,text:t[0]}}link(e){let t=this.rules.inline.link.exec(e);if(t){let e=t[2].trim();if(!this.options.pedantic&&this.rules.other.startAngleBracket.test(e)){if(!this.rules.other.endAngleBracket.test(e))return;let t=ye(e.slice(0,-1),"\\");if((e.length-t.length)%2==0)return}else{let e=function(e,t){if(-1===e.indexOf(t[1]))return-1;let n=0;for(let r=0;r<e.length;r++)if("\\"===e[r])r++;else if(e[r]===t[0])n++;else if(e[r]===t[1]&&(n--,n<0))return r;return n>0?-2:-1}(t[2],"()");if(-2===e)return;if(e>-1){let n=(0===t[0].indexOf("!")?5:4)+t[1].length+e;t[2]=t[2].substring(0,e),t[0]=t[0].substring(0,n).trim(),t[3]=""}}let n=t[2],r="";if(this.options.pedantic){let e=this.rules.other.pedanticHrefTitle.exec(n);e&&(n=e[1],r=e[3])}else r=t[3]?t[3].slice(1,-1):"";return n=n.trim(),this.rules.other.startAngleBracket.test(n)&&(n=this.options.pedantic&&!this.rules.other.endAngleBracket.test(e)?n.slice(1):n.slice(1,-1)),Re(t,{href:n&&n.replace(this.rules.inline.anyPunctuation,"$1"),title:r&&r.replace(this.rules.inline.anyPunctuation,"$1")},t[0],this.lexer,this.rules)}}reflink(e,t){let n;if((n=this.rules.inline.reflink.exec(e))||(n=this.rules.inline.nolink.exec(e))){let e=t[(n[2]||n[1]).replace(this.rules.other.multipleSpaceGlobal," ").toLowerCase()];if(!e){let e=n[0].charAt(0);return{type:"text",raw:e,text:e}}return Re(n,e,n[0],this.lexer,this.rules)}}emStrong(e,t,n=""){let r=this.rules.inline.emStrongLDelim.exec(e);if(r&&(r[1]||r[2]||r[3]||r[4])&&(!r[4]||!n.match(this.rules.other.unicodeAlphaNumeric))&&(!r[1]&&!r[3]||!n||this.rules.inline.punctuation.exec(n))){let s,l,i=[...r[0]].length-1,a=i,o=0,c=r[0][0],p=n===c,h="*"===c?this.rules.inline.emStrongRDelimAst:this.rules.inline.emStrongRDelimUnd;for(h.lastIndex=0,t=t.slice(-1*e.length+i);null!==(r=h.exec(t));){if(s=r[1]||r[2]||r[3]||r[4]||r[5]||r[6],!s)continue;if(l=[...s].length,r[3]||r[4]){a+=l;continue}if(r[5]||r[6]){if(i%3&&!((i+l)%3)){o+=l;continue}if(p)break}if(a-=l,a>0)continue;l=Math.min(l,l+a+o);let t=[...r[0]][0].length,n=e.slice(0,i+r.index+t+l);if(Math.min(i,l)%2){let e=n.slice(1,-1);return{type:"em",raw:n,text:e,tokens:this.lexer.inlineTokens(e)}}let c=n.slice(2,-2);return{type:"strong",raw:n,text:c,tokens:this.lexer.inlineTokens(c)}}}}codespan(e){let t=this.rules.inline.code.exec(e);if(t){let e=t[2].replace(this.rules.other.newLineCharGlobal," "),n=this.rules.other.nonSpaceChar.test(e),r=this.rules.other.startingSpaceChar.test(e)&&this.rules.other.endingSpaceChar.test(e);return n&&r&&(e=e.substring(1,e.length-1)),{type:"codespan",raw:t[0],text:e}}}br(e){let t=this.rules.inline.br.exec(e);if(t)return{type:"br",raw:t[0]}}del(e,t,n=""){let r=this.rules.inline.delLDelim.exec(e);if(r&&(!r[1]||!n||this.rules.inline.punctuation.exec(n))){let n,s,l=[...r[0]].length-1,i=l,a=this.rules.inline.delRDelim;for(a.lastIndex=0,t=t.slice(-1*e.length+l);null!==(r=a.exec(t));){if(n=r[1]||r[2]||r[3]||r[4]||r[5]||r[6],!n||(s=[...n].length,s!==l))continue;if(r[3]||r[4]){i+=s;continue}if(i-=s,i>0)continue;s=Math.min(s,s+i);let t=[...r[0]][0].length,a=e.slice(0,l+r.index+t+s),o=a.slice(l,-l);return{type:"del",raw:a,text:o,tokens:this.lexer.inlineTokens(o)}}}}autolink(e){let t=this.rules.inline.autolink.exec(e);if(t){let e,n;return"@"===t[2]?(e=t[1],n="mailto:"+e):(e=t[1],n=e),{type:"link",raw:t[0],text:e,href:n,tokens:[{type:"text",raw:e,text:e}]}}}url(e){let t;if(t=this.rules.inline.url.exec(e)){let e,n;if("@"===t[2])e=t[0],n="mailto:"+e;else{let r;do{r=t[0],t[0]=this.rules.inline._backpedal.exec(t[0])?.[0]??""}while(r!==t[0]);e=t[0],n="www."===t[1]?"http://"+t[0]:t[0]}return{type:"link",raw:t[0],text:e,href:n,tokens:[{type:"text",raw:e,text:e}]}}}inlineText(e){let t=this.rules.inline.text.exec(e);if(t){let e=this.lexer.state.inRawBlock;return{type:"text",raw:t[0],text:t[0],escaped:e}}}},_e=class e{tokens;options;state;inlineQueue;tokenizer;constructor(e){this.tokens=[],this.tokens.links=Object.create(null),this.options=e||p,this.options.tokenizer=this.options.tokenizer||new Te,this.tokenizer=this.options.tokenizer,this.tokenizer.options=this.options,this.tokenizer.lexer=this,this.inlineQueue=[],this.state={inLink:!1,inRawBlock:!1,top:!0};let t={other:f,block:ke.normal,inline:de.normal};this.options.pedantic?(t.block=ke.pedantic,t.inline=de.pedantic):this.options.gfm&&(t.block=ke.gfm,this.options.breaks?t.inline=de.breaks:t.inline=de.gfm),this.tokenizer.rules=t}static get rules(){return{block:ke,inline:de}}static lex(t,n){return new e(n).lex(t)}static lexInline(t,n){return new e(n).inlineTokens(t)}lex(e){e=e.replace(f.carriageReturn,"\n"),this.blockTokens(e,this.tokens);for(let e=0;e<this.inlineQueue.length;e++){let t=this.inlineQueue[e];this.inlineTokens(t.src,t.tokens)}return this.inlineQueue=[],this.tokens}blockTokens(e,t=[],n=!1){this.tokenizer.lexer=this,this.options.pedantic&&(e=e.replace(f.tabCharGlobal,"    ").replace(f.spaceLine,""));let r=1/0;for(;e;){if(!(e.length<r)){this.infiniteLoopError(e.charCodeAt(0));break}let s;if(r=e.length,this.options.extensions?.block?.some(n=>!!(s=n.call({lexer:this},e,t))&&(e=e.substring(s.raw.length),t.push(s),!0)))continue;if(s=this.tokenizer.space(e)){e=e.substring(s.raw.length);let n=t.at(-1);1===s.raw.length&&void 0!==n?n.raw+="\n":t.push(s);continue}if(s=this.tokenizer.code(e)){e=e.substring(s.raw.length);let n=t.at(-1);"paragraph"===n?.type||"text"===n?.type?(n.raw+=(n.raw.endsWith("\n")?"":"\n")+s.raw,n.text+="\n"+s.text,this.inlineQueue.at(-1).src=n.text):t.push(s);continue}if(s=this.tokenizer.fences(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.heading(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.hr(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.blockquote(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.list(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.html(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.def(e)){e=e.substring(s.raw.length);let n=t.at(-1);"paragraph"===n?.type||"text"===n?.type?(n.raw+=(n.raw.endsWith("\n")?"":"\n")+s.raw,n.text+="\n"+s.raw,this.inlineQueue.at(-1).src=n.text):this.tokens.links[s.tag]||(this.tokens.links[s.tag]={href:s.href,title:s.title},t.push(s));continue}if(s=this.tokenizer.table(e)){e=e.substring(s.raw.length),t.push(s);continue}if(s=this.tokenizer.lheading(e)){e=e.substring(s.raw.length),t.push(s);continue}let l=e;if(this.options.extensions?.startBlock){let t,n=1/0,r=e.slice(1);this.options.extensions.startBlock.forEach(e=>{t=e.call({lexer:this},r),"number"==typeof t&&t>=0&&(n=Math.min(n,t))}),n<1/0&&n>=0&&(l=e.substring(0,n+1))}if(this.state.top&&(s=this.tokenizer.paragraph(l))){let r=t.at(-1);n&&"paragraph"===r?.type?(r.raw+=(r.raw.endsWith("\n")?"":"\n")+s.raw,r.text+="\n"+s.text,this.inlineQueue.pop(),this.inlineQueue.at(-1).src=r.text):t.push(s),n=l.length!==e.length,e=e.substring(s.raw.length);continue}if(s=this.tokenizer.text(e)){e=e.substring(s.raw.length);let n=t.at(-1);"text"===n?.type?(n.raw+=(n.raw.endsWith("\n")?"":"\n")+s.raw,n.text+="\n"+s.text,this.inlineQueue.pop(),this.inlineQueue.at(-1).src=n.text):t.push(s);continue}if(e){this.infiniteLoopError(e.charCodeAt(0));break}}return this.state.top=!0,t}inline(e,t=[]){return this.inlineQueue.push({src:e,tokens:t}),t}inlineTokens(e,t=[]){this.tokenizer.lexer=this;let n=e;if(this.tokens.links){let e=Object.keys(this.tokens.links);e.length>0&&(n=n.replace(this.tokenizer.rules.inline.reflinkSearch,t=>e.includes(t.slice(t.lastIndexOf("[")+1,-1))?"["+"a".repeat(t.length-2)+"]":t))}n=n.replace(this.tokenizer.rules.inline.anyPunctuation,"++"),n=n.replace(this.tokenizer.rules.inline.blockSkip,(e,t,n)=>{let r=n?n.length:0;return e.slice(0,r)+"["+"a".repeat(e.length-r-2)+"]"}),n=this.options.hooks?.emStrongMask?.call({lexer:this},n)??n;let r=!1,s="",l=1/0;for(;e;){if(!(e.length<l)){this.infiniteLoopError(e.charCodeAt(0));break}let i;if(l=e.length,r||(s=""),r=!1,this.options.extensions?.inline?.some(n=>!!(i=n.call({lexer:this},e,t))&&(e=e.substring(i.raw.length),t.push(i),!0)))continue;if(i=this.tokenizer.escape(e)){e=e.substring(i.raw.length),t.push(i);continue}if(i=this.tokenizer.tag(e)){e=e.substring(i.raw.length),t.push(i);continue}if(i=this.tokenizer.link(e)){e=e.substring(i.raw.length),t.push(i);continue}if(i=this.tokenizer.reflink(e,this.tokens.links)){e=e.substring(i.raw.length);let n=t.at(-1);"text"===i.type&&"text"===n?.type?(n.raw+=i.raw,n.text+=i.text):t.push(i);continue}if(i=this.tokenizer.emStrong(e,n,s)){e=e.substring(i.raw.length),t.push(i);continue}if(i=this.tokenizer.codespan(e)){e=e.substring(i.raw.length),t.push(i);continue}if(i=this.tokenizer.br(e)){e=e.substring(i.raw.length),t.push(i);continue}if(i=this.tokenizer.del(e,n,s)){e=e.substring(i.raw.length),t.push(i);continue}if(i=this.tokenizer.autolink(e)){e=e.substring(i.raw.length),t.push(i);continue}if(!this.state.inLink&&(i=this.tokenizer.url(e))){e=e.substring(i.raw.length),t.push(i);continue}let a=e;if(this.options.extensions?.startInline){let t,n=1/0,r=e.slice(1);this.options.extensions.startInline.forEach(e=>{t=e.call({lexer:this},r),"number"==typeof t&&t>=0&&(n=Math.min(n,t))}),n<1/0&&n>=0&&(a=e.substring(0,n+1))}if(i=this.tokenizer.inlineText(a)){e=e.substring(i.raw.length),"_"!==i.raw.slice(-1)&&(s=i.raw.slice(-1)),r=!0;let n=t.at(-1);"text"===n?.type?(n.raw+=i.raw,n.text+=i.text):t.push(i);continue}if(e){this.infiniteLoopError(e.charCodeAt(0));break}}return t}infiniteLoopError(e){let t="Infinite loop on byte: "+e;if(!this.options.silent)throw new Error(t);console.error(t)}},ze=class{options;parser;constructor(e){this.options=e||p}space(e){return""}code({text:e,lang:t,escaped:n}){let r=(t||"").match(f.notSpaceStart)?.[0],s=e.replace(f.endingNewline,"")+"\n";return r?'<pre><code class="language-'+be(r)+'">'+(n?s:be(s,!0))+"</code></pre>\n":"<pre><code>"+(n?s:be(s,!0))+"</code></pre>\n"}blockquote({tokens:e}){return`<blockquote>\n${this.parser.parse(e)}</blockquote>\n`}html({text:e}){return e}def(e){return""}heading({tokens:e,depth:t}){return`<h${t}>${this.parser.parseInline(e)}</h${t}>\n`}hr(e){return"<hr>\n"}list(e){let t=e.ordered,n=e.start,r="";for(let t=0;t<e.items.length;t++){let n=e.items[t];r+=this.listitem(n)}let s=t?"ol":"ul";return"<"+s+(t&&1!==n?' start="'+n+'"':"")+">\n"+r+"</"+s+">\n"}listitem(e){return`<li>${this.parser.parse(e.tokens)}</li>\n`}checkbox({checked:e}){return"<input "+(e?'checked="" ':"")+'disabled="" type="checkbox"> '}paragraph({tokens:e}){return`<p>${this.parser.parseInline(e)}</p>\n`}table(e){let t="",n="";for(let t=0;t<e.header.length;t++)n+=this.tablecell(e.header[t]);t+=this.tablerow({text:n});let r="";for(let t=0;t<e.rows.length;t++){let s=e.rows[t];n="";for(let e=0;e<s.length;e++)n+=this.tablecell(s[e]);r+=this.tablerow({text:n})}return r&&(r=`<tbody>${r}</tbody>`),"<table>\n<thead>\n"+t+"</thead>\n"+r+"</table>\n"}tablerow({text:e}){return`<tr>\n${e}</tr>\n`}tablecell(e){let t=this.parser.parseInline(e.tokens),n=e.header?"th":"td";return(e.align?`<${n} align="${e.align}">`:`<${n}>`)+t+`</${n}>\n`}strong({tokens:e}){return`<strong>${this.parser.parseInline(e)}</strong>`}em({tokens:e}){return`<em>${this.parser.parseInline(e)}</em>`}codespan({text:e}){return`<code>${be(e,!0)}</code>`}br(e){return"<br>"}del({tokens:e}){return`<del>${this.parser.parseInline(e)}</del>`}link({href:e,title:t,tokens:n}){let r=this.parser.parseInline(n),s=we(e);if(null===s)return r;let l='<a href="'+(e=s)+'"';return t&&(l+=' title="'+be(t)+'"'),l+=">"+r+"</a>",l}image({href:e,title:t,text:n,tokens:r}){r&&(n=this.parser.parseInline(r,this.parser.textRenderer));let s=we(e);if(null===s)return be(n);let l=`<img src="${e=s}" alt="${be(n)}"`;return t&&(l+=` title="${be(t)}"`),l+=">",l}text(e){return"tokens"in e&&e.tokens?this.parser.parseInline(e.tokens):"escaped"in e&&e.escaped?e.text:be(e.text)}},Ae=class{strong({text:e}){return e}em({text:e}){return e}codespan({text:e}){return e}del({text:e}){return e}html({text:e}){return e}text({text:e}){return e}link({text:e}){return""+e}image({text:e}){return""+e}br(){return""}checkbox({raw:e}){return e}},Pe=class e{options;renderer;textRenderer;constructor(e){this.options=e||p,this.options.renderer=this.options.renderer||new ze,this.renderer=this.options.renderer,this.renderer.options=this.options,this.renderer.parser=this,this.textRenderer=new Ae}static parse(t,n){return new e(n).parse(t)}static parseInline(t,n){return new e(n).parseInline(t)}parse(e){this.renderer.parser=this;let t="";for(let n=0;n<e.length;n++){let r=e[n];if(this.options.extensions?.renderers?.[r.type]){let e=r,n=this.options.extensions.renderers[e.type].call({parser:this},e);if(!1!==n||!["space","hr","heading","code","table","blockquote","list","checkbox","html","def","paragraph","text"].includes(e.type)){t+=n||"";continue}}let s=r;switch(s.type){case"space":t+=this.renderer.space(s);break;case"hr":t+=this.renderer.hr(s);break;case"heading":t+=this.renderer.heading(s);break;case"code":t+=this.renderer.code(s);break;case"table":t+=this.renderer.table(s);break;case"blockquote":t+=this.renderer.blockquote(s);break;case"list":t+=this.renderer.list(s);break;case"checkbox":t+=this.renderer.checkbox(s);break;case"html":t+=this.renderer.html(s);break;case"def":t+=this.renderer.def(s);break;case"paragraph":t+=this.renderer.paragraph(s);break;case"text":t+=this.renderer.text(s);break;default:{let e='Token with "'+s.type+'" type was not found.';if(this.options.silent)return console.error(e),"";throw new Error(e)}}}return t}parseInline(e,t=this.renderer){this.renderer.parser=this;let n="";for(let r=0;r<e.length;r++){let s=e[r];if(this.options.extensions?.renderers?.[s.type]){let e=this.options.extensions.renderers[s.type].call({parser:this},s);if(!1!==e||!["escape","html","link","image","checkbox","strong","em","codespan","br","del","text"].includes(s.type)){n+=e||"";continue}}let l=s;switch(l.type){case"escape":case"text":n+=t.text(l);break;case"html":n+=t.html(l);break;case"link":n+=t.link(l);break;case"image":n+=t.image(l);break;case"checkbox":n+=t.checkbox(l);break;case"strong":n+=t.strong(l);break;case"em":n+=t.em(l);break;case"codespan":n+=t.codespan(l);break;case"br":n+=t.br(l);break;case"del":n+=t.del(l);break;default:{let e='Token with "'+l.type+'" type was not found.';if(this.options.silent)return console.error(e),"";throw new Error(e)}}}return n}},Le=class{options;block;constructor(e){this.options=e||p}static passThroughHooks=new Set(["preprocess","postprocess","processAllTokens","emStrongMask"]);static passThroughHooksRespectAsync=new Set(["preprocess","postprocess","processAllTokens"]);preprocess(e){return e}postprocess(e){return e}processAllTokens(e){return e}emStrongMask(e){return e}provideLexer(e=this.block){return e?_e.lex:_e.lexInline}provideParser(e=this.block){return e?Pe.parse:Pe.parseInline}},Ie=class{defaults={async:!1,breaks:!1,extensions:null,gfm:!0,hooks:null,pedantic:!1,renderer:null,silent:!1,tokenizer:null,walkTokens:null};options=this.setOptions;parse=this.parseMarkdown(!0);parseInline=this.parseMarkdown(!1);Parser=Pe;Renderer=ze;TextRenderer=Ae;Lexer=_e;Tokenizer=Te;Hooks=Le;constructor(...e){this.use(...e)}walkTokens(e,t){let n=[];for(let r of e)switch(n=n.concat(t.call(this,r)),r.type){case"table":{let e=r;for(let r of e.header)n=n.concat(this.walkTokens(r.tokens,t));for(let r of e.rows)for(let e of r)n=n.concat(this.walkTokens(e.tokens,t));break}case"list":{let e=r;n=n.concat(this.walkTokens(e.items,t));break}default:{let e=r;this.defaults.extensions?.childTokens?.[e.type]?this.defaults.extensions.childTokens[e.type].forEach(r=>{let s=e[r].flat(1/0);n=n.concat(this.walkTokens(s,t))}):e.tokens&&(n=n.concat(this.walkTokens(e.tokens,t)))}}return n}use(...e){let t=this.defaults.extensions||{renderers:{},childTokens:{}};return e.forEach(e=>{let n={...e};if(n.async=this.defaults.async||n.async||!1,e.extensions&&(e.extensions.forEach(e=>{if(!e.name)throw new Error("extension name required");if("renderer"in e){let n=t.renderers[e.name];t.renderers[e.name]=n?function(...t){let r=e.renderer.apply(this,t);return!1===r&&(r=n.apply(this,t)),r}:e.renderer}if("tokenizer"in e){if(!e.level||"block"!==e.level&&"inline"!==e.level)throw new Error("extension level must be 'block' or 'inline'");let n=t[e.level];n?n.unshift(e.tokenizer):t[e.level]=[e.tokenizer],e.start&&("block"===e.level?t.startBlock?t.startBlock.push(e.start):t.startBlock=[e.start]:"inline"===e.level&&(t.startInline?t.startInline.push(e.start):t.startInline=[e.start]))}"childTokens"in e&&e.childTokens&&(t.childTokens[e.name]=e.childTokens)}),n.extensions=t),e.renderer){let t=this.defaults.renderer||new ze(this.defaults);for(let n in e.renderer){if(!(n in t))throw new Error(`renderer '${n}' does not exist`);if(["options","parser"].includes(n))continue;let r=n,s=e.renderer[r],l=t[r];t[r]=(...e)=>{let n=s.apply(t,e);return!1===n&&(n=l.apply(t,e)),n||""}}n.renderer=t}if(e.tokenizer){let t=this.defaults.tokenizer||new Te(this.defaults);for(let n in e.tokenizer){if(!(n in t))throw new Error(`tokenizer '${n}' does not exist`);if(["options","rules","lexer"].includes(n))continue;let r=n,s=e.tokenizer[r],l=t[r];t[r]=(...e)=>{let n=s.apply(t,e);return!1===n&&(n=l.apply(t,e)),n}}n.tokenizer=t}if(e.hooks){let t=this.defaults.hooks||new Le;for(let n in e.hooks){if(!(n in t))throw new Error(`hook '${n}' does not exist`);if(["options","block"].includes(n))continue;let r=n,s=e.hooks[r],l=t[r];Le.passThroughHooks.has(n)?t[r]=e=>{if(this.defaults.async&&Le.passThroughHooksRespectAsync.has(n))return(async()=>{let n=await s.call(t,e);return l.call(t,n)})();let r=s.call(t,e);return l.call(t,r)}:t[r]=(...e)=>{if(this.defaults.async)return(async()=>{let n=await s.apply(t,e);return!1===n&&(n=await l.apply(t,e)),n})();let n=s.apply(t,e);return!1===n&&(n=l.apply(t,e)),n}}n.hooks=t}if(e.walkTokens){let t=this.defaults.walkTokens,r=e.walkTokens;n.walkTokens=function(e){let n=[];return n.push(r.call(this,e)),t&&(n=n.concat(t.call(this,e))),n}}this.defaults={...this.defaults,...n}}),this}setOptions(e){return this.defaults={...this.defaults,...e},this}lexer(e,t){return _e.lex(e,t??this.defaults)}parser(e,t){return Pe.parse(e,t??this.defaults)}parseMarkdown(e){return(t,n)=>{let r={...n},s={...this.defaults,...r},l=this.onError(!!s.silent,!!s.async);if(!0===this.defaults.async&&!1===r.async)return l(new Error("marked(): The async option was set to true by an extension. Remove async: false from the parse options object to return a Promise."));if(typeof t>"u"||null===t)return l(new Error("marked(): input parameter is undefined or null"));if("string"!=typeof t)return l(new Error("marked(): input parameter is of type "+Object.prototype.toString.call(t)+", string expected"));if(s.hooks&&(s.hooks.options=s,s.hooks.block=e),s.async)return(async()=>{let n=s.hooks?await s.hooks.preprocess(t):t,r=await(s.hooks?await s.hooks.provideLexer(e):e?_e.lex:_e.lexInline)(n,s),l=s.hooks?await s.hooks.processAllTokens(r):r;s.walkTokens&&await Promise.all(this.walkTokens(l,s.walkTokens));let i=await(s.hooks?await s.hooks.provideParser(e):e?Pe.parse:Pe.parseInline)(l,s);return s.hooks?await s.hooks.postprocess(i):i})().catch(l);try{s.hooks&&(t=s.hooks.preprocess(t));let n=(s.hooks?s.hooks.provideLexer(e):e?_e.lex:_e.lexInline)(t,s);s.hooks&&(n=s.hooks.processAllTokens(n)),s.walkTokens&&this.walkTokens(n,s.walkTokens);let r=(s.hooks?s.hooks.provideParser(e):e?Pe.parse:Pe.parseInline)(n,s);return s.hooks&&(r=s.hooks.postprocess(r)),r}catch(e){return l(e)}}}onError(e,t){return n=>{if(n.message+="\nPlease report this to https://github.com/markedjs/marked.",e){let e="<p>An error occurred:</p><pre>"+be(n.message+"",!0)+"</pre>";return t?Promise.resolve(e):e}if(t)return Promise.reject(n);throw n}}},Ee=new Ie;function Ce(e,t){return Ee.parse(e,t)}function qe(...e){return Ee.use(...e),Ce.defaults=Ee.defaults,h(Ce.defaults),Ce}Ce.options=Ce.setOptions=function(e){return Ee.setOptions(e),Ce.defaults=Ee.defaults,h(Ce.defaults),Ce},Ce.getDefaults=c,Ce.defaults=p,Ce.use=qe,Ce.walkTokens=function(e,t){return Ee.walkTokens(e,t)},Ce.parseInline=Ee.parseInline,Ce.Parser=Pe,Ce.parser=Pe.parse,Ce.Renderer=ze,Ce.TextRenderer=Ae,Ce.Lexer=_e,Ce.lexer=_e.lex,Ce.Tokenizer=Te,Ce.Hooks=Le,Ce.parse=Ce;var Be=Ce.options,ve=Ce.setOptions,De=Ce.walkTokens,Ze=Ce.parseInline,Oe=Ce,Qe=Pe.parse,je=_e.lex;return n!=t&&(r.exports=t),r.exports});
@@ -4179,7 +5295,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   const CONTENT_MIGRATION_VERSION = 1;
   const PRESET_MIGRATION_VERSION = 7;
   const DIRECTORY_MIGRATION_VERSION = 1;
-  const OPEN_EXTS = ['.md', '.markdown', '.txt'];
+  const OPEN_EXTS = ['.md', '.markdown', '.txt', '.epub', '.pdf'];
   const DIRECTORY_EXTS = ['.md', '.markdown', '.txt'];
   const DIRECTORY_MAX_DEPTH = 5;
   const DIRECTORY_MAX_FILES = 500;
@@ -4220,7 +5336,11 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   const AI_PROXY_HEADER = 'x-md-editor-ai-proxy';
   const TEXT_FILE_PICKER_TYPES = [{
     description: 'Markdown 和文本',
-    accept: { 'text/plain': OPEN_EXTS }
+    accept: { 'text/plain': ['.md', '.markdown', '.txt'] }
+  }];
+  const OPEN_FILE_PICKER_TYPES = [{
+    description: 'Markdown、文本、EPUB 和 PDF',
+    accept: { 'text/plain': ['.md', '.markdown', '.txt'], 'application/pdf': ['.pdf'], 'application/epub+zip': ['.epub'] }
   }];
   const IMAGE_MIN_WIDTH_PERCENT = 25;
   const IMAGE_MAX_WIDTH_PERCENT = 100;
@@ -5006,7 +6126,8 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function currentDoc() { return state.docs.find((d) => d.id === state.currentDocId) || null; }
-  function getCurrentMarkdown() { return currentDoc()?.content ?? ''; }
+  function isReaderDocument(doc = currentDoc()) { return doc?.readerFormat === 'pdf' || doc?.readerFormat === 'epub'; }
+  function getCurrentMarkdown() { return isReaderDocument() ? '' : (currentDoc()?.content ?? ''); }
   function documentSourceName(doc) {
     return doc?.localFileName || doc?.relativePath || doc?.desktopPath || doc?.name || '';
   }
@@ -5081,7 +6202,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       hasDirectories: state.directories.length > 0,
       canUndo: canUndo(),
       canRedo: canRedo(),
-      plainText: isPlainTextDocument(doc),
+      plainText: isPlainTextDocument(doc) || isReaderDocument(doc),
       viewMode: state.viewMode,
       theme: state.theme
     });
@@ -5434,6 +6555,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function setCurrentMarkdown(md, options) {
+    if (isReaderDocument()) return;
     const doc = currentDoc();
     if (!doc) return;
     const opts = options || {};
@@ -5457,6 +6579,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function applyHistory(direction) {
+    if (isReaderDocument()) return false;
     flushPendingPreviewCommit();
     const doc = currentDoc();
     const history = ensureHistory(doc);
@@ -5473,11 +6596,13 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function canUndo() {
+    if (isReaderDocument()) return false;
     const history = ensureHistory(currentDoc());
     return !!(history && history.index > 0);
   }
 
   function canRedo() {
+    if (isReaderDocument()) return false;
     const history = ensureHistory(currentDoc());
     return !!(history && history.index < history.entries.length - 1);
   }
@@ -5768,6 +6893,9 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     const payload = {
       docs: state.docs.map((d) => ({
         id: d.id,
+        readerFormat: d.readerFormat || null,
+        readerPosition: d.readerPosition || null,
+        readerDraftKey: d.readerDraftKey || null,
         name: d.name,
         content: d.content,
         lastSavedContent: typeof d.lastSavedContent === 'string' ? d.lastSavedContent : d.content,
@@ -5802,9 +6930,16 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       directoryMigrationVersion: DIRECTORY_MIGRATION_VERSION
     };
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); }
-    catch (e) { console.warn('保存 localStorage 失败', e); }
-    window.guanyiDesktop?.state?.save?.(payload).catch((error) => console.warn('保存桌面编辑状态备份失败', error));
+    catch (e) {
+      console.warn('保存 localStorage 失败', e);
+      if (options?.awaitPersistence && !window.guanyiDesktop?.state?.save) throw e;
+    }
+    const pendingSave = window.guanyiDesktop?.state?.save?.(payload).catch((error) => {
+      console.warn('保存桌面编辑状态备份失败', error);
+      if (options?.awaitPersistence) throw error;
+    });
     if (!options || !options.silent) flashSaveIndicator();
+    return pendingSave;
   }
 
   function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveState, SAVE_DEBOUNCE); }
@@ -6968,6 +8103,20 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function renderPreview() {
+    if (isReaderDocument()) {
+      clearTimeout(renderTimer);
+      renderTimer = null;
+      clearSelectedPreviewImage();
+      if (els.collabDrawer?.classList.contains('is-open')) closeCollabDrawer();
+      window.GuanyiReaderHost.show(currentDoc(), {
+        icon: iconTemplate, notify: tip, save: saveCurrentDocument,
+        persist: (wait = false) => saveState({ silent: true, awaitPersistence: wait }),
+        changed: () => { saveState(); updateStatus(); renderDocumentTabs(); }
+      });
+      updateOutline();
+      return;
+    }
+    window.GuanyiReaderHost?.hide();
     clearTimeout(renderTimer);
     renderTimer = null;
     releasePreviewImageUrls();
@@ -7133,8 +8282,8 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       if (isDocDirty(doc)) {
         const dirty = document.createElement('span');
         dirty.className = 'app-document-tab__dirty';
-        dirty.title = '有未保存修改';
-        dirty.setAttribute('aria-label', '有未保存修改');
+        dirty.title = isReaderDocument(doc) ? '批注尚未导出' : '有未保存修改';
+        dirty.setAttribute('aria-label', dirty.title);
         tab.appendChild(dirty);
       }
       const close = document.createElement('button');
@@ -7164,7 +8313,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       ensureDocOpen(replacement.id);
     }
     const nextId = nextTabAfterClose(docId) || state.openDocIds.find((id) => id !== docId);
-    if (options.discard && isDocDirty(doc)) {
+    if (options.discard && !isReaderDocument(doc) && isDocDirty(doc)) {
       doc.content = doc.lastSavedContent;
       histories.set(doc.id, { entries: [doc.content], uiEntries: [null], index: 0, lastInputAt: 0, lastInputSource: null });
       markSemanticIndexDirty(doc.id);
@@ -7186,6 +8335,13 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   async function requestCloseDocumentTab(docId) {
     const doc = state.docs.find((item) => item.id === docId);
     if (!doc) return;
+    if (isReaderDocument(doc)) {
+      try {
+        await window.GuanyiReaderHost.flush();
+        await finalizeCloseDocumentTab(docId);
+      } catch (error) { tip(`批注尚未保存，请保留页签重试：${error.message}`); }
+      return;
+    }
     if (!isDocDirty(doc)) { await finalizeCloseDocumentTab(docId); return; }
     pendingTabCloseId = docId;
     els.tabCloseTitle.textContent = `保存「${doc.name}」的修改？`;
@@ -7317,6 +8473,11 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
 
   function updateStatus() {
     const doc = currentDoc();
+    if (isReaderDocument(doc)) {
+      els.statusText.textContent = `${doc.name} · ${doc.readerFormat.toUpperCase()}${isDocDirty(doc) ? ' · 批注待导出' : ''}`;
+      updateEditChrome();
+      return;
+    }
     const md = getCurrentMarkdown();
     const lines = md ? md.split('\n').length : 0;
     const chars = md.length;
@@ -7687,9 +8848,17 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
 
   function applySourceTransform(result) {
     if (!result) return false;
-    setCurrentMarkdown(result.text);
-    els.sourceEditor.focus();
-    setProgrammaticSourceSelection(result.selStart, result.selEnd);
+    // Replacing textarea.value moves its selection to EOF. Restore the edit
+    // selection before returning focus from a toolbar button, so focus cannot
+    // scroll both split panes to the document's end.
+    const scrollTop = els.sourceEditor.scrollTop;
+    const scrollLeft = els.sourceEditor.scrollLeft;
+    setCurrentMarkdown(result.text, {
+      sourceSelection: { start: result.selStart, end: result.selEnd }
+    });
+    els.sourceEditor.focus({ preventScroll: true });
+    els.sourceEditor.scrollTop = scrollTop;
+    els.sourceEditor.scrollLeft = scrollLeft;
     renderPreview();
     return true;
   }
@@ -9465,6 +10634,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function exportMarkdown() {
+    if (isReaderDocument()) return saveCurrentDocument();
     if (exportInProgress) return false;
     const markdown = getCurrentMarkdown();
     const plainText = isPlainTextDocument(currentDoc());
@@ -10594,6 +11764,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   async function saveCurrentDocument(options) {
+    if (isReaderDocument()) return window.GuanyiReaderHost.saveAs(currentDoc());
     const opts = options || {};
     flushPendingPreviewCommit();
     const doc = currentDoc();
@@ -10778,6 +11949,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   async function exportPdf() {
+    if (isReaderDocument()) return saveCurrentDocument();
     if (exportInProgress) return;
     exportInProgress = true;
     setExportBusy(els.btnPdf, true);
@@ -10805,6 +11977,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   async function exportImage() {
+    if (isReaderDocument()) { tip('请使用阅读工具栏另存文档'); return false; }
     if (exportInProgress) return;
     if (typeof html2canvas === 'undefined') { tip('图片导出库未加载'); return; }
     exportInProgress = true;
@@ -11289,6 +12462,11 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   async function openFileActionModal(mode) {
+    if (isReaderDocument()) {
+      if (mode === 'save-as') return saveCurrentDocument();
+      tip('请使用另存为导出此文档');
+      return;
+    }
     if (fileActionState.busy || fileActionState.pickerBusy) return;
     flushPendingPreviewCommit();
     const doc = currentDoc();
@@ -11612,6 +12790,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function setViewMode(mode) {
+    if (isReaderDocument()) return;
     if (mode !== state.viewMode) flushPendingPreviewCommit();
     draftCommentAnchor = null;
     selectedPreviewBlock = null;
@@ -11829,7 +13008,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function searchScopeDocumentIds(documents, currentDocId, scope = 'list') {
-    const docs = Array.isArray(documents) ? documents.filter((doc) => doc?.id) : [];
+    const docs = Array.isArray(documents) ? documents.filter((doc) => doc?.id && !isReaderDocument(doc)) : [];
     const current = docs.find((doc) => doc.id === currentDocId) || null;
     if (scope === 'document') return current ? [current.id] : [];
     return docs.map((doc) => doc.id);
@@ -12043,6 +13222,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   async function contentForSearch(doc) {
+    if (isReaderDocument(doc)) return '';
     if (doc.contentLoaded !== false) return typeof doc.content === 'string' ? doc.content : '';
     if (!isDirectoryDoc(doc)) return typeof doc.content === 'string' ? doc.content : '';
     const directory = directoryForDoc(doc);
@@ -14269,6 +15449,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function openContentFind(tab = 'find') {
+    if (isReaderDocument()) { tip('请使用文档阅读工具栏'); return; }
     contentFindPreviousFocus = document.activeElement;
     const selected = state.viewMode === 'preview'
       ? window.getSelection()?.toString() || ''
@@ -14349,6 +15530,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function canRenameDocument(doc) {
+    if (isReaderDocument(doc)) return false;
     if (!doc) return false;
     if (!isDiskFileDoc(doc)) return true;
     return !!((doc.fileHandle || doc.desktopPath)
@@ -15060,9 +16242,9 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     return decodeTextBytes(await file.arrayBuffer());
   }
 
-  function addImportedDoc({ name, content, fileHandle, localFileName, desktopPath, lastModified, size }) {
+  function addImportedDoc({ id, name, content, fileHandle, localFileName, desktopPath, lastModified, size }) {
     const doc = {
-      id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: id || `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       name: uniqueDocName(name || '未命名文档'),
       content: content || '',
       lastSavedContent: content || '',
@@ -15082,15 +16264,32 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     return doc;
   }
 
+  async function addReaderDocument({ name, bytes, desktopPath, fileHandle, lastModified, size }) {
+    const existing = desktopPath && state.docs.findLast((doc) => doc.desktopPath === desktopPath && isReaderDocument(doc)
+      && doc.externalModifiedAt === lastModified && doc.externalSize === size);
+    if (existing && await window.GuanyiReaderHost.reuse(existing, bytes)) return existing;
+    const id = `reader-${crypto.randomUUID()}`;
+    const reader = await window.GuanyiReaderHost.prepare({ id, name, bytes });
+    const doc = addImportedDoc({ id, name: name.replace(/\.(epub|pdf)$/i, ''), content: '{}',
+      localFileName: name, desktopPath, fileHandle, lastModified, size });
+    Object.assign(doc, reader);
+    return doc;
+  }
+
   async function importLocalFiles(fileList) {
     const files = [...(fileList || [])].filter(isOpenableFile);
-    if (!files.length) { tip('请选择 .md / .markdown / .txt 文件'); return; }
+    if (!files.length) { tip('请选择 Markdown、TXT、EPUB 或 PDF 文件'); return; }
     const imported = [];
     for (const file of files) {
       try {
+        if (window.GuanyiReaderHost?.format(file.name)) {
+          if (file.size > 100 * 1024 * 1024) throw new Error('文件超过 100 MB');
+          imported.push(await addReaderDocument({ name: file.name, bytes: await file.arrayBuffer(), lastModified: file.lastModified, size: file.size }));
+          continue;
+        }
         const content = await readFileAsText(file);
         imported.push(addImportedDoc({ name: nameFromFile(file), content, fileHandle: null, localFileName: file.name || null }));
-      } catch (e) { console.warn('打开本地文件失败', file && file.name, e); }
+      } catch (e) { tip(`无法打开「${file.name}」：${e.message}`); }
     }
     if (!imported.length) { tip('未能打开所选文件'); return; }
     activateImportedDocs(imported);
@@ -15103,10 +16302,15 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
         if (handle.kind && handle.kind !== 'file') continue;
         const file = await handle.getFile();
         if (!isOpenableFile(file)) continue;
+        if (window.GuanyiReaderHost?.format(file.name)) {
+          if (file.size > 100 * 1024 * 1024) throw new Error('文件超过 100 MB');
+          imported.push(await addReaderDocument({ name: file.name, bytes: await file.arrayBuffer(), fileHandle: handle, lastModified: file.lastModified, size: file.size }));
+          continue;
+        }
         const content = await readFileAsText(file);
         const base = (handle.name || file.name || '未命名文档').replace(/\.(md|markdown|txt)$/i, '');
         imported.push(addImportedDoc({ name: base, content, fileHandle: handle, localFileName: handle.name || file.name || null }));
-      } catch (e) { console.warn('打开本地文件失败', handle && handle.name, e); }
+      } catch (e) { tip(`无法打开文件：${e.message}`); }
     }
     if (!imported.length) { tip('未能打开所选文件'); return; }
     activateImportedDocs(imported);
@@ -15174,6 +16378,12 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       const fileName = desktopFileName(record);
       if (record?.error) {
         tip(`无法打开「${fileName}」：${record.error}`);
+        continue;
+      }
+      if (record?.path && window.GuanyiReaderHost?.format(fileName)) {
+        try {
+          imported.push(await addReaderDocument({ name: fileName, bytes: desktopBytes(record.bytes), desktopPath: record.path, lastModified: record.lastModified, size: record.size }));
+        } catch (error) { tip(`无法打开「${fileName}」：${error.message}`); }
         continue;
       }
       if (!record?.path || Number(record.size) > 20 * 1024 * 1024) {
@@ -15245,7 +16455,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     render();
     updateEditChrome();
     imported.forEach(persistDocHandles);
-    (state.viewMode === 'preview' ? els.previewEditor : els.sourceEditor).focus({ preventScroll: true });
+    if (!isReaderDocument(last)) (state.viewMode === 'preview' ? els.previewEditor : els.sourceEditor).focus({ preventScroll: true });
     tip(imported.length === 1 ? `已打开「${last.name}」` : `已打开 ${imported.length} 个文档`);
   }
 
@@ -15265,7 +16475,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
       try {
         const handles = await window.showOpenFilePicker({
           multiple: true,
-          types: TEXT_FILE_PICKER_TYPES
+          types: OPEN_FILE_PICKER_TYPES
         });
         await importFileHandles(handles);
         return;
@@ -15585,7 +16795,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
     if (els.dropMask) els.dropMask.hidden = !show;
     if (els.dropMaskPanel) els.dropMaskPanel.textContent = imageMode
       ? '松开以在当前位置插入图片'
-      : '松开以打开本地 Markdown / TXT 文档';
+      : '松开以打开 Markdown / TXT / EPUB / PDF 文档';
   }
   function bindDragDrop() {
     window.addEventListener('dragenter', (e) => {
@@ -15624,6 +16834,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   function beginRename(doc) { renderDocList(doc.id); }
 
   async function commitRename(doc, rawName, input, opts) {
+    if (isReaderDocument(doc)) { tip('请通过另存为设置新文件名'); return false; }
     const onEmpty = (opts && opts.onEmpty) || 'keep';
     const typedName = String(rawName || '').trim();
     const name = isDiskFileDoc(doc)
@@ -16389,6 +17600,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function openCollabDrawer(panel) {
+    if (isReaderDocument()) { tip('请使用文档阅读工具栏'); return; }
     els.collabDrawer.classList.add('is-open');
     els.collabDrawer.setAttribute('aria-hidden', 'false');
     document.querySelector('.app-shell').classList.add('collab-open');
@@ -16792,6 +18004,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   async function syncReviewSidecars(options) {
+    if (isReaderDocument()) return false;
     const opts = options || {};
     const doc = currentDoc();
     if (!doc) return false;
@@ -16847,6 +18060,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
 
   function scheduleReviewSidecarSync() {
     clearTimeout(reviewSyncTimer);
+    if (isReaderDocument()) return;
     const doc = currentDoc();
     if (!doc || !isDiskFileDoc(doc)) {
       updateSidecarState('local');
@@ -17391,8 +18605,8 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
 
   function workDocumentsForScope() {
     const scope = els.readingScope?.value === 'current' ? 'current' : 'list';
-    if (scope === 'current') return currentDoc() ? [currentDoc()] : [];
-    return state.docs.filter((doc) => doc && doc.syncState !== 'missing');
+    if (scope === 'current') return currentDoc() && !isReaderDocument() ? [currentDoc()] : [];
+    return state.docs.filter((doc) => doc && !isReaderDocument(doc) && doc.syncState !== 'missing');
   }
 
   async function loadWorkDocumentsForScope(requestToken) {
@@ -18563,6 +19777,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   function commitPreviewEditorMarkdown(options) {
+    if (isReaderDocument()) return false;
     const opts = options || {};
     if (previewInputTimer !== null) {
       clearTimeout(previewInputTimer);
@@ -19044,6 +20259,7 @@ Choose a document from the sidebar to read or edit, or use Add Folder to bring a
   }
 
   async function executeApplicationMenuCommand(command) {
+    if (isReaderDocument() && command.startsWith('format.')) return;
     switch (command) {
       case 'app.settings':
         openSettingsModal();

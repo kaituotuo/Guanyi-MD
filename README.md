@@ -72,6 +72,16 @@ npm run build:win
 
 ## 核心能力
 
+当前开发源码已接入 PDF / EPUB 阅读与基础批注，尚未包含在上述 `1.0.37` 安装包中：
+
+- PDF 使用 Mozilla 官方 PDF.js 完整阅读器，支持翻页、缩放、查找、高亮、文字笔记与评论；通过“另存为”导出含原生批注的 PDF。
+- EPUB 使用 epub.js，支持章节、字号、高亮和笔记。标注与阅读位置保存在观绎 MD，可导出 Markdown 阅读笔记。
+- 打开这两类文档时，顶部切换为对应阅读工具栏，沿用观绎 MD 图标。支持单份不超过 100 MB 的文件；目录扫描与全库正文搜索仍面向 Markdown / TXT。
+- PDF 批注草稿本地缓存，正常切换和退出会先保存；原文件保持不变。外部文件已更新时重新打开会创建新的阅读记录，保留旧记录的批注。扫描版 PDF 的文本选择取决于原文件是否已有文字层；本版不提供 OCR 或 EPUB 正文改写。
+- 已修复长文分栏中点击任务列表后滚动到文末的问题；源码光标和两侧滚动位置保持稳定。
+
+执行 `npm run test:regression:readers` 验证阅读器，执行 `npm run test:source-scroll` 验证分栏输入视口。
+
 - 源码、预览、分栏三种工作视图
 - Markdown 常用格式、表格、任务列表与快捷键；列表回车自动续写，空列表项回车退出
 - 本地选择、URL、拖拽和剪贴板图片插入；等高画廊每行支持 1–6 张，可拖动图片跨行插入或调整顺序，目录文档使用 `assets/<文档名>/` 相对路径
@@ -111,7 +121,7 @@ npm run build:win
 node tools/sync-single-file.mjs
 ```
 
-该命令会把 `css/app.css`、`js/docs-data.js` 和 `js/app.js` 同步到 `index.html`。
+该命令会把 `css/app.css`、`js/docs-data.js`、`js/app.js` 和 `js/*-reader.js` / `css/*-reader.css` 阅读模块同步到 `index.html`。PDF.js、epub.js 与 JSZip 的离线资源保存在 `vendor/`，需要与入口一起分发。
 
 搜索界面、技术架构、验收标准和后续研发阶段见 [`docs/搜索原型与研发计划.md`](docs/搜索原型与研发计划.md)。
 

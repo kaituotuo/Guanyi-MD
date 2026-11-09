@@ -36,12 +36,19 @@ const checks = {
   'syntax-main': [node, ['--check', 'desktop/main.cjs']],
   'syntax-preload': [node, ['--check', 'desktop/preload.cjs']],
   'syntax-semantic': [node, ['--check', 'desktop/semantic-search.cjs']],
+  'source-scroll': [node, ['tools/run-electron-smoke.mjs', 'tools/electron-source-scroll-smoke.cjs']],
+  'desktop-binary-documents': [node, ['tools/test-desktop-binary-documents.mjs']],
+  'desktop-binary-electron': [node, ['tools/test-electron-binary-documents.mjs']],
+  'epub-reader': [node, ['tools/run-electron-smoke.mjs', 'tools/electron-epub-reader-smoke.cjs']],
+  'pdf-reader': [node, ['tools/test-pdf-reader.mjs']],
+  'reader-host': [node, ['tools/test-reader-host.mjs']],
+  'reader-integration': [node, ['tools/run-electron-smoke.mjs', 'tools/electron-reader-integration-smoke.cjs']],
   'diff-check': ['git', ['diff', '--check']]
 };
 
 const groups = {
   editor: [
-    'catalog', 'list-editing', 'image-editing', 'markdown-clipboard', 'editor-matrix', 'table-editing',
+    'catalog', 'source-scroll', 'list-editing', 'image-editing', 'markdown-clipboard', 'editor-matrix', 'table-editing',
     'txt-preview', 'desktop-menu', 'desktop-layout', 'desktop-layout-electron', 'document-rename', 'tabs-file-actions', 'search-navigation', 'single-file-sync', 'syntax-app'
   ],
   collaboration: [
@@ -52,6 +59,7 @@ const groups = {
     'catalog', 'directory-refresh', 'desktop-file-open', 'desktop-file-actions', 'document-rename', 'upgrade-persistence',
     'tabs-file-actions', 'search-navigation', 'semantic-search', 'desktop-menu', 'desktop-layout', 'desktop-layout-electron', 'single-file-sync', 'syntax-app', 'syntax-main', 'syntax-preload'
   ],
+  readers: ['catalog', 'single-file-sync', 'desktop-binary-documents', 'desktop-binary-electron', 'epub-reader', 'pdf-reader', 'reader-host', 'reader-integration'],
   search: [
     'catalog', 'search-navigation', 'original-answer', 'work-question', 'desktop-ai-bridge', 'semantic-search',
     'semantic-worker', 'semantic-electron', 'semantic-real-books', 'syntax-semantic'
@@ -66,7 +74,8 @@ groups.recent = unique([
   ...groups.editor,
   ...groups.collaboration,
   ...groups.directory,
-  ...groups.search
+  ...groups.search,
+  ...groups.readers
 ]);
 groups.all = unique([...groups.recent, 'diff-check']);
 

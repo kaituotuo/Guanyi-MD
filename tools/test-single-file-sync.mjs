@@ -18,3 +18,10 @@ await assertSection(new URL('../js/docs-data.js', import.meta.url), '/* ===== js
 await assertSection(new URL('../js/app.js', import.meta.url), '/* ===== js/app.js ===== */\n', '\n  </script>\n  <script type="text/plain" id="third-party-licenses">', 'application JavaScript');
 
 console.log('single-file sync passed: CSS, preset documents and application JavaScript are identical');
+
+for (const name of ['reader-host', 'epub-reader', 'pdf-reader']) {
+  for (const kind of ['js', 'css']) {
+    const source = (await readFile(new URL(`../${kind}/${name}.${kind}`, import.meta.url), 'utf8')).trimEnd();
+    assert.ok(index.includes(`/* ===== ${kind}/${name}.${kind} ===== */\n${source}`), `${name} ${kind} should match source`);
+  }
+}

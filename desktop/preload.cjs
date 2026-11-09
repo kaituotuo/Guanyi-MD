@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('guanyiDesktop', Object.freeze({
   files: Object.freeze({
     choose: () => ipcRenderer.invoke('guanyi-files:choose'),
     saveAs: (suggestedName, content) => ipcRenderer.invoke('guanyi-files:save-as', { suggestedName, content }),
+    saveBinaryAs: (suggestedName, bytes) => ipcRenderer.invoke('guanyi-files:save-binary-as', { suggestedName, bytes }),
+    cacheBinary: (id, bytes) => ipcRenderer.invoke('guanyi-files:cache-binary', { id, bytes }),
+    readCachedBinary: (id) => ipcRenderer.invoke('guanyi-files:read-cached-binary', id),
     createManaged: (suggestedName, content) => ipcRenderer.invoke('guanyi-files:create-managed', { suggestedName, content }),
     onOpen: (callback) => {
       openFilesHandler = typeof callback === 'function' ? callback : null;

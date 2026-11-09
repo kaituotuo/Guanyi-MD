@@ -69,10 +69,10 @@ assert.doesNotMatch(checklist, /## 9\. 本轮执行记录/, '不得保留旧的�
 assert.doesNotMatch(checklist, /1\.0\.18/, '当前基线不得回退到 1.0.18');
 
 const recentRows = checklist.split(/\r?\n/).filter((line) => /^\|\s*RX-\d{2}\s*\|/.test(line));
-assert.equal(recentRows.length, 41, '近期反馈锁定矩阵必须恰好包含 41 项');
+assert.equal(recentRows.length, 42, '近期反馈锁定矩阵必须恰好包含 42 项');
 const recentIds = recentRows.map((line) => parseMarkdownRow(line)[0]);
-const expectedRecentIds = Array.from({ length: 41 }, (_, index) => `RX-${String(index + 1).padStart(2, '0')}`);
-assert.deepEqual(recentIds, expectedRecentIds, '近期反馈编号必须从 RX-01 到 RX-41 连续且不重复');
+const expectedRecentIds = Array.from({ length: 42 }, (_, index) => `RX-${String(index + 1).padStart(2, '0')}`);
+assert.deepEqual(recentIds, expectedRecentIds, '近期反馈编号必须从 RX-01 到 RX-42 连续且不重复');
 recentRows.forEach((line, index) => {
   const cells = parseMarkdownRow(line);
   assert.equal(cells.length, 5, `${expectedRecentIds[index]} 必须保持五列表格结构`);
@@ -85,6 +85,11 @@ assert.equal(searchRows.length, 23, '搜索矩阵必须包含 SE-01 到 SE-23');
 searchRows.forEach((line) => assert.equal(parseMarkdownRow(line).length, 4, `${parseMarkdownRow(line)[0]} 必须保持四列表格结构`));
 
 const expectedScripts = [
+  'test:source-scroll',
+  'test:epub-reader',
+  'test:pdf-reader',
+  'test:reader-integration',
+  'test:regression:readers',
   'test:markdown-clipboard',
   'test:work-question',
     'test:desktop-ai-bridge',
@@ -103,7 +108,7 @@ const expectedScripts = [
 ];
 expectedScripts.forEach((name) => assert.equal(typeof packageJson.scripts?.[name], 'string', `package.json 缺少 ${name}`));
 
-const groupNames = ['editor', 'collaboration', 'directory', 'search', 'recent', 'all'];
+const groupNames = ['readers', 'editor', 'collaboration', 'directory', 'search', 'recent', 'all'];
 groupNames.forEach((name) => {
   const declaration = ['recent', 'all'].includes(name)
     ? new RegExp(`groups\\.${name}\\s*=`)
@@ -135,4 +140,4 @@ assert.match(css, /\.app-collab-drawer\s*\{[^}]*top:\s*var\(--guanyi-workspace-t
 assert.match(css, /\.app-shell\.collab-open \.app-body\s*{\s*margin-right:\s*0;/, '侧栏展开时不得压缩顶部工具栏');
 assert.match(css, /\.app-shell\.collab-open \.app-main \.editor-container\s*{\s*margin-right:\s*372px;/, '侧栏展开时只为正文画布预留空间');
 
-process.stdout.write('regression catalog passed: 41 recent feedback cases and 12 execution gates verified\n');
+process.stdout.write('regression catalog passed: 42 recent feedback cases and 12 execution gates verified\n');

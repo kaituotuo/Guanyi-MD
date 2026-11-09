@@ -26,7 +26,7 @@
   const CONTENT_MIGRATION_VERSION = 1;
   const PRESET_MIGRATION_VERSION = 7;
   const DIRECTORY_MIGRATION_VERSION = 1;
-  const OPEN_EXTS = ['.md', '.markdown', '.txt'];
+  const OPEN_EXTS = ['.md', '.markdown', '.txt', '.epub', '.pdf'];
   const DIRECTORY_EXTS = ['.md', '.markdown', '.txt'];
   const DIRECTORY_MAX_DEPTH = 5;
   const DIRECTORY_MAX_FILES = 500;
@@ -67,7 +67,11 @@
   const AI_PROXY_HEADER = 'x-md-editor-ai-proxy';
   const TEXT_FILE_PICKER_TYPES = [{
     description: 'Markdown 和文本',
-    accept: { 'text/plain': OPEN_EXTS }
+    accept: { 'text/plain': ['.md', '.markdown', '.txt'] }
+  }];
+  const OPEN_FILE_PICKER_TYPES = [{
+    description: 'Markdown、文本、EPUB 和 PDF',
+    accept: { 'text/plain': ['.md', '.markdown', '.txt'], 'application/pdf': ['.pdf'], 'application/epub+zip': ['.epub'] }
   }];
   const IMAGE_MIN_WIDTH_PERCENT = 25;
   const IMAGE_MAX_WIDTH_PERCENT = 100;
@@ -853,7 +857,8 @@
   }
 
   function currentDoc() { return state.docs.find((d) => d.id === state.currentDocId) || null; }
-  function getCurrentMarkdown() { return currentDoc()?.content ?? ''; }
+  function isReaderDocument(doc = currentDoc()) { return doc?.readerFormat === 'pdf' || doc?.readerFormat === 'epub'; }
+  function getCurrentMarkdown() { return isReaderDocument() ? '' : (currentDoc()?.content ?? ''); }
   function documentSourceName(doc) {
     return doc?.localFileName || doc?.relativePath || doc?.desktopPath || doc?.name || '';
   }
@@ -928,7 +933,7 @@
       hasDirectories: state.directories.length > 0,
       canUndo: canUndo(),
       canRedo: canRedo(),
-      plainText: isPlainTextDocument(doc),
+      plainText: isPlainTextDocument(doc) || isReaderDocument(doc),
       viewMode: state.viewMode,
       theme: state.theme
     });
@@ -1281,6 +1286,7 @@
   }
 
   function setCurrentMarkdown(md, options) {
+    if (isReaderDocument()) return;
     const doc = currentDoc();
     if (!doc) return;
     const opts = options || {};
@@ -1304,6 +1310,7 @@
   }
 
   function applyHistory(direction) {
+    if (isReaderDocument()) return false;
     flushPendingPreviewCommit();
     const doc = currentDoc();
     const history = ensureHistory(doc);
@@ -1320,11 +1327,13 @@
   }
 
   function canUndo() {
+    if (isReaderDocument()) return false;
     const history = ensureHistory(currentDoc());
     return !!(history && history.index > 0);
   }
 
   function canRedo() {
+    if (isReaderDocument()) return false;
     const history = ensureHistory(currentDoc());
     return !!(history && history.index < history.entries.length - 1);
   }
@@ -1615,6 +1624,9 @@
     const payload = {
       docs: state.docs.map((d) => ({
         id: d.id,
+        readerFormat: d.readerFormat || null,
+        readerPosition: d.readerPosition || null,
+        readerDraftKey: d.readerDraftKey || null,
         name: d.name,
         content: d.content,
         lastSavedContent: typeof d.lastSavedContent === 'string' ? d.lastSavedContent : d.content,
@@ -1649,9 +1661,16 @@
       directoryMigrationVersion: DIRECTORY_MIGRATION_VERSION
     };
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); }
-    catch (e) { console.warn('保存 localStorage 失败', e); }
-    window.guanyiDesktop?.state?.save?.(payload).catch((error) => console.warn('保存桌面编辑状态备份失败', error));
+    catch (e) {
+      console.warn('保存 localStorage 失败', e);
+      if (options?.awaitPersistence && !window.guanyiDesktop?.state?.save) throw e;
+    }
+    const pendingSave = window.guanyiDesktop?.state?.save?.(payload).catch((error) => {
+      console.warn('保存桌面编辑状态备份失败', error);
+      if (options?.awaitPersistence) throw error;
+    });
     if (!options || !options.silent) flashSaveIndicator();
+    return pendingSave;
   }
 
   function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveState, SAVE_DEBOUNCE); }
@@ -2815,6 +2834,20 @@
   }
 
   function renderPreview() {
+    if (isReaderDocument()) {
+      clearTimeout(renderTimer);
+      renderTimer = null;
+      clearSelectedPreviewImage();
+      if (els.collabDrawer?.classList.contains('is-open')) closeCollabDrawer();
+      window.GuanyiReaderHost.show(currentDoc(), {
+        icon: iconTemplate, notify: tip, save: saveCurrentDocument,
+        persist: (wait = false) => saveState({ silent: true, awaitPersistence: wait }),
+        changed: () => { saveState(); updateStatus(); renderDocumentTabs(); }
+      });
+      updateOutline();
+      return;
+    }
+    window.GuanyiReaderHost?.hide();
     clearTimeout(renderTimer);
     renderTimer = null;
     releasePreviewImageUrls();
@@ -2980,8 +3013,8 @@
       if (isDocDirty(doc)) {
         const dirty = document.createElement('span');
         dirty.className = 'app-document-tab__dirty';
-        dirty.title = '有未保存修改';
-        dirty.setAttribute('aria-label', '有未保存修改');
+        dirty.title = isReaderDocument(doc) ? '批注尚未导出' : '有未保存修改';
+        dirty.setAttribute('aria-label', dirty.title);
         tab.appendChild(dirty);
       }
       const close = document.createElement('button');
@@ -3011,7 +3044,7 @@
       ensureDocOpen(replacement.id);
     }
     const nextId = nextTabAfterClose(docId) || state.openDocIds.find((id) => id !== docId);
-    if (options.discard && isDocDirty(doc)) {
+    if (options.discard && !isReaderDocument(doc) && isDocDirty(doc)) {
       doc.content = doc.lastSavedContent;
       histories.set(doc.id, { entries: [doc.content], uiEntries: [null], index: 0, lastInputAt: 0, lastInputSource: null });
       markSemanticIndexDirty(doc.id);
@@ -3033,6 +3066,13 @@
   async function requestCloseDocumentTab(docId) {
     const doc = state.docs.find((item) => item.id === docId);
     if (!doc) return;
+    if (isReaderDocument(doc)) {
+      try {
+        await window.GuanyiReaderHost.flush();
+        await finalizeCloseDocumentTab(docId);
+      } catch (error) { tip(`批注尚未保存，请保留页签重试：${error.message}`); }
+      return;
+    }
     if (!isDocDirty(doc)) { await finalizeCloseDocumentTab(docId); return; }
     pendingTabCloseId = docId;
     els.tabCloseTitle.textContent = `保存「${doc.name}」的修改？`;
@@ -3164,6 +3204,11 @@
 
   function updateStatus() {
     const doc = currentDoc();
+    if (isReaderDocument(doc)) {
+      els.statusText.textContent = `${doc.name} · ${doc.readerFormat.toUpperCase()}${isDocDirty(doc) ? ' · 批注待导出' : ''}`;
+      updateEditChrome();
+      return;
+    }
     const md = getCurrentMarkdown();
     const lines = md ? md.split('\n').length : 0;
     const chars = md.length;
@@ -3534,9 +3579,17 @@
 
   function applySourceTransform(result) {
     if (!result) return false;
-    setCurrentMarkdown(result.text);
-    els.sourceEditor.focus();
-    setProgrammaticSourceSelection(result.selStart, result.selEnd);
+    // Replacing textarea.value moves its selection to EOF. Restore the edit
+    // selection before returning focus from a toolbar button, so focus cannot
+    // scroll both split panes to the document's end.
+    const scrollTop = els.sourceEditor.scrollTop;
+    const scrollLeft = els.sourceEditor.scrollLeft;
+    setCurrentMarkdown(result.text, {
+      sourceSelection: { start: result.selStart, end: result.selEnd }
+    });
+    els.sourceEditor.focus({ preventScroll: true });
+    els.sourceEditor.scrollTop = scrollTop;
+    els.sourceEditor.scrollLeft = scrollLeft;
     renderPreview();
     return true;
   }
@@ -5312,6 +5365,7 @@
   }
 
   function exportMarkdown() {
+    if (isReaderDocument()) return saveCurrentDocument();
     if (exportInProgress) return false;
     const markdown = getCurrentMarkdown();
     const plainText = isPlainTextDocument(currentDoc());
@@ -6441,6 +6495,7 @@
   }
 
   async function saveCurrentDocument(options) {
+    if (isReaderDocument()) return window.GuanyiReaderHost.saveAs(currentDoc());
     const opts = options || {};
     flushPendingPreviewCommit();
     const doc = currentDoc();
@@ -6625,6 +6680,7 @@
   }
 
   async function exportPdf() {
+    if (isReaderDocument()) return saveCurrentDocument();
     if (exportInProgress) return;
     exportInProgress = true;
     setExportBusy(els.btnPdf, true);
@@ -6652,6 +6708,7 @@
   }
 
   async function exportImage() {
+    if (isReaderDocument()) { tip('请使用阅读工具栏另存文档'); return false; }
     if (exportInProgress) return;
     if (typeof html2canvas === 'undefined') { tip('图片导出库未加载'); return; }
     exportInProgress = true;
@@ -7136,6 +7193,11 @@
   }
 
   async function openFileActionModal(mode) {
+    if (isReaderDocument()) {
+      if (mode === 'save-as') return saveCurrentDocument();
+      tip('请使用另存为导出此文档');
+      return;
+    }
     if (fileActionState.busy || fileActionState.pickerBusy) return;
     flushPendingPreviewCommit();
     const doc = currentDoc();
@@ -7459,6 +7521,7 @@
   }
 
   function setViewMode(mode) {
+    if (isReaderDocument()) return;
     if (mode !== state.viewMode) flushPendingPreviewCommit();
     draftCommentAnchor = null;
     selectedPreviewBlock = null;
@@ -7676,7 +7739,7 @@
   }
 
   function searchScopeDocumentIds(documents, currentDocId, scope = 'list') {
-    const docs = Array.isArray(documents) ? documents.filter((doc) => doc?.id) : [];
+    const docs = Array.isArray(documents) ? documents.filter((doc) => doc?.id && !isReaderDocument(doc)) : [];
     const current = docs.find((doc) => doc.id === currentDocId) || null;
     if (scope === 'document') return current ? [current.id] : [];
     return docs.map((doc) => doc.id);
@@ -7890,6 +7953,7 @@
   }
 
   async function contentForSearch(doc) {
+    if (isReaderDocument(doc)) return '';
     if (doc.contentLoaded !== false) return typeof doc.content === 'string' ? doc.content : '';
     if (!isDirectoryDoc(doc)) return typeof doc.content === 'string' ? doc.content : '';
     const directory = directoryForDoc(doc);
@@ -10116,6 +10180,7 @@
   }
 
   function openContentFind(tab = 'find') {
+    if (isReaderDocument()) { tip('请使用文档阅读工具栏'); return; }
     contentFindPreviousFocus = document.activeElement;
     const selected = state.viewMode === 'preview'
       ? window.getSelection()?.toString() || ''
@@ -10196,6 +10261,7 @@
   }
 
   function canRenameDocument(doc) {
+    if (isReaderDocument(doc)) return false;
     if (!doc) return false;
     if (!isDiskFileDoc(doc)) return true;
     return !!((doc.fileHandle || doc.desktopPath)
@@ -10907,9 +10973,9 @@
     return decodeTextBytes(await file.arrayBuffer());
   }
 
-  function addImportedDoc({ name, content, fileHandle, localFileName, desktopPath, lastModified, size }) {
+  function addImportedDoc({ id, name, content, fileHandle, localFileName, desktopPath, lastModified, size }) {
     const doc = {
-      id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: id || `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       name: uniqueDocName(name || '未命名文档'),
       content: content || '',
       lastSavedContent: content || '',
@@ -10929,15 +10995,32 @@
     return doc;
   }
 
+  async function addReaderDocument({ name, bytes, desktopPath, fileHandle, lastModified, size }) {
+    const existing = desktopPath && state.docs.findLast((doc) => doc.desktopPath === desktopPath && isReaderDocument(doc)
+      && doc.externalModifiedAt === lastModified && doc.externalSize === size);
+    if (existing && await window.GuanyiReaderHost.reuse(existing, bytes)) return existing;
+    const id = `reader-${crypto.randomUUID()}`;
+    const reader = await window.GuanyiReaderHost.prepare({ id, name, bytes });
+    const doc = addImportedDoc({ id, name: name.replace(/\.(epub|pdf)$/i, ''), content: '{}',
+      localFileName: name, desktopPath, fileHandle, lastModified, size });
+    Object.assign(doc, reader);
+    return doc;
+  }
+
   async function importLocalFiles(fileList) {
     const files = [...(fileList || [])].filter(isOpenableFile);
-    if (!files.length) { tip('请选择 .md / .markdown / .txt 文件'); return; }
+    if (!files.length) { tip('请选择 Markdown、TXT、EPUB 或 PDF 文件'); return; }
     const imported = [];
     for (const file of files) {
       try {
+        if (window.GuanyiReaderHost?.format(file.name)) {
+          if (file.size > 100 * 1024 * 1024) throw new Error('文件超过 100 MB');
+          imported.push(await addReaderDocument({ name: file.name, bytes: await file.arrayBuffer(), lastModified: file.lastModified, size: file.size }));
+          continue;
+        }
         const content = await readFileAsText(file);
         imported.push(addImportedDoc({ name: nameFromFile(file), content, fileHandle: null, localFileName: file.name || null }));
-      } catch (e) { console.warn('打开本地文件失败', file && file.name, e); }
+      } catch (e) { tip(`无法打开「${file.name}」：${e.message}`); }
     }
     if (!imported.length) { tip('未能打开所选文件'); return; }
     activateImportedDocs(imported);
@@ -10950,10 +11033,15 @@
         if (handle.kind && handle.kind !== 'file') continue;
         const file = await handle.getFile();
         if (!isOpenableFile(file)) continue;
+        if (window.GuanyiReaderHost?.format(file.name)) {
+          if (file.size > 100 * 1024 * 1024) throw new Error('文件超过 100 MB');
+          imported.push(await addReaderDocument({ name: file.name, bytes: await file.arrayBuffer(), fileHandle: handle, lastModified: file.lastModified, size: file.size }));
+          continue;
+        }
         const content = await readFileAsText(file);
         const base = (handle.name || file.name || '未命名文档').replace(/\.(md|markdown|txt)$/i, '');
         imported.push(addImportedDoc({ name: base, content, fileHandle: handle, localFileName: handle.name || file.name || null }));
-      } catch (e) { console.warn('打开本地文件失败', handle && handle.name, e); }
+      } catch (e) { tip(`无法打开文件：${e.message}`); }
     }
     if (!imported.length) { tip('未能打开所选文件'); return; }
     activateImportedDocs(imported);
@@ -11021,6 +11109,12 @@
       const fileName = desktopFileName(record);
       if (record?.error) {
         tip(`无法打开「${fileName}」：${record.error}`);
+        continue;
+      }
+      if (record?.path && window.GuanyiReaderHost?.format(fileName)) {
+        try {
+          imported.push(await addReaderDocument({ name: fileName, bytes: desktopBytes(record.bytes), desktopPath: record.path, lastModified: record.lastModified, size: record.size }));
+        } catch (error) { tip(`无法打开「${fileName}」：${error.message}`); }
         continue;
       }
       if (!record?.path || Number(record.size) > 20 * 1024 * 1024) {
@@ -11092,7 +11186,7 @@
     render();
     updateEditChrome();
     imported.forEach(persistDocHandles);
-    (state.viewMode === 'preview' ? els.previewEditor : els.sourceEditor).focus({ preventScroll: true });
+    if (!isReaderDocument(last)) (state.viewMode === 'preview' ? els.previewEditor : els.sourceEditor).focus({ preventScroll: true });
     tip(imported.length === 1 ? `已打开「${last.name}」` : `已打开 ${imported.length} 个文档`);
   }
 
@@ -11112,7 +11206,7 @@
       try {
         const handles = await window.showOpenFilePicker({
           multiple: true,
-          types: TEXT_FILE_PICKER_TYPES
+          types: OPEN_FILE_PICKER_TYPES
         });
         await importFileHandles(handles);
         return;
@@ -11432,7 +11526,7 @@
     if (els.dropMask) els.dropMask.hidden = !show;
     if (els.dropMaskPanel) els.dropMaskPanel.textContent = imageMode
       ? '松开以在当前位置插入图片'
-      : '松开以打开本地 Markdown / TXT 文档';
+      : '松开以打开 Markdown / TXT / EPUB / PDF 文档';
   }
   function bindDragDrop() {
     window.addEventListener('dragenter', (e) => {
@@ -11471,6 +11565,7 @@
   function beginRename(doc) { renderDocList(doc.id); }
 
   async function commitRename(doc, rawName, input, opts) {
+    if (isReaderDocument(doc)) { tip('请通过另存为设置新文件名'); return false; }
     const onEmpty = (opts && opts.onEmpty) || 'keep';
     const typedName = String(rawName || '').trim();
     const name = isDiskFileDoc(doc)
@@ -12236,6 +12331,7 @@
   }
 
   function openCollabDrawer(panel) {
+    if (isReaderDocument()) { tip('请使用文档阅读工具栏'); return; }
     els.collabDrawer.classList.add('is-open');
     els.collabDrawer.setAttribute('aria-hidden', 'false');
     document.querySelector('.app-shell').classList.add('collab-open');
@@ -12639,6 +12735,7 @@
   }
 
   async function syncReviewSidecars(options) {
+    if (isReaderDocument()) return false;
     const opts = options || {};
     const doc = currentDoc();
     if (!doc) return false;
@@ -12694,6 +12791,7 @@
 
   function scheduleReviewSidecarSync() {
     clearTimeout(reviewSyncTimer);
+    if (isReaderDocument()) return;
     const doc = currentDoc();
     if (!doc || !isDiskFileDoc(doc)) {
       updateSidecarState('local');
@@ -13238,8 +13336,8 @@
 
   function workDocumentsForScope() {
     const scope = els.readingScope?.value === 'current' ? 'current' : 'list';
-    if (scope === 'current') return currentDoc() ? [currentDoc()] : [];
-    return state.docs.filter((doc) => doc && doc.syncState !== 'missing');
+    if (scope === 'current') return currentDoc() && !isReaderDocument() ? [currentDoc()] : [];
+    return state.docs.filter((doc) => doc && !isReaderDocument(doc) && doc.syncState !== 'missing');
   }
 
   async function loadWorkDocumentsForScope(requestToken) {
@@ -14410,6 +14508,7 @@
   }
 
   function commitPreviewEditorMarkdown(options) {
+    if (isReaderDocument()) return false;
     const opts = options || {};
     if (previewInputTimer !== null) {
       clearTimeout(previewInputTimer);
@@ -14891,6 +14990,7 @@
   }
 
   async function executeApplicationMenuCommand(command) {
+    if (isReaderDocument() && command.startsWith('format.')) return;
     switch (command) {
       case 'app.settings':
         openSettingsModal();

@@ -34,4 +34,16 @@ html = replaceSection(
   js
 );
 
+const readerStyles = await Promise.all(['reader-host', 'epub-reader', 'pdf-reader'].map(async (name) =>
+  `/* ===== css/${name}.css ===== */\n${(await readFile(resolve(demoDir, `css/${name}.css`), 'utf8')).trimEnd()}`));
+const readerScripts = await Promise.all(['reader-host', 'epub-reader', 'pdf-reader'].map(async (name) =>
+  `/* ===== js/${name}.js ===== */\n${(await readFile(resolve(demoDir, `js/${name}.js`), 'utf8')).trimEnd()}`));
+const readerBundle = `<style id="format-reader-styles">\n${readerStyles.join('\n')}\n</style>
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/epub.min.js"></script>
+<script id="format-readers">\n${readerScripts.join('\n')}\n</script>`;
+const readerStart = '<!-- FORMAT READERS START -->';
+const readerEnd = '<!-- FORMAT READERS END -->';
+if (!html.includes(readerStart)) html = html.replace('  <script>\n/* ===== vendor/', `${readerStart}\n${readerEnd}\n  <script>\n/* ===== vendor/`);
+html = replaceSection(html, readerStart, readerEnd, `\n${readerBundle}\n`);
 await writeFile(indexPath, html, 'utf8');

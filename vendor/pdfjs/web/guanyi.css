@@ -1,0 +1,22 @@
+/* Host toolbar integration for the unmodified PDF.js GENERIC viewer. */
+:root { --toolbar-height: 0px; }
+#toolbarContainer { height: 0 !important; min-height: 0 !important; }
+#toolbarViewer { display: none !important; }
+#viewerContainer { inset: 0 !important; }
+.guanyi-pdf-popover {
+  position: fixed !important;
+  top: 8px !important;
+  right: 20px !important;
+  left: auto !important;
+  z-index: 10000 !important;
+}
+#findbar.guanyi-pdf-popover { max-width: calc(100vw - 24px); }
+#viewsManager.guanyi-pdf-popover {
+  left: 0 !important;
+  right: auto !important;
+  top: 0 !important;
+  height: 100% !important;
+}
+#editorInk, #editorStamp, #editorSignature, #openFile, #printButton, #downloadButton {
+  display: none !important;
+}

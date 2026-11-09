@@ -1,6 +1,6 @@
 {
   "name": "guanyi-md",
-  "version": "1.0.37",
+  "version": "1.0.38",
   "description": "观绎 MD｜俯仰观物，绎述我心。",
   "main": "desktop/main.cjs",
   "author": "Guanyi MD",
@@ -45,11 +45,22 @@
     "build:mac": "node tools/build-desktop.mjs --mac",
     "build:win": "node tools/build-desktop.mjs --win",
     "build:desktop": "node tools/build-desktop.mjs --all",
-    "release:patch": "npm version patch --no-git-tag-version && npm run build:desktop"
+    "release:patch": "npm version patch --no-git-tag-version && npm run build:desktop",
+    "test:desktop-binary-documents": "node tools/test-desktop-binary-documents.mjs",
+    "test:desktop-binary-electron": "node tools/test-electron-binary-documents.mjs",
+    "test:source-scroll": "node tools/run-electron-smoke.mjs tools/electron-source-scroll-smoke.cjs",
+    "test:epub-reader": "node tools/run-electron-smoke.mjs tools/electron-epub-reader-smoke.cjs",
+    "test:pdf-reader": "node tools/test-pdf-reader.mjs",
+    "test:reader-integration": "node tools/run-electron-smoke.mjs tools/electron-reader-integration-smoke.cjs",
+    "test:regression:readers": "node tools/run-regression-matrix.mjs readers",
+    "test:reader-host": "node tools/test-reader-host.mjs"
   },
   "devDependencies": {
     "electron": "43.4.0",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "epubjs": "0.3.93",
+    "jszip": "3.10.2",
+    "pdfjs-dist": "6.5.438"
   },
   "build": {
     "appId": "com.guanyi.md",
@@ -100,6 +111,22 @@
         "name": "Markdown 文档",
         "description": "Markdown 文档",
         "role": "Editor"
+      },
+      {
+        "ext": [
+          "pdf"
+        ],
+        "name": "PDF 文档",
+        "description": "PDF 阅读与批注",
+        "role": "Editor"
+      },
+      {
+        "ext": [
+          "epub"
+        ],
+        "name": "EPUB 电子书",
+        "description": "EPUB 阅读与笔记",
+        "role": "Viewer"
       }
     ],
     "mac": {
