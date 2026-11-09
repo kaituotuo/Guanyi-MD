@@ -117,6 +117,10 @@ async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
       tabs,
       selectedRadius: selected ? getComputedStyle(selected).borderRadius : '',
       brandVisible: Boolean(document.querySelector('.app-topbar__brand')?.getClientRects().length),
+      brandText: (() => {
+        const element = document.querySelector('.app-topbar__brand > span:last-child');
+        return element ? { text: element.textContent.trim(), clientWidth: element.clientWidth, scrollWidth: element.scrollWidth } : null;
+      })(),
       sloganVisible: Boolean(document.querySelector('.app-topbar__tagline')?.getClientRects().length),
       drawerOpen: document.getElementById('collab-drawer').classList.contains('is-open'),
       tabArcSize: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--guanyi-tab-arc-size'))
@@ -125,6 +129,9 @@ async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
 
   if (layout.theme !== theme) throw new Error(`${name}: theme did not apply`);
   if (!layout.brandVisible || !layout.sloganVisible) throw new Error(`${name}: desktop brand or slogan is hidden`);
+  if (!layout.brandText || layout.brandText.scrollWidth > layout.brandText.clientWidth + 1) {
+    throw new Error(`${name}: app name is clipped: ${JSON.stringify(layout.brandText)}`);
+  }
   if (!layout.drawerOpen) throw new Error(`${name}: collaboration drawer did not open`);
   if (layout.tabs.length < minimumTabs) throw new Error(`${name}: expected at least ${minimumTabs} tabs`);
   assertClose(layout.topbar.bottom, layout.formatbar.top, `${name}: formatbar must follow topbar`);
