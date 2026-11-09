@@ -242,7 +242,7 @@
       notesPanel.append(header);
       const storageNote = document.createElement('p');
       storageNote.className = 'epub-reader__storage-note';
-      storageNote.textContent = '自动保存在观绎 MD，可导出为 Markdown 笔记。';
+      storageNote.textContent = '自动保存在观译阅读器，可导出为 Markdown 笔记。';
       notesPanel.append(storageNote);
       if (!annotations.length) {
         const empty = document.createElement('p');
@@ -411,7 +411,7 @@
         serialize: async () => original.slice(),
         exportNotes() {
           const title = String(book.package?.metadata?.title || 'EPUB 阅读笔记').replace(/[\r\n]/g, ' ');
-          const lines = [`# ${title} · 阅读笔记`, '', '标注保存在观绎 MD。本文件包含摘录与笔记。', ''];
+          const lines = [`# ${title} · 阅读笔记`, '', '标注保存在观译阅读器。本文件包含摘录与笔记。', ''];
           for (const item of annotations) {
             lines.push(`## ${item.chapter || '阅读标注'}`, '', item.quote.split('\n').map((line) => `> ${line}`).join('\n'), '');
             if (item.note) lines.push(item.note, '');

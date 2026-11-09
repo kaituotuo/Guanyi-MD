@@ -6,46 +6,36 @@ window.PRESET_DOCS = [
   {
     id: 'builtin-product-intro',
     name: '产品介绍',
-    content: `# 观绎 MD
+    content: `# 观译阅读器
 
-**Guanyi‑MD｜俯仰观物，绎述我心。**
+**Guanyi Reader｜让阅读、摘录与思考留在本地。**
 
-一款以本心为源的 Markdown 编辑器，观览万象，抽绎所思。
-
-## 名字由来
-
-“观”出自《周易・系辞上》：“仰以观于天文，俯以察于地理。”
-
-以己身为主体，怀好奇之心，敏锐观照天地万象，不随外物偏移，守“以我为主”之本。
-
-“绎”出自《论语・子罕》：“巽与之言，能无说乎？绎之为贵。”
-
-绎，抽丝理绪，推阐本心。将观察所得内化沉淀，再把所思所想梳理、发送、表达于文字。
-
-观绎 MD 不以工具束缚人，而为人承载思想。向外观万物，向内绎本心，以书写者为中心，把内在思考交付笔墨。
+支持 Markdown、TXT、PDF 和 EPUB 的本地阅读与批注工具。
 
 ## 产品简介
 
-观绎 MD 是一款无需安装、双击即可使用的本地优先 Markdown 阅读编辑器。它适用于 Markdown 与 TXT 文档；在此基础上，还可通过“添加目录”持续接入本地文档，并使用“智能审阅”完成人工批注和 AI 辅助阅读。
+观译阅读器支持打开本地 Markdown、TXT、PDF 和 EPUB，工具栏随文档格式切换。Markdown 与 TXT 保留正文编辑能力；PDF 与 EPUB 提供阅读、高亮、批注和笔记。桌面客户端保留阅读记录，也可在浏览器中使用本地文档功能。
 
 ## 适用场景
 
 - 阅读、撰写和整理产品方案、会议记录、笔记与技术文档
+- 阅读 PDF 资料，添加高亮和批注，另存含批注的 PDF
+- 按章节阅读 EPUB 电子书，调整字号并导出摘录与笔记
 - 校对或二次编辑 AI / 智能体生成的 Markdown 内容
 - 在离线或内网环境中完成轻量写作
 - 将 Markdown 导出为 PDF、PNG 或原始 \`.md\` 文件
 
 ## 核心能力
 
-1. **三种编辑视图**：在源码、预览和分栏之间自由切换。
-2. **常用格式工具**：支持标题、粗体、斜体、列表、引用、代码和表格。
-3. **本地文档管理**：新建文档、打开本地文件，并在浏览器中自动保存编辑进度。
-4. **撤销与恢复**：每份文档保留独立的最近编辑历史。
-5. **多格式导出**：下载 Markdown 原文，或导出为 PDF 和长图。
+1. **Markdown 编辑**：在源码、预览和分栏之间自由切换，支持标题、粗体、列表、引用、代码和表格。
+2. **TXT 阅读与编辑**：保留原始文字和换行，支持纯文本阅读与修改。
+3. **PDF 阅读与批注**：翻页、缩放、查找，添加高亮、批注和笔记，另存含批注的 PDF。
+4. **EPUB 阅读与笔记**：章节目录、分页、字号调整和阅读位置恢复；高亮与笔记自动保存在本机，可导出 Markdown 笔记。
+5. **Markdown 导出与历史**：保留最近编辑历史，可导出 Markdown 原文、PDF 和长图。
 6. **添加目录**：授权多个本地文件夹，扫描 5 层内的 Markdown 与 TXT 文档，按原目录层级集中浏览和编辑。
-7. **安全写回**：保存到原文件，并在外部文件变化时保护当前编辑。
-8. **智能审阅：人工批注**：为精确文字或整块内容添加批注，查看、修改、删除并自动生成 AI 可读伴随文件，Markdown 正文保持不变。
-9. **智能审阅：AI 辅助阅读**：记录阅读进度，并可使用用户配置的 OpenAI 兼容模型生成重点、关键细节和易错冲突提醒，结果引用可定位原文。
+7. **文本安全写回**：Markdown 与 TXT 保存到原文件，并在外部文件变化时保护当前编辑。
+8. **Markdown 智能审阅：人工批注**：为精确文字或整块内容添加批注，查看、修改、删除并自动生成 AI 可读伴随文件，Markdown 正文保持不变。
+9. **Markdown AI 辅助阅读**：记录阅读进度，并可使用用户配置的 OpenAI 兼容模型生成重点、关键细节和易错冲突提醒，结果引用可定位原文。
 10. **模型与密钥安全**：连接测试不发送正文；API Key 默认只保存在当前会话，浏览器直连受限时可使用不落盘的本机安全转发。
 
 ## 协作扩展进展
@@ -55,14 +45,15 @@ window.PRESET_DOCS = [
 
 ## 数据与文件
 
-- 浏览器文档保存在 \`localStorage\` 中。
-- 使用 Chrome 或 Edge 打开的本地文件，可在授权后写回原文件。
+- 文本编辑进度和阅读记录保存在本机；PDF 批注草稿与 EPUB 原文件使用本地缓存。
+- 使用 Chrome 或 Edge 打开的 Markdown 与 TXT，可在授权后写回原文件。
+- PDF 使用“另存为”导出含批注的文件；EPUB 原书保持不变，高亮与笔记保存在应用中并可单独导出。
 - 本地文件从侧栏移除时，磁盘中的原文件仍会保留。
 - AI 辅助阅读只在用户主动生成时发送当前 Markdown；API Key 默认仅保存在当前会话，不写入源码、正文、伴随文件或项目文件。
 
 ## 开始使用
 
-从左侧选择一份文档即可阅读或编辑；也可点击“添加目录”接入本地 Markdown 与 TXT 文档。选择文字后点击工具栏“智能审阅”组合图标，可开始人工批注；抽屉中还可切换到“AI 辅助阅读”。`
+点击“打开文档”选择 Markdown、TXT、PDF 或 EPUB。Markdown 与 TXT 可直接编辑；PDF 与 EPUB 使用阅读工具栏添加高亮和笔记。“添加目录”可持续接入 Markdown 与 TXT 文库；Markdown 的“智能审阅”提供人工批注和 AI 辅助阅读。`
   },
   {
     id: 'builtin-feature-demo',
@@ -171,32 +162,34 @@ function renderMarkdown(source) {
   {
     id: 'builtin-product-intro-en',
     name: '产品介绍（英文）',
-    content: `# Guanyi‑MD
+    content: `# Guanyi Reader
 
-**观绎 MD｜俯仰观物，绎述我心。**
+**观译阅读器｜让阅读、摘录与思考留在本地。**
 
 ## Overview
 
-Guanyi‑MD is a local-first Markdown reader and editor centered on the writer. It runs directly in Chrome or Edge, works with any Markdown document, can ingest local folders, and provides Smart Review for human comments and user-triggered AI-assisted reading.
+Guanyi Reader is a local reading and annotation tool for Markdown, TXT, PDF, and EPUB. It edits Markdown and TXT text and provides highlights, comments, and notes for PDF and EPUB. The toolbar adapts to the open format while retaining a consistent icon style.
 
 ## Common Use Cases
 
 - Read, draft, and organize plans, notes, and technical documentation
+- Read and annotate PDF reference material, then save a PDF with annotations
+- Read EPUB books by chapter and export excerpts and notes
 - Review and refine AI-generated Markdown
 - Write in offline or intranet environments
 - Export content as Markdown, PDF, or a full-page PNG
 
 ## Key Features
 
-1. **Three editing views**: Source, Preview, and Split.
-2. **Formatting tools**: Headings, emphasis, lists, quotes, code, and tables.
-3. **Local document management**: Create browser documents or open local text files.
-4. **Undo and redo**: Each document keeps its own recent editing history.
-5. **Flexible export**: Download the Markdown source or export the rendered preview.
+1. **Markdown editing**: Source, Preview, and Split views with headings, emphasis, lists, quotes, code, and tables.
+2. **TXT reading and editing**: Read and edit plain text while preserving its original line breaks.
+3. **PDF reading and annotations**: Page navigation, zoom, search, highlights, comments, and notes; save a PDF containing annotations.
+4. **EPUB reading and notes**: Chapters, pagination, font sizes, restored reading position, highlights, and notes exported as Markdown.
+5. **Markdown export and history**: Undo or redo recent edits and export Markdown source, PDF, or a full-page PNG.
 6. **Add Folder**: Authorize multiple Markdown folders and browse their original hierarchy.
-7. **Safe write-back**: Save to the original file with external-change conflict protection.
-8. **Smart Review — comments**: Comment on exact text or a whole block, then view, edit, delete, and generate AI-readable sidecars without changing the Markdown body.
-9. **Smart Review — AI-assisted reading**: Track reading progress and use a user-configured OpenAI-compatible model for highlights, key details, and conflict warnings with source locations.
+7. **Safe text write-back**: Save Markdown and TXT to the original file with external-change conflict protection.
+8. **Markdown Smart Review — comments**: Comment on exact text or a whole block, then view, edit, delete, and generate AI-readable sidecars without changing the Markdown body.
+9. **Markdown AI-assisted reading**: Track reading progress and use a user-configured OpenAI-compatible model for highlights, key details, and conflict warnings with source locations.
 10. **Model and key safety**: Connection tests do not send the document. API keys are session-only by default, and an optional loopback-only proxy handles browser network restrictions without persisting requests.
 
 ## Collaboration Extension Status
@@ -206,13 +199,14 @@ Guanyi‑MD is a local-first Markdown reader and editor centered on the writer. 
 
 ## Data and Files
 
-- Browser documents are stored in \`localStorage\`.
-- Files opened through Chrome or Edge can be written back after permission is granted.
+- Text progress and reading records are stored locally; PDF annotation drafts and original EPUB files use a local cache.
+- Markdown and TXT files opened through Chrome or Edge can be written back after permission is granted.
+- Save As exports a PDF containing annotations. EPUB originals stay unchanged; their highlights and notes are stored in the app and exported separately.
 - Removing a local file from the sidebar does not delete the original file from disk.
 - The current Markdown is sent only when the user generates reading assistance. API keys stay session-only by default and never enter the document or review sidecars.
 
 ## Get Started
 
-Choose a document from the sidebar to read or edit, or use Add Folder to bring a local Markdown folder into the document tree. Select text and use the toolbar Smart Review icon to open Comments or AI-assisted Reading.`
+Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT directly, or use the PDF and EPUB reading tools to highlight passages and add notes. Add Folder brings Markdown and TXT folders into the document tree. Markdown Smart Review provides comments and AI-assisted reading.`
   }
 ];

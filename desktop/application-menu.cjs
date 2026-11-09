@@ -77,7 +77,7 @@ function formatSubmenu(actions) {
 
 function buildApplicationMenuTemplate(options = {}) {
   const platform = options.platform || process.platform;
-  const productName = options.productName || '观绎 MD';
+  const productName = options.productName || '观译阅读器';
   const actions = {
     command: typeof options.actions?.command === 'function' ? options.actions.command : () => {},
     help: typeof options.actions?.help === 'function' ? options.actions.help : () => {},
@@ -170,7 +170,7 @@ function buildApplicationMenuTemplate(options = {}) {
       label: '帮助',
       role: 'help',
       submenu: [
-        { label: '观绎 MD 使用指南', click: () => actions.help('guide') },
+        { label: '观译阅读器使用指南', click: () => actions.help('guide') },
         { label: 'Markdown 快速参考', click: () => actions.help('markdown') },
         { label: '键盘快捷键', click: () => actions.help('shortcuts') },
         { type: 'separator' },

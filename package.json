@@ -1,9 +1,9 @@
 {
   "name": "guanyi-md",
   "version": "1.0.38",
-  "description": "观绎 MD｜俯仰观物，绎述我心。",
+  "description": "观译阅读器｜Markdown、TXT、PDF、EPUB 本地阅读与批注。",
   "main": "desktop/main.cjs",
-  "author": "Guanyi MD",
+  "author": "Guanyi Reader",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -64,7 +64,7 @@
   },
   "build": {
     "appId": "com.guanyi.md",
-    "productName": "观绎 MD",
+    "productName": "观译阅读器",
     "asar": true,
     "electronDownload": {
       "force": false,
@@ -154,8 +154,8 @@
       ]
     },
     "dmg": {
-      "title": "观绎 MD",
-      "artifactName": "Guanyi-MD-${version}-mac-arm64.${ext}",
+      "title": "观译阅读器",
+      "artifactName": "Guanyi-Reader-${version}-mac-arm64.${ext}",
       "backgroundColor": "#f6f4f1",
       "window": {
         "width": 560,
@@ -198,12 +198,12 @@
       ]
     },
     "nsis": {
-      "artifactName": "Guanyi-MD-Setup-${version}-win-x64.${ext}",
+      "artifactName": "Guanyi-Reader-Setup-${version}-win-x64.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "观绎 MD",
+      "shortcutName": "观译阅读器",
       "deleteAppDataOnUninstall": false
     }
   },

@@ -1,5 +1,5 @@
 /**
- * 观绎 MD — 本地优先的 Markdown 阅读与编辑工作台
+ * 观译阅读器 — 支持 Markdown、TXT、PDF 和 EPUB 的本地阅读与批注工具
  * 单一真相源：当前文档的 Markdown 字符串
  */
 (function () {
@@ -6279,7 +6279,7 @@
     const desktopApi = desktopFileApi();
     if (!doc) throw new Error('当前文档已从列表移除，请重新打开后再操作');
     if (!options.target?.rootPath) throw new Error('目标文件夹尚未选定，请重新选择');
-    if (typeof desktopApi?.transaction !== 'function') throw new Error('客户端文件功能未就绪，请完整退出观绎 MD 后重新打开');
+    if (typeof desktopApi?.transaction !== 'function') throw new Error('客户端文件功能未就绪，请完整退出观译阅读器后重新打开');
     if (options.mode === 'move' && !doc.desktopPath) throw new Error('当前文档尚未关联原文件，请先使用“另存为”');
     if (options.mode === 'move' && isDocDirty(doc)) {
       if (state.currentDocId !== doc.id) await switchDoc(doc.id, { alreadyOpen: true });
@@ -8753,7 +8753,7 @@
     if (/尚未建立本地语义索引/.test(message)) return '语义索引尚未建立，请刷新目录后重试';
     if (/permission|权限|授权/i.test(message)) return '部分目录需要重新授权，当前仅搜索可读取内容';
     if (/Meilisearch.*启动|listen|ECONNREFUSED|搜索服务缺失/i.test(message)) return '本地搜索服务启动失败，普通搜索仍可使用；诊断信息已记录';
-    if (/模型.*缺失|模型校验失败|语义模型.*不可用/i.test(message)) return '本地语义模型不可用，请重新安装观绎 MD';
+    if (/模型.*缺失|模型校验失败|语义模型.*不可用/i.test(message)) return '本地语义模型不可用，请重新安装观译阅读器';
     return `语义搜索暂不可用：${message.slice(0, 58)}；诊断信息已记录`;
   }
 
@@ -9465,7 +9465,7 @@
         return;
       }
       renderOriginalAnswer(evidence.slice(0, 3), { answerType: retrievalMode, status: '正在核对问题与原文证据…' });
-      const system = '你是观绎 MD 的原文证据规划器。只能依据用户提供的候选原文判断是否足以回答问题，不得使用外部知识，不得改写或补写原文。只返回 JSON：{"supported":true,"quoteIds":["E1"],"relation":"不超过120字的关联说明","confidence":"high|medium|low"}。quoteIds 只能选候选编号；证据不足时返回 {"supported":false,"quoteIds":[],"relation":"","confidence":"low"}。direct 模式选择足以作答的最少证据；analogy 模式在确有相关候选时，优先选择来自 2 至 4 部不同作品、能形成互补解释的原文。relation 只是关联说明，不得伪装成原文；analogy 模式必须明确这是文学类比。';
+      const system = '你是观译阅读器的原文证据规划器。只能依据用户提供的候选原文判断是否足以回答问题，不得使用外部知识，不得改写或补写原文。只返回 JSON：{"supported":true,"quoteIds":["E1"],"relation":"不超过120字的关联说明","confidence":"high|medium|low"}。quoteIds 只能选候选编号；证据不足时返回 {"supported":false,"quoteIds":[],"relation":"","confidence":"low"}。direct 模式选择足以作答的最少证据；analogy 模式在确有相关候选时，优先选择来自 2 至 4 部不同作品、能形成互补解释的原文。relation 只是关联说明，不得伪装成原文；analogy 模式必须明确这是文学类比。';
       const candidates = evidence.map((item) => ({
         id: item.id,
         document: item.title,

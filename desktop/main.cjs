@@ -17,7 +17,7 @@ const {
   updateApplicationMenuState
 } = require('./application-menu.cjs');
 
-const PRODUCT_NAME = '观绎 MD';
+const PRODUCT_NAME = '观译阅读器';
 const MEILISEARCH_VERSION = '1.53.1';
 const APP_URL_PROTOCOLS = new Set(['file:']);
 const EXTERNAL_URL_PROTOCOLS = new Set(['http:', 'https:']);
@@ -144,7 +144,7 @@ function prepareNativeClose(window) {
       const options = {
         type: 'warning',
         title: '阅读记录尚未保存',
-        message: '请保存阅读记录后再关闭观绎 MD',
+        message: '请保存阅读记录后再关闭观译阅读器',
         detail: error?.message || '保存失败，请重试。',
         buttons: ['返回文档'],
         defaultId: 0,
@@ -924,8 +924,8 @@ function configureAboutPanel() {
   app.setAboutPanelOptions({
     applicationName: PRODUCT_NAME,
     applicationVersion: app.getVersion(),
-    copyright: '俯仰观物，绎述我心。',
-    credits: '本地优先的 Markdown 编辑、文学阅读与文库检索工具。',
+    copyright: '让阅读、摘录与思考留在本地。',
+    credits: '支持 Markdown、TXT、PDF 和 EPUB 的本地阅读与批注工具。',
     iconPath: path.join(__dirname, '..', 'build-resources', 'icon-512.png')
   });
 }

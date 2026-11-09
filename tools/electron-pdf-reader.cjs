@@ -47,7 +47,7 @@ async function main() {
   <base href="${pathToFileURL(root + path.sep).href}"><link rel="stylesheet" href="css/app.css"><link rel="stylesheet" href="css/pdf-reader.css">
   <style>html,body{margin:0;width:100%;height:100%;overflow:hidden}.app-reader-toolbar{height:48px;display:flex;gap:5px;align-items:center}#container{height:calc(100vh - 48px)}</style>
   </head><body><div id="toolbar" class="app-reader-toolbar"></div><div id="container"></div><script src="js/pdf-reader.js"></script></body></html>`);
-  const window = new BrowserWindow({ width: 1100, height: 850, show: true, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  const window = new BrowserWindow({ width: 1100, height: 850, show: true, webPreferences: { backgroundThrottling: false, contextIsolation: true, nodeIntegration: false, sandbox: true } });
   window.webContents.on('console-message', (_e, _level, message) => console.log(message));
   const evaluate = expression => window.webContents.executeJavaScript(`(async()=>{return ${expression}})()`);
   const run = statements => window.webContents.executeJavaScript(`(async()=>{${statements}})()`);

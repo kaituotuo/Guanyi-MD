@@ -9,6 +9,15 @@ const root = path.resolve(__dirname, '..');
 const output = path.resolve(process.argv[2] || path.join(root, '.tmp-test', 'epub-reader'));
 app.setPath('userData', path.join(output, `profile-${process.pid}`));
 const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+let phase = 'startup';
+const watchdog = setTimeout(() => {
+  console.error(`EPUB smoke timed out after 60 seconds during: ${phase}`);
+  app.exit(1);
+}, 60000);
+function stage(name) {
+  phase = name;
+  console.log(`[EPUB smoke] ${name}`);
+}
 
 async function createFixture() {
   const zip = new JSZip();
@@ -23,6 +32,7 @@ async function createFixture() {
 }
 
 async function run() {
+  stage('creating EPUB fixture');
   await app.whenReady();
   await fs.mkdir(output, { recursive: true });
   const bytes = await createFixture();
@@ -33,7 +43,9 @@ async function run() {
   const html = `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${url('css/app.css')}"><link rel="stylesheet" href="${url('css/reader-host.css')}"><link rel="stylesheet" href="${url('css/epub-reader.css')}"><style>body{margin:0;height:100vh;display:flex;flex-direction:column;background:#fff;font-family:system-ui;}#reader{flex:1;min-height:0;position:relative}.app-reader-toolbar{flex-shrink:0}svg{width:18px;height:18px}</style></head><body>${sprite}<div class="app-reader-toolbar" id="toolbar"></div><main id="reader"></main><script src="${url('vendor/jszip.min.js')}"></script><script src="${url('vendor/epub.min.js')}"></script><script src="${url('js/epub-reader.js')}"></script></body></html>`;
   const htmlPath = path.join(output, 'reader.html');
   await fs.writeFile(htmlPath, html);
-  const win = new BrowserWindow({ width: 1080, height: 760, show: true, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  // epub.js schedules pagination and location reporting with animation frames.
+  // The suite must keep rendering when another app covers this test window.
+  const win = new BrowserWindow({ width: 1080, height: 760, show: true, webPreferences: { backgroundThrottling: false, contextIsolation: true, nodeIntegration: false, sandbox: true } });
   const failures = [];
   const runtimeFailures = [];
   win.webContents.on('console-message', (event) => { if (event.level === 'error') { failures.push(event.message); if (/Uncaught|TypeError|ReferenceError/.test(event.message)) runtimeFailures.push(event.message); } });
@@ -41,6 +53,7 @@ async function run() {
   win.webContents.session.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (details, callback) => { requests.push(details.url); callback({ cancel: true }); });
   await win.loadFile(htmlPath);
   const evaluate = (code) => win.webContents.executeJavaScript(code);
+  stage('opening first chapter');
   await evaluate(`window.sourceBytes = Uint8Array.from(${JSON.stringify([...bytes])}); window.changes=[]; window.lastPosition=null; window.messages=[];
     window.openReader=async(edits={},position=null)=>{window.reader=await GuanyiEpubReader.open({bytes:sourceBytes,container:document.querySelector('#reader'),toolbar:document.querySelector('#toolbar'),icon:(n)=>'<span class="ui-icon gicon"><svg viewBox="0 0 16 16"><use href="#gicon-'+n+'"></use></svg></span>',onChange:(e)=>changes.push(e),onPosition:(p)=>lastPosition=p,notify:(m)=>messages.push(m),edits,position});}; openReader();`);
   async function until(expression, message) {
@@ -57,6 +70,7 @@ async function run() {
   assert.equal(await evaluate(`document.querySelector('iframe').sandbox.contains('allow-scripts')`), false);
   assert.equal(await evaluate(`document.querySelector('iframe').contentDocument.querySelector('script')`), null);
   await until(`document.querySelector('iframe').contentDocument.querySelector('img').naturalWidth > 0`, 'Archived image failed');
+  stage('checking highlight and notes');
   await evaluate(`{const d=document.querySelector('iframe').contentDocument; const r=d.createRange();const t=d.querySelector('#select-me').firstChild;r.setStart(t,0);r.setEnd(t,12);const s=d.getSelection();s.removeAllRanges();s.addRange(r);d.dispatchEvent(new Event('selectionchange'));}`);
   await until(`!document.querySelector('[data-epub-action="highlight"]').disabled`, 'Selection not recognized');
   await evaluate(`document.querySelector('[data-epub-action="highlight"]').click()`);
@@ -66,24 +80,30 @@ async function run() {
   assert.match(await evaluate(`reader.exportNotes()`), /这是我的中文笔记/);
   assert.equal(await evaluate(`document.querySelector('.epub-reader__notes img')`), null);
   await pause(1200);
+  stage('capturing highlight screenshot');
   await fs.writeFile(path.join(output, 'epub-highlight-notes.png'), (await win.webContents.capturePage()).toPNG());
   const saved = await evaluate(`changes.at(-1)`);
   assert.equal(saved.annotations[0].color, 'green');
   const serialized = await evaluate(`reader.serialize().then(b=>Array.from(b))`);
   assert.deepEqual(Buffer.from(serialized), bytes);
+  stage('navigating to second chapter');
   await evaluate(`{const s=document.querySelector('select[aria-label="EPUB 章节目录"]');document.querySelector('iframe').contentDocument.querySelector('#internal-link').click();}`);
   await until(`Boolean(document.querySelector('iframe')?.contentDocument?.getElementById('chapter-two'))`, 'Chapter navigation failed');
   await until(`lastPosition?.cfi?.startsWith('epubcfi(/6/4')`, 'Position not emitted');
   const position = await evaluate(`lastPosition`);
+  stage('reopening saved reading position');
   await evaluate(`reader.dispose();openReader(${JSON.stringify(saved)},${JSON.stringify(position)})`);
   await until(`Boolean(document.querySelector('iframe')?.contentDocument?.getElementById('chapter-two'))`, 'Reading position failed to restore');
   assert.match(await evaluate(`reader.exportNotes()`), /这是我的中文笔记/);
+  stage('checking narrow dark layout');
   await evaluate(`document.querySelector('[data-epub-action="notes"]').click();document.documentElement.dataset.theme='dark';`);
   win.setSize(520, 640);
   await until(`Boolean(document.querySelector('iframe')?.contentDocument?.getElementById('chapter-two')) && document.querySelector('iframe').style.visibility === 'visible'`, 'Narrow view disappeared after resize');
   assert.match(await evaluate(`lastPosition.cfi`), /^epubcfi\(\/6\/4/);
   await pause(250);
+  stage('capturing narrow dark screenshot');
   await fs.writeFile(path.join(output, 'epub-narrow-dark.png'), (await win.webContents.capturePage()).toPNG());
+  stage('checking removal and malformed EPUB');
   await evaluate(`document.querySelector('button[aria-label="移除此标注"]').click()`);
   assert.equal(await evaluate(`changes.at(-1).annotations.length`), 0);
   assert.deepEqual(requests, [], 'EPUB attempted external network access');
@@ -92,8 +112,9 @@ async function run() {
   assert.equal(await evaluate(`document.querySelectorAll('iframe').length`), 0);
   await evaluate(`window.invalidHandled=false;GuanyiEpubReader.open({bytes:new Uint8Array([80,75]),container:document.querySelector('#reader'),toolbar:document.querySelector('#toolbar')}).catch(()=>invalidHandled=true)`);
   await until(`invalidHandled`, 'Malformed EPUB not rejected');
+  clearTimeout(watchdog);
   console.log(`EPUB reader passed: reading, images, sandbox, annotation/notes, color/remove, export, restore, narrow dark layout. Screenshots: ${output}`);
   win.destroy();
   app.quit();
 }
-run().catch((error) => { console.error(error); app.exit(1); });
+run().catch((error) => { clearTimeout(watchdog); console.error(`EPUB smoke failed during: ${phase}`, error); app.exit(1); });

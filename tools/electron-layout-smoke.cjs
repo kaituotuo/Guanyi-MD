@@ -37,14 +37,28 @@ function assertClose(actual, expected, label, tolerance = 1) {
 }
 
 async function inspectTabArc(window, index) {
-  await window.webContents.executeJavaScript(`(() => {
+  const targetId = await window.webContents.executeJavaScript(`(() => {
     const tabs = [...document.querySelectorAll('#document-tabs .app-document-tab')];
+    const targetId = tabs[${index}]?.dataset.docId;
     tabs[${index}]?.querySelector('.app-document-tab__activate')?.click();
+    return targetId;
   })()`);
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  if (!targetId) throw new Error(`missing tab ${index}`);
+  // Tab activation schedules scrollIntoView in rAF. A hidden Electron window
+  // does not guarantee that frame has run after a fixed 100 ms delay.
+  await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
+    const deadline = setTimeout(() => reject(new Error('tab activation layout timed out')), 2000);
+    const check = () => {
+      const selected = document.querySelector('#document-tabs .app-document-tab[aria-selected="true"]');
+      if (selected?.dataset.docId !== ${JSON.stringify(targetId)}) { setTimeout(check, 25); return; }
+      requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(deadline); resolve(); }));
+    };
+    check();
+  })`);
   return window.webContents.executeJavaScript(`(() => {
     const container = document.getElementById('document-tabs');
     const selected = container.querySelector('.app-document-tab[aria-selected="true"]');
+    if (selected?.dataset.docId !== ${JSON.stringify(targetId)}) throw new Error('active tab changed before inspection');
     const containerRect = container.getBoundingClientRect();
     const selectedRect = selected.getBoundingClientRect();
     const before = getComputedStyle(selected, '::before');

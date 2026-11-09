@@ -52,6 +52,7 @@ async function until(predicate, label) {
     ipcMain.handle(`guanyi-semantic:${channel}`, async () => ({ available: false, results: [] }));
   }
   const window = BrowserWindow.getAllWindows()[0];
+  window.webContents.setBackgroundThrottling(false);
   window.webContents.on('will-prevent-unload', () => console.log('PDF viewer prevented native close'));
   const runtimeErrors = [];
   window.webContents.on('console-message', (_event, level, message) => {
@@ -80,6 +81,7 @@ async function until(predicate, label) {
   await until(() => evaluate(`${child}.document.querySelectorAll('.textLayer span').length>0`), 'PDF text layer');
   await evaluate(`document.querySelector('[aria-label="文字笔记"]').click()`);
   await until(() => evaluate(`${child}.PDFViewerApplication.pdfViewer.annotationEditorMode===3`), 'PDF note mode');
+  await until(() => evaluate(`Boolean(${child}.document.querySelector('.annotationEditorLayer')?.checkVisibility())`), 'PDF annotation layer ready');
   const point = await evaluate(`(()=>{const f=document.querySelector('.app-reader-container:not([hidden]) iframe').getBoundingClientRect();const l=${child}.document.querySelector('.annotationEditorLayer').getBoundingClientRect();return{x:Math.round(f.x+l.x+120),y:Math.round(f.y+l.y+180)}})()`);
   window.webContents.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...point});
   window.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...point});
@@ -125,6 +127,7 @@ async function until(predicate, label) {
   app.emit('activate');
   await until(() => BrowserWindow.getAllWindows().length > 0, 'new app window');
   const restored = BrowserWindow.getAllWindows()[0];
+  restored.webContents.setBackgroundThrottling(false);
   const evaluateRestored = code => restored.webContents.executeJavaScript(code);
   await until(() => evaluateRestored('Boolean(document.querySelector(".app-reader-toolbar:not([hidden]) .app-reader-save"))').catch(()=>false), 'PDF restored after native close');
   assert.equal(await evaluateRestored('window.__MD_EDITOR_TEST__.getState().currentDocId'), pdfId);
