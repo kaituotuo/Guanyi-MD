@@ -2462,6 +2462,65 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 76px);
   background: var(--ui-color-background-top);
   box-shadow: none;
 }
+.app-document-tab__type {
+  --app-document-tab-type-color: #55606f;
+  --app-document-tab-badge-color: #46515d;
+  width: 24px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  color: var(--app-document-tab-type-color);
+}
+.app-document-tab__type[data-document-type="txt"] { --app-document-tab-type-color: #3f718f; --app-document-tab-badge-color: #2f617c; }
+.app-document-tab__type[data-document-type="pdf"] { --app-document-tab-type-color: #df4434; --app-document-tab-badge-color: #b42b20; }
+.app-document-tab__type[data-document-type="epub"] { --app-document-tab-type-color: #c9632e; --app-document-tab-badge-color: #9c431f; }
+.app-document-tab__type-page {
+  position: relative;
+  width: 22px;
+  height: 25px;
+  display: block;
+  overflow: hidden;
+  border: 1.4px solid currentColor;
+  border-radius: 3px;
+  background: var(--ui-color-background-top);
+}
+.app-document-tab__type-page::before {
+  content: '';
+  position: absolute;
+  top: -1.5px;
+  right: -1.5px;
+  width: 6px;
+  height: 6px;
+  border: 1.4px solid currentColor;
+  border-radius: 0 2px 0 2px;
+  background: var(--ui-color-fill-light);
+  transform: translate(2px, -2px) rotate(45deg);
+}
+.app-document-tab__type-mark {
+  position: absolute;
+  right: 1.5px;
+  bottom: 2px;
+  left: 1.5px;
+  min-height: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1.5px;
+  color: #fff;
+  background: var(--app-document-tab-badge-color);
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 6.5px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.25px;
+}
+.app-document-tab__type[data-document-type="epub"] .app-document-tab__type-mark { letter-spacing: -.7px; }
+html[data-theme="dark"] .app-document-tab__type { --app-document-tab-type-color: #aab5c3; }
+html[data-theme="dark"] .app-document-tab__type[data-document-type="txt"] { --app-document-tab-type-color: #82b9d5; }
+html[data-theme="dark"] .app-document-tab__type[data-document-type="pdf"] { --app-document-tab-type-color: #ff8a7d; }
+html[data-theme="dark"] .app-document-tab__type[data-document-type="epub"] { --app-document-tab-type-color: #f3a271; }
 .app-document-tab__activate {
   min-width: 0;
   flex: 1 1 auto;
@@ -2628,6 +2687,8 @@ html[data-txt-blank-lines="off"] .app-plain-text-line.is-blank { display: none; 
 @media (max-width: 760px) {
   .app-document-tabs-bar { flex-basis: 36px; min-height: 36px; }
   .app-document-tab { min-width: 104px; height: 32px; padding-left: 9px; }
+  .app-document-tab__type { width: 22px; height: 24px; flex-basis: 22px; }
+  .app-document-tab__type-page { width: 20px; height: 23px; }
   .app-document-tabs__new { width: 28px; height: 28px; flex-basis: 28px; }
   .app-file-destination-list { grid-template-columns: 1fr; }
   .app-settings-layout { min-height: 0; grid-template-columns: 1fr; }
@@ -2877,6 +2938,8 @@ html.is-desktop-client .app-content-find-modal { max-height: calc(100vh - 66px);
       <symbol id="gicon-info" viewBox="0 0 16 16"><circle class="gicon__ink" cx="8" cy="8" r="6.25"/><path class="gicon__ink" d="M8 7.25v4"/><circle class="gicon__accent-fill" cx="8" cy="4.75" r=".85"/></symbol>
       <symbol id="gicon-folder-plus" viewBox="0 0 16 16"><path class="gicon__ink" d="M1.75 6V3A1.25 1.25 0 0 1 3 1.75h3l1.5 1.75H13A1.25 1.25 0 0 1 14.25 4.75V13A1.25 1.25 0 0 1 13 14.25H3A1.25 1.25 0 0 1 1.75 13V6Zm0 0h12.5"/><path class="gicon__accent" d="M6 10h4M8 8v4"/></symbol>
       <symbol id="gicon-search" viewBox="0 0 16 16"><circle class="gicon__ink gicon__ink--strong" cx="7" cy="7" r="4.75"/><path class="gicon__accent gicon__accent--strong" d="m10.5 10.5 3.6 3.6"/></symbol>
+      <symbol id="gicon-zoom-out" viewBox="0 0 16 16"><circle class="gicon__ink gicon__ink--strong" cx="6.75" cy="6.75" r="4.75"/><path class="gicon__ink gicon__ink--strong" d="m10.25 10.25 3.85 3.85"/><path class="gicon__accent gicon__accent--strong" d="M4.5 6.75H9"/></symbol>
+      <symbol id="gicon-zoom-in" viewBox="0 0 16 16"><circle class="gicon__ink gicon__ink--strong" cx="6.75" cy="6.75" r="4.75"/><path class="gicon__ink gicon__ink--strong" d="m10.25 10.25 3.85 3.85"/><path class="gicon__accent gicon__accent--strong" d="M4.5 6.75H9M6.75 4.5V9"/></symbol>
       <symbol id="gicon-undo" viewBox="0 0 16 16"><path class="gicon__ink" d="M3 5.5h6.1a4.15 4.15 0 1 1 0 8.3H7.5"/><path class="gicon__accent gicon__accent--strong" d="m5.6 2.8-3 2.7 3 2.7"/></symbol>
       <symbol id="gicon-redo" viewBox="0 0 16 16"><path class="gicon__ink" d="M13 5.5H6.9a4.15 4.15 0 1 0 0 8.3h1.6"/><path class="gicon__accent gicon__accent--strong" d="m10.4 2.8 3 2.7-3 2.7"/></symbol>
       <symbol id="gicon-chevron-down" viewBox="0 0 16 16"><path class="gicon__ink" d="m4.25 6.25 3.75 3.5 3.75-3.5"/></symbol>
@@ -3597,8 +3660,25 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
 .guanyi-pdf-tool[aria-pressed="true"] { color:var(--ui-color-text-brand,#d74725); background:var(--ui-color-state-pressed-public,rgba(215,71,37,.12)); }
 .guanyi-pdf-tool:disabled { opacity:.35; cursor:default; }
 .guanyi-pdf-previous svg { transform:rotate(180deg); }
-.guanyi-pdf-page-number { width:54px; min-width:42px; height:28px; border:1px solid var(--ui-color-line-regular,rgba(13,13,13,.16)); border-radius:6px; padding:0 4px; color:var(--ui-color-text-primary,#37332e); background:var(--ui-color-fill-base,#fff); font:inherit; text-align:center; }
-.guanyi-pdf-page-count { flex-shrink:0; white-space:nowrap; font-size:13px; color:var(--ui-color-text-secondary,#777); }
+.guanyi-pdf-control-group { display:inline-flex; align-items:center; min-height:34px; border:1px solid var(--ui-color-line-regular,rgba(13,13,13,.14)); border-radius:8px; background:var(--ui-color-fill-base,#fff); overflow:hidden; }
+.guanyi-pdf-control-group:focus-within { box-shadow:0 0 0 2px var(--ui-color-text-brand,#da4d27); }
+.guanyi-pdf-control-group :focus-visible { outline-offset:-3px; }
+.guanyi-pdf-control-group .guanyi-pdf-tool { min-width:34px; min-height:32px; border:0; border-radius:0; background:transparent; }
+.guanyi-pdf-control-group .guanyi-pdf-tool:hover:not(:disabled) { background:var(--ui-color-state-hover-public,rgba(13,13,13,.06)); }
+.guanyi-pdf-control-group .guanyi-pdf-tool + .guanyi-pdf-tool,
+.guanyi-pdf-control-group .guanyi-pdf-tool + .guanyi-pdf-zoom-select { border-left:1px solid var(--ui-color-line-regular,rgba(13,13,13,.1)); }
+.guanyi-pdf-zoom-select { width:118px; min-width:100px; height:32px; border:0!important; border-left:1px solid var(--ui-color-line-regular,rgba(13,13,13,.1))!important; border-right:1px solid var(--ui-color-line-regular,rgba(13,13,13,.1))!important; border-radius:0!important; padding:0 26px 0 9px!important; background-color:transparent!important; font-size:13px!important; }
+.guanyi-pdf-fit-width { padding-inline:7px!important; }
+.guanyi-pdf-fit-width span { font-size:12px; white-space:nowrap; }
+.guanyi-pdf-page-prefix { padding-left:8px; font-size:13px; color:var(--ui-color-text-secondary,#777); }
+.guanyi-pdf-page-number { width:48px; min-width:42px; height:30px; border:0!important; border-radius:0!important; padding:0 3px!important; color:var(--ui-color-text-primary,#37332e); background:transparent!important; font:inherit; text-align:center; }
+.guanyi-pdf-page-count { flex-shrink:0; padding-right:8px; white-space:nowrap; font-size:13px; color:var(--ui-color-text-secondary,#777); }
+@media (max-width:900px) {
+  .guanyi-pdf-fit-width span { display:none; }
+  .guanyi-pdf-zoom-select { width:98px; }
+  .guanyi-pdf-page-prefix { display:none; }
+  .guanyi-pdf-page-count { padding-left:3px; }
+}
 </style>
 <script src="vendor/jszip.min.js"></script>
 <script src="vendor/epub.min.js"></script>
@@ -3986,6 +4066,7 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
     let selected = null;
     let currentChapter = '';
     let currentCfi = '';
+    let pageProgression = 'ltr';
     let fontSize = Math.max(80, Math.min(180, Number(options.position?.fontSize) || 100));
     const annotations = normalizeAnnotations(options.edits);
     const controls = [];
@@ -4032,6 +4113,39 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
       copyButton.disabled = !value;
     }
 
+    function isEditableKeyboardTarget(target) {
+      const element = target?.nodeType === 3 ? target.parentElement : target;
+      if (!element || typeof element.closest !== 'function') return false;
+      return Boolean(element.closest('input, textarea, select, button, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="tab"], [role="menuitem"], [role="dialog"], [tabindex]:not([tabindex="-1"])'));
+    }
+
+    function readerIsActive() {
+      return shell.isConnected && !shell.closest('[hidden]') && container.getClientRects().length > 0;
+    }
+
+    async function turnPage(direction) {
+      if (!rendition || disposed) return;
+      if ((direction < 0 && previous.disabled) || (direction > 0 && next.disabled)) return;
+      updateSelection(null);
+      await (direction < 0 ? rendition.prev() : rendition.next());
+    }
+
+    function handlePageKey(event) {
+      if (!readerIsActive() || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || isEditableKeyboardTarget(event.target)) return;
+      if (document.querySelector('.app-modal-backdrop:not([hidden])')) return;
+      const space = event.key === ' ' || event.key === 'Spacebar';
+      if (event.shiftKey && !space) return;
+      let direction = 0;
+      if (event.key === 'ArrowRight') direction = pageProgression === 'rtl' ? -1 : 1;
+      else if (event.key === 'ArrowLeft') direction = pageProgression === 'rtl' ? 1 : -1;
+      else if (event.key === 'ArrowDown' || event.key === 'PageDown' || (space && !event.shiftKey)) direction = 1;
+      else if (event.key === 'ArrowUp' || event.key === 'PageUp' || (space && event.shiftKey)) direction = -1;
+      if (!direction) return;
+      event.preventDefault();
+      event.stopPropagation();
+      turnPage(direction).catch((error) => notify(error.message || String(error)));
+    }
+
     function paint(item) {
       try {
         rendition.annotations.highlight(item.cfi, { id: item.id }, () => {
@@ -4053,9 +4167,9 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
       await rendition.display(target);
     }
 
-    const previous = button('previous', '上一页', 'chevron-right', async () => { updateSelection(null); await rendition.prev(); });
+    const previous = button('previous', '上一页', 'chevron-right', () => turnPage(-1));
     previous.classList.add('epub-reader__previous');
-    const next = button('next', '下一页', 'chevron-right', async () => { updateSelection(null); await rendition.next(); });
+    const next = button('next', '下一页', 'chevron-right', () => turnPage(1));
     const chapters = document.createElement('select');
     chapters.className = 'epub-reader__chapters';
     chapters.setAttribute('aria-label', 'EPUB 章节目录');
@@ -4094,6 +4208,7 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
     const notesButton = button('notes', '高亮与笔记', 'review', () => showNotes(notesPanel.hidden));
     notesButton.setAttribute('aria-expanded', 'false');
     updateSelection(null);
+    document.addEventListener('keydown', handlePageKey, true);
 
     function showNotes(visible) {
       notesPanel.hidden = !visible;
@@ -4215,6 +4330,7 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
       disposed = true;
       resizeObserver.disconnect();
       themeObserver.disconnect();
+      document.removeEventListener('keydown', handlePageKey, true);
       rendition?.destroy();
       book.destroy();
       controls.forEach((control) => control.remove());
@@ -4225,6 +4341,7 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
       await withTimeout(book.open(buffer), '解析 EPUB ');
       await withTimeout(Promise.all([book.ready, book.opened]), '准备 EPUB ');
       if (disposed) return { dispose, serialize: async () => original.slice(), exportNotes: () => '' };
+      pageProgression = String(book.package?.metadata?.direction || book.spine?.direction || '').toLowerCase() === 'rtl' ? 'rtl' : 'ltr';
       book.spine.hooks.content.register(protectChapter);
       const navigation = await book.loaded.navigation;
       function addChapters(items, level = 0) {
@@ -4260,11 +4377,7 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
             notify('外部链接已停用，请复制链接后在浏览器打开');
           }
         }, true);
-        doc.addEventListener('keydown', (event) => {
-          if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-          if (event.key === 'ArrowRight') { event.preventDefault(); next.click(); }
-          if (event.key === 'ArrowLeft') { event.preventDefault(); previous.click(); }
-        });
+        doc.addEventListener('keydown', handlePageKey, true);
       });
       rendition.on('selected', async (cfi, contents) => {
         try {
@@ -4342,9 +4455,9 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
     let disposed = false;
     let closing = false;
     let checkpointTimer;
-    let positionTimer;
     let revision = String(options.edits?.revision || 'original');
     let savedRevision = revision;
+    let zoomPreset = '';
     // The host already owns this buffer. Keep it as the clean revision and give
     // PDF.js a separate copy, avoiding an extra full-document allocation.
     let savedBytes = bytesView(options.bytes);
@@ -4354,7 +4467,7 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
     const listeners = new AbortController();
     const controls = [];
 
-    function button(label, symbol, action) {
+    function button(label, symbol, action, parent = toolbar) {
       const element = document.createElement('button');
       element.type = 'button';
       element.className = 'fmt-btn guanyi-pdf-tool';
@@ -4363,7 +4476,7 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
       element.innerHTML = icon(symbol);
       element.addEventListener('mousedown', event => event.preventDefault());
       element.addEventListener('click', action, { signal: listeners.signal });
-      toolbar.append(element);
+      parent.append(element);
       controls.push(element);
       return element;
     }
@@ -4443,11 +4556,11 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
     }
 
     function reportPosition() {
-      clearTimeout(positionTimer);
-      positionTimer = setTimeout(() => {
-        if (disposed) return;
-        onPosition?.({ page: viewer.pdfViewer.currentPageNumber, zoom: viewer.pdfViewer.currentScaleValue });
-      }, 150);
+      if (disposed || !viewer?.pdfViewer) return;
+      // The host already debounces persistence. Update its in-memory position
+      // synchronously so an immediate tab switch cannot cancel the latest page
+      // or zoom before hide() performs its final persist.
+      onPosition?.({ page: viewer.pdfViewer.currentPageNumber, zoom: zoomPreset || viewer.pdfViewer.currentScaleValue });
     }
 
     function applyFrameAppearance() {
@@ -4538,28 +4651,112 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
       };
       button('目录与页面缩略图', 'list-ul', () => nativeClick('viewsManagerToggleButton'));
       button('在 PDF 中查找', 'search', () => viewer.findBar.toggle());
-      const previous = button('上一页', 'chevron-right', () => dispatch('previouspage'));
+
+      const zoomControls = document.createElement('div');
+      zoomControls.className = 'guanyi-pdf-control-group guanyi-pdf-zoom-controls';
+      zoomControls.setAttribute('role', 'group');
+      zoomControls.setAttribute('aria-label', 'PDF 显示比例');
+      toolbar.append(zoomControls);
+      controls.push(zoomControls);
+      const zoomOut = button('缩小', 'zoom-out', () => {
+        zoomPreset = '';
+        dispatch('zoomout');
+      }, zoomControls);
+      const zoomSelect = document.createElement('select');
+      zoomSelect.className = 'guanyi-pdf-zoom-select';
+      zoomSelect.setAttribute('aria-label', 'PDF 显示比例');
+      const currentZoomOption = document.createElement('option');
+      currentZoomOption.value = '__current';
+      currentZoomOption.hidden = true;
+      zoomSelect.append(currentZoomOption);
+      const zoomOptions = [
+        ['0.5', '50%'], ['0.75', '75%'], ['1', '100%'], ['1.25', '125%'],
+        ['1.5', '150%'], ['2', '200%'], ['page-fit', '整页'], ['page-width', '页宽']
+      ];
+      const zoomOptionByValue = new Map();
+      for (const [value, label] of zoomOptions) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        option.dataset.baseLabel = label;
+        zoomSelect.append(option);
+        zoomOptionByValue.set(value, option);
+      }
+      zoomSelect.addEventListener('change', () => {
+        if (zoomSelect.value === '__current') return;
+        zoomPreset = zoomSelect.value === 'page-fit' || zoomSelect.value === 'page-width' ? zoomSelect.value : '';
+        viewer.pdfViewer.currentScaleValue = zoomSelect.value;
+        updateZoom();
+      }, { signal: listeners.signal });
+      zoomControls.append(zoomSelect);
+      controls.push(zoomSelect);
+      const zoomIn = button('放大', 'zoom-in', () => {
+        zoomPreset = '';
+        dispatch('zoomin');
+      }, zoomControls);
+      const fit = button('适合页宽', 'description', () => {
+        zoomPreset = 'page-width';
+        viewer.pdfViewer.currentScaleValue = 'page-width';
+        updateZoom();
+      }, zoomControls);
+      fit.classList.add('guanyi-pdf-fit-width');
+      fit.insertAdjacentHTML('beforeend', '<span>页宽</span>');
+
+      const pageControls = document.createElement('div');
+      pageControls.className = 'guanyi-pdf-control-group guanyi-pdf-page-controls';
+      pageControls.setAttribute('role', 'group');
+      pageControls.setAttribute('aria-label', 'PDF 翻页');
+      toolbar.append(pageControls);
+      controls.push(pageControls);
+      const previous = button('上一页', 'chevron-right', () => dispatch('previouspage'), pageControls);
       previous.classList.add('guanyi-pdf-previous');
+      const pagePrefix = document.createElement('span');
+      pagePrefix.className = 'guanyi-pdf-page-prefix';
+      pagePrefix.textContent = '第';
       const pageInput = document.createElement('input');
       pageInput.className = 'guanyi-pdf-page-number';
       pageInput.type = 'number';
       pageInput.min = '1';
       pageInput.max = String(viewer.pdfDocument.numPages);
-      pageInput.setAttribute('aria-label', 'PDF 页码');
-      pageInput.addEventListener('change', () => {
-        const number = Math.max(1, Math.min(viewer.pdfDocument.numPages, Number(pageInput.value) || 1));
+      pageInput.setAttribute('aria-label', `PDF 页码，共 ${viewer.pdfDocument.numPages} 页`);
+      const commitPageInput = () => {
+        const parsed = Math.round(Number(pageInput.value));
+        const number = Math.max(1, Math.min(viewer.pdfDocument.numPages, Number.isFinite(parsed) ? parsed : 1));
         viewer.pdfViewer.currentPageNumber = number;
-      });
+        pageInput.value = String(number);
+      };
+      pageInput.addEventListener('change', commitPageInput, { signal: listeners.signal });
+      pageInput.addEventListener('focus', () => pageInput.select(), { signal: listeners.signal });
+      pageInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commitPageInput();
+          pageInput.select();
+        } else if (event.key === 'Escape') {
+          pageInput.value = String(viewer.pdfViewer.currentPageNumber);
+          pageInput.blur();
+        }
+      }, { signal: listeners.signal });
       const pageCount = document.createElement('span');
       pageCount.className = 'guanyi-pdf-page-count';
-      pageCount.textContent = `/ ${viewer.pdfDocument.numPages}`;
-      toolbar.append(pageInput, pageCount);
-      controls.push(pageInput, pageCount);
-      const next = button('下一页', 'chevron-right', () => dispatch('nextpage'));
-      button('缩小', 'collapse-all', () => dispatch('zoomout'));
-      button('放大', 'expand-all', () => dispatch('zoomin'));
-      const fit = button('适合页宽', 'description', () => { viewer.pdfViewer.currentScaleValue = 'page-width'; });
-      fit.insertAdjacentHTML('beforeend', '<span>页宽</span>');
+      pageCount.textContent = `页 / 共 ${viewer.pdfDocument.numPages} 页`;
+      pageControls.append(pagePrefix, pageInput, pageCount);
+      controls.push(pagePrefix, pageInput, pageCount);
+      const next = button('下一页', 'chevron-right', () => dispatch('nextpage'), pageControls);
+
+      const isEditingTarget = target => Boolean(target?.isContentEditable || target?.closest?.(
+        'input, textarea, select, [contenteditable="true"], [role="textbox"], dialog[open]'
+      ));
+      childDocument.addEventListener('keydown', event => {
+        if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        if (isEditingTarget(event.target) || viewer.pdfViewer.annotationEditorMode !== 0) return;
+        if (!childDocument.getSelection()?.isCollapsed) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        dispatch(event.key === 'ArrowLeft' ? 'previouspage' : 'nextpage');
+      }, { capture: true, signal: listeners.signal });
+
       const highlighter = button('高亮批注', 'review', () => {
         if (childDocument.getSelection()?.toString().trim()) dispatch('editingaction', { name: 'highlightSelection' });
         else nativeClick('editorHighlightButton');
@@ -4572,15 +4769,50 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
       const undo = button('撤销批注', 'undo', () => dispatch('editingaction', { name: 'undo' }));
       const redo = button('恢复批注', 'redo', () => dispatch('editingaction', { name: 'redo' }));
       undo.disabled = redo.disabled = true;
+      function updateZoom({ scale, presetValue } = {}) {
+        const numericScale = Number(scale) || Number(viewer.pdfViewer.currentScale) || 1;
+        const percentage = Math.max(1, Math.round(numericScale * 100));
+        for (const option of zoomOptionByValue.values()) option.textContent = option.dataset.baseLabel;
+        if (presetValue === 'page-fit' || presetValue === 'page-width') zoomPreset = presetValue;
+        else if (presetValue === undefined && Number.isFinite(Number(viewer.pdfViewer.currentScaleValue))) {
+          // PDF.js emits presetValue for page-fit/page-width recalculation on
+          // resize, but omits it for numeric shortcut/gesture zoom. Clear a
+          // stale preset only in the latter case so the displayed mode and the
+          // restored zoom match what the user actually chose.
+          zoomPreset = '';
+        }
+        const scaleValue = String(zoomPreset || presetValue || viewer.pdfViewer.currentScaleValue || '');
+        let selected = zoomOptionByValue.get(scaleValue);
+        if (!selected && Number.isFinite(Number(scaleValue))) {
+          selected = zoomOptions
+            .map(([value]) => zoomOptionByValue.get(value))
+            .find(option => Number.isFinite(Number(option.value)) && Math.abs(Number(option.value) - numericScale) < 0.001);
+        }
+        if (selected) {
+          if (selected.value === 'page-fit' || selected.value === 'page-width') {
+            selected.textContent = `${selected.dataset.baseLabel} · ${percentage}%`;
+          }
+          zoomSelect.value = selected.value;
+        } else {
+          currentZoomOption.textContent = `${percentage}%`;
+          zoomSelect.value = currentZoomOption.value;
+        }
+        zoomSelect.title = `当前显示比例 ${percentage}%`;
+        zoomSelect.setAttribute('aria-label', `PDF 显示比例，当前 ${percentage}%`);
+        zoomOut.disabled = numericScale <= 0.1;
+        zoomIn.disabled = numericScale >= 10;
+        reportPosition();
+      }
       function updatePage() {
         const page = viewer.pdfViewer.currentPageNumber;
         pageInput.value = page;
+        pageInput.setAttribute('aria-label', `PDF 页码，当前第 ${page} 页，共 ${viewer.pdfDocument.numPages} 页`);
         previous.disabled = page <= 1;
         next.disabled = page >= viewer.pdfDocument.numPages;
         reportPosition();
       }
       eventBus.on('pagechanging', updatePage);
-      eventBus.on('scalechanging', reportPosition);
+      eventBus.on('scalechanging', updateZoom);
       eventBus.on('annotationeditormodechanged', ({ mode }) => {
         // Reuse upstream's state to keep toolbar buttons in sync with Escape.
         for (const [buttonElement, id] of [[highlighter, 'editorHighlightButton'], [textNote, 'editorFreeTextButton'], [comment, 'editorCommentButton']]) {
@@ -4631,13 +4863,17 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
       eventBus.on('annotationeditorparamschanged', detectCommittedChange);
       const initial = options.position || {};
       const restorePosition = () => {
-        viewer.pdfViewer.currentScaleValue = initial.zoom || 'page-width';
+        const initialZoom = initial.zoom || 'page-width';
+        zoomPreset = initialZoom === 'page-fit' || initialZoom === 'page-width' ? initialZoom : '';
+        viewer.pdfViewer.currentScaleValue = initialZoom;
         viewer.pdfViewer.currentPageNumber = Math.max(1, Math.min(viewer.pdfDocument.numPages, Number(initial.page) || 1));
         updatePage();
+        updateZoom();
       };
       if (viewer.pdfViewer.pageViewsReady) restorePosition();
       else eventBus.on('pagesloaded', restorePosition, { once: true });
       updatePage();
+      updateZoom();
       return {
         async serialize() { return (await checkpoint(true)).bytes; },
         async serializeSnapshot() { return checkpoint(true); },
@@ -4646,10 +4882,10 @@ html[data-theme="dark"] .epub-reader { background: #24211f; color: #e7e1db; }
           if (disposed) return;
           endEditing();
           await checkpoint(false, false);
+          reportPosition();
           closing = true;
           disposed = true;
           clearTimeout(checkpointTimer);
-          clearTimeout(positionTimer);
           listeners.abort();
           themeObserver.disconnect();
           // Host has persisted the draft; suppress upstream's auto-download-on-close.
@@ -5109,8 +5345,8 @@ window.PRESET_DOCS = [
 
 1. **Markdown 编辑**：在源码、预览和分栏之间自由切换，支持标题、粗体、列表、引用、代码和表格。
 2. **TXT 阅读与编辑**：保留原始文字和换行，支持纯文本阅读与修改。
-3. **PDF 阅读与批注**：翻页、缩放、查找，添加高亮、批注和笔记，另存含批注的 PDF。
-4. **EPUB 阅读与笔记**：章节目录、分页、字号调整和阅读位置恢复；高亮与笔记自动保存在本机，可导出 Markdown 笔记。
+3. **PDF 阅读与批注**：显示当前页/总页数和实际缩放比例，可输入页码、按钮或左右方向键翻页，支持常用比例、整页、页宽、查找、高亮、批注和笔记，另存含批注的 PDF。
+4. **EPUB 阅读与笔记**：章节目录、分页、字号调整和阅读位置恢复；可用左右方向键、PageUp/PageDown、上下键或空格翻页，高亮与笔记自动保存在本机，可导出 Markdown 笔记。
 5. **Markdown 导出与历史**：保留最近编辑历史，可导出 Markdown 原文、PDF 和长图。
 6. **添加目录**：授权多个本地文件夹，扫描 5 层内的 Markdown、TXT、PDF 与 EPUB，按原目录层级集中浏览；文本可编辑，PDF / EPUB 可阅读与批注。
 7. **文本安全写回**：Markdown 与 TXT 保存到原文件，并在外部文件变化时保护当前编辑。
@@ -5263,8 +5499,8 @@ Guanyi Reader is a local reading and annotation tool for Markdown, TXT, PDF, and
 
 1. **Markdown editing**: Source, Preview, and Split views with headings, emphasis, lists, quotes, code, and tables.
 2. **TXT reading and editing**: Read and edit plain text while preserving its original line breaks.
-3. **PDF reading and annotations**: Page navigation, zoom, search, highlights, comments, and notes; save a PDF containing annotations.
-4. **EPUB reading and notes**: Chapters, pagination, font sizes, restored reading position, highlights, and notes exported as Markdown.
+3. **PDF reading and annotations**: Current/total page indicators, direct page entry, button or arrow-key navigation, visible zoom percentages, fit-page/fit-width, search, highlights, comments, and notes; save a PDF containing annotations.
+4. **EPUB reading and notes**: Chapters, pagination, font sizes, restored reading position, arrow/PageUp/PageDown/Space navigation, highlights, and notes exported as Markdown.
 5. **Markdown export and history**: Undo or redo recent edits and export Markdown source, PDF, or a full-page PNG.
 6. **Add Folder**: Authorize multiple Markdown folders and browse their original hierarchy.
 7. **Safe text write-back**: Save Markdown and TXT to the original file with external-change conflict protection.
@@ -6161,6 +6397,25 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
   function isPlainTextDocument(doc) {
     return /\.txt$/i.test(String(documentSourceName(doc)).split(/[?#]/)[0]);
   }
+
+  function documentTabType(doc) {
+    const readerFormat = String(doc?.readerFormat || '').toLowerCase();
+    if (readerFormat === 'pdf' || readerFormat === 'epub') return readerFormat;
+    const sourceName = String(documentSourceName(doc)).split(/[?#]/)[0];
+    if (/\.pdf$/i.test(sourceName)) return 'pdf';
+    if (/\.epub$/i.test(sourceName)) return 'epub';
+    if (/\.txt$/i.test(sourceName)) return 'txt';
+    return 'md';
+  }
+
+  function documentTabTypeLabel(type) {
+    return ({ md: 'Markdown', txt: 'TXT', pdf: 'PDF', epub: 'EPUB' })[type] || 'Markdown';
+  }
+
+  function documentTabTypeMark(type) {
+    return ({ md: 'MD', txt: 'TXT', pdf: 'PDF', epub: 'EPUB' })[type] || 'MD';
+  }
+
   function plainTextReadingLineKind(line) {
     const value = String(line || '').replace(/^\uFEFF/, '').trim();
     if (!value) return 'blank';
@@ -8300,16 +8555,35 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
       tab.className = 'app-document-tab';
       tab.dataset.docId = doc.id;
       tab.dataset.dirty = isDocDirty(doc) ? 'true' : 'false';
+      const documentType = documentTabType(doc);
+      const documentTypeLabel = documentTabTypeLabel(documentType);
+      tab.dataset.documentType = documentType;
       tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-label', `${documentTypeLabel} 文档：${doc.name}${isDocDirty(doc) ? '，有未保存修改' : ''}`);
       tab.setAttribute('aria-selected', doc.id === state.currentDocId ? 'true' : 'false');
       tab.setAttribute('tabindex', doc.id === state.currentDocId ? '0' : '-1');
       tab.draggable = true;
+      const typeIcon = document.createElement('span');
+      typeIcon.className = 'app-document-tab__type';
+      typeIcon.dataset.documentType = documentType;
+      typeIcon.title = `${documentTypeLabel} 文档`;
+      typeIcon.setAttribute('aria-hidden', 'true');
+      const typePage = document.createElement('span');
+      typePage.className = 'app-document-tab__type-page';
+      typePage.setAttribute('aria-hidden', 'true');
+      const typeMark = document.createElement('span');
+      typeMark.className = 'app-document-tab__type-mark';
+      typeMark.textContent = documentTabTypeMark(documentType);
+      typePage.appendChild(typeMark);
+      typeIcon.appendChild(typePage);
       const activate = document.createElement('button');
       activate.type = 'button';
       activate.className = 'app-document-tab__activate';
       activate.dataset.tabAction = 'activate';
       activate.textContent = doc.name;
       activate.title = documentSourceName(doc) || doc.name;
+      activate.setAttribute('aria-label', `${documentTypeLabel} 文档：${doc.name}`);
+      tab.appendChild(typeIcon);
       tab.appendChild(activate);
       if (isDocDirty(doc)) {
         const dirty = document.createElement('span');

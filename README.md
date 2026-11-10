@@ -8,20 +8,20 @@
 | --- | --- | --- |
 | Markdown | 源码、预览、分栏；常用格式、表格、任务列表、图片与批注 | 保存原文、另存、移动；导出 Markdown、PDF、PNG |
 | TXT | 中文编码识别、长行换行、段落阅读与纯文本编辑 | 保存原文本与换行 |
-| PDF | 官方 PDF.js 阅读器；翻页、缩放、查找、高亮、文字笔记和评论 | 本地保留批注草稿，另存含原生批注的 PDF |
-| EPUB | epub.js；章节、字号、阅读位置、高亮、摘录与笔记 | 标注保存在应用内，可导出 Markdown 阅读笔记 |
+| PDF | 官方 PDF.js 阅读器；当前页/总页数、比例缩放、键盘与按钮翻页、查找、高亮、文字笔记和评论 | 本地保留批注草稿，另存含原生批注的 PDF |
+| EPUB | epub.js；章节、字号、阅读位置、键盘翻页、高亮、摘录与笔记 | 标注保存在应用内，可导出 Markdown 阅读笔记 |
 
 PDF / EPUB 首版编辑范围为高亮、批注和笔记。不提供 PDF 正文重排、OCR、EPUB 正文改写或 DRM 绕过。扫描 PDF 能否选中文字取决于文件是否已有文字层。
 
-## 1.0.39 本地体验包
+## 1.0.40 本地体验包
 
 本轮 macOS Apple Silicon（M1 / M2 / M3 / M4 等）安装包放在：
 
-`release/current/Guanyi-Reader-1.0.39-mac-arm64.dmg`
+`release/current/Guanyi-Reader-1.0.40-mac-arm64.dmg`
 
-GitHub Releases：[发行页面](https://github.com/kaituotuo/Guanyi-MD/releases)。已发布的 v1.0.38 保留原安装包和校验值；1.0.39 先作为本地验收包。本轮只构建 macOS ARM64，Windows 当前本地产物仍为 `1.0.34`。
+GitHub Releases：[发行页面](https://github.com/kaituotuo/Guanyi-MD/releases)。已发布的 v1.0.38 保留原安装包和校验值；1.0.40 先作为本地验收包。本轮只构建 macOS ARM64，Windows 当前本地产物仍为 `1.0.34`。
 
-安装前先保存内容并用 **Command+Q** 完全退出旧应用，将「观译阅读器.app」放入“应用程序”，再从“应用程序”打开并检查“关于”显示 **1.0.39**。顶部品牌字标为「观译」，macOS 应用名保持「观译阅读器」。旧 Dock 图标可能仍指向旧应用，需要固定新应用图标。
+安装前先保存内容并用 **Command+Q** 完全退出旧应用，将「观译阅读器.app」放入“应用程序”，再从“应用程序”打开并检查“关于”显示 **1.0.40**。顶部品牌字标为「观译」，macOS 应用名保持「观译阅读器」。旧 Dock 图标可能仍指向旧应用，需要固定新应用图标。
 
 应用标识仍为 `com.guanyi.md`，本地数据目录仍为 `guanyi-md`，已有文档、目录、设置和索引继续沿用。请勿删除 `~/Library/Application Support/guanyi-md`。应用改名不会自动删除旧名称的 `.app`。
 
@@ -29,6 +29,9 @@ GitHub Releases：[发行页面](https://github.com/kaituotuo/Guanyi-MD/releases
 
 ## 本次变化
 
+- EPUB 支持左右方向键、PageUp/PageDown、上下方向键和空格翻页，并兼容从右向左书籍；输入框和笔记编辑时不会抢走按键。
+- PDF 工具栏新增实际显示比例、常用比例/整页/页宽、放大缩小、当前页/总页数、页码输入和按钮翻页；阅读态也可用左右方向键翻页。
+- 打开的页签显示统一风格的 MD、TXT、PDF、EPUB 文件类型图标，类型缩写与辅助颜色同时区分格式。
 - 添加目录时收录 Markdown、TXT、PDF 和 EPUB；PDF/EPUB 在左侧保持原文件名，点击后按二进制格式进入对应阅读器。
 - 顶部品牌字标缩短为「观译」；目录扫描对超过大小上限的文件显示跳过原因。
 - 保留 PDF / EPUB 阅读、高亮、批注和笔记，复用成熟开源阅读引擎。

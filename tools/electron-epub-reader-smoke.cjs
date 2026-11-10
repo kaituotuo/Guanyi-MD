@@ -74,6 +74,26 @@ async function run() {
   assert.equal(await evaluate(`document.querySelector('iframe').sandbox.contains('allow-scripts')`), false);
   assert.equal(await evaluate(`document.querySelector('iframe').contentDocument.querySelector('script')`), null);
   await until(`document.querySelector('iframe').contentDocument.querySelector('img').naturalWidth > 0`, 'Archived image failed');
+  stage('checking keyboard pagination');
+  const firstPageCfi = await evaluate(`lastPosition.cfi`);
+  await evaluate(`document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}))`);
+  await until(`lastPosition.cfi !== ${JSON.stringify(firstPageCfi)}`, 'Host ArrowRight did not advance the EPUB');
+  const secondPageCfi = await evaluate(`lastPosition.cfi`);
+  await evaluate(`document.querySelector('iframe').contentDocument.body.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true,cancelable:true}))`);
+  await until(`lastPosition.cfi !== ${JSON.stringify(secondPageCfi)}`, 'Chapter ArrowLeft did not go back in the EPUB');
+  const restoredPageCfi = await evaluate(`lastPosition.cfi`);
+  assert.equal(restoredPageCfi, firstPageCfi);
+  await evaluate(`{const input=document.createElement('input');input.id='keyboard-safety';document.body.append(input);input.focus();input.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));}`);
+  await pause(250);
+  assert.equal(await evaluate(`lastPosition.cfi`), restoredPageCfi, 'Typing controls must retain their arrow-key behavior');
+  await evaluate(`{document.querySelector('#keyboard-safety').remove();const tab=document.createElement('div');tab.id='keyboard-tab';tab.setAttribute('role','tab');tab.tabIndex=0;document.body.append(tab);tab.focus();tab.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));}`);
+  await pause(250);
+  assert.equal(await evaluate(`lastPosition.cfi`), restoredPageCfi, 'Document-tab keyboard navigation must not be stolen by the EPUB reader');
+  await evaluate(`{document.querySelector('#keyboard-tab').remove();const modal=document.createElement('div');modal.className='app-modal-backdrop';modal.id='keyboard-modal';document.body.append(modal);document.body.focus();document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));}`);
+  await pause(250);
+  assert.equal(await evaluate(`lastPosition.cfi`), restoredPageCfi, 'An open application modal must block background EPUB pagination');
+  await evaluate(`document.querySelector('#keyboard-modal').remove();document.body.focus()`);
+  await until(`Boolean(document.querySelector('iframe')?.contentDocument?.getElementById('select-me'))`, 'First page was not ready after keyboard pagination');
   stage('checking highlight and notes');
   await evaluate(`{const d=document.querySelector('iframe').contentDocument; const r=d.createRange();const t=d.querySelector('#select-me').firstChild;r.setStart(t,0);r.setEnd(t,12);const s=d.getSelection();s.removeAllRanges();s.addRange(r);d.dispatchEvent(new Event('selectionchange'));}`);
   await until(`!document.querySelector('[data-epub-action="highlight"]').disabled`, 'Selection not recognized');
@@ -117,7 +137,7 @@ async function run() {
   await evaluate(`window.invalidHandled=false;GuanyiEpubReader.open({bytes:new Uint8Array([80,75]),container:document.querySelector('#reader'),toolbar:document.querySelector('#toolbar')}).catch(()=>invalidHandled=true)`);
   await until(`invalidHandled`, 'Malformed EPUB not rejected');
   clearTimeout(watchdog);
-  console.log(`EPUB reader passed: reading, images, sandbox, annotation/notes, color/remove, export, restore, narrow dark layout. Screenshots: ${output}`);
+  console.log(`EPUB reader passed: reading, keyboard pagination, input safety, images, sandbox, annotation/notes, color/remove, export, restore, narrow dark layout. Screenshots: ${output}`);
   win.destroy();
   app.quit();
 }

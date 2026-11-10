@@ -29,8 +29,8 @@ window.PRESET_DOCS = [
 
 1. **Markdown 编辑**：在源码、预览和分栏之间自由切换，支持标题、粗体、列表、引用、代码和表格。
 2. **TXT 阅读与编辑**：保留原始文字和换行，支持纯文本阅读与修改。
-3. **PDF 阅读与批注**：翻页、缩放、查找，添加高亮、批注和笔记，另存含批注的 PDF。
-4. **EPUB 阅读与笔记**：章节目录、分页、字号调整和阅读位置恢复；高亮与笔记自动保存在本机，可导出 Markdown 笔记。
+3. **PDF 阅读与批注**：显示当前页/总页数和实际缩放比例，可输入页码、按钮或左右方向键翻页，支持常用比例、整页、页宽、查找、高亮、批注和笔记，另存含批注的 PDF。
+4. **EPUB 阅读与笔记**：章节目录、分页、字号调整和阅读位置恢复；可用左右方向键、PageUp/PageDown、上下键或空格翻页，高亮与笔记自动保存在本机，可导出 Markdown 笔记。
 5. **Markdown 导出与历史**：保留最近编辑历史，可导出 Markdown 原文、PDF 和长图。
 6. **添加目录**：授权多个本地文件夹，扫描 5 层内的 Markdown、TXT、PDF 与 EPUB，按原目录层级集中浏览；文本可编辑，PDF / EPUB 可阅读与批注。
 7. **文本安全写回**：Markdown 与 TXT 保存到原文件，并在外部文件变化时保护当前编辑。
@@ -183,8 +183,8 @@ Guanyi Reader is a local reading and annotation tool for Markdown, TXT, PDF, and
 
 1. **Markdown editing**: Source, Preview, and Split views with headings, emphasis, lists, quotes, code, and tables.
 2. **TXT reading and editing**: Read and edit plain text while preserving its original line breaks.
-3. **PDF reading and annotations**: Page navigation, zoom, search, highlights, comments, and notes; save a PDF containing annotations.
-4. **EPUB reading and notes**: Chapters, pagination, font sizes, restored reading position, highlights, and notes exported as Markdown.
+3. **PDF reading and annotations**: Current/total page indicators, direct page entry, button or arrow-key navigation, visible zoom percentages, fit-page/fit-width, search, highlights, comments, and notes; save a PDF containing annotations.
+4. **EPUB reading and notes**: Chapters, pagination, font sizes, restored reading position, arrow/PageUp/PageDown/Space navigation, highlights, and notes exported as Markdown.
 5. **Markdown export and history**: Undo or redo recent edits and export Markdown source, PDF, or a full-page PNG.
 6. **Add Folder**: Authorize multiple Markdown folders and browse their original hierarchy.
 7. **Safe text write-back**: Save Markdown and TXT to the original file with external-change conflict protection.

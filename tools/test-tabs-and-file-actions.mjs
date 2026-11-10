@@ -29,6 +29,21 @@ assert.equal(tabHelpers.normalizeSettings({ historyLimit: 100, theme: 'dark' }).
 assert.equal(tabHelpers.normalizeSettings({ historyLimit: 500 }).historyLimit, 50,
   'unsupported undo limits should fall back to the established 50-step default');
 
+const typeStart = appSource.indexOf('  function documentTabType(');
+const typeEnd = appSource.indexOf('\n\n  function plainTextReadingLineKind', typeStart);
+assert.ok(typeStart >= 0 && typeEnd > typeStart, 'document tab type helpers should be extractable');
+const typeHelpers = vm.runInNewContext(`(() => {
+  const documentSourceName = (doc) => doc?.localFileName || doc?.relativePath || doc?.desktopPath || doc?.name || '';
+  ${appSource.slice(typeStart, typeEnd)}
+  return { documentTabType, documentTabTypeLabel, documentTabTypeMark };
+})()`);
+assert.equal(typeHelpers.documentTabType({ localFileName: '计划.md' }), 'md');
+assert.equal(typeHelpers.documentTabType({ relativePath: '资料/摘录.TXT' }), 'txt');
+assert.equal(typeHelpers.documentTabType({ readerFormat: 'pdf', name: '无扩展名' }), 'pdf');
+assert.equal(typeHelpers.documentTabType({ desktopPath: '/Users/test/书籍.epub?revision=2' }), 'epub');
+assert.equal(typeHelpers.documentTabTypeLabel('epub'), 'EPUB');
+assert.equal(typeHelpers.documentTabTypeMark('txt'), 'TXT');
+
 const rewriteStart = appSource.indexOf('  function escapeRegularExpression(');
 const rewriteEnd = appSource.indexOf('\n\n  function fileNameWithOriginalExtension', rewriteStart);
 assert.ok(rewriteStart >= 0 && rewriteEnd > rewriteStart, 'managed image rewriting helpers should be extractable');
@@ -194,6 +209,10 @@ assert.match(appSource, /if \(k === 's' && !e\.altKey && e\.shiftKey\)[\s\S]+ope
   'Shift+Command/Ctrl+S should open save-as');
 assert.match(appSource, /captureActiveTabSession\(\)[\s\S]+state\.currentDocId = id[\s\S]+restoreActiveTabSession\(doc\)/,
   'tab switching should capture and restore independent editing sessions');
+assert.match(appSource, /tab\.setAttribute\('aria-label', `\$\{documentTypeLabel\} 文档：\$\{doc\.name\}[\s\S]+typeIcon\.className = 'app-document-tab__type'[\s\S]+typeIcon\.setAttribute\('aria-hidden', 'true'\)[\s\S]+tab\.appendChild\(typeIcon\)/,
+  'each open tab should expose a visible type icon and announce its format without duplicate screen-reader text');
+assert.match(appSource, /activate\.setAttribute\('aria-label', `\$\{documentTypeLabel\} 文档：\$\{doc\.name\}`\)/,
+  'tab activation controls should announce both the document format and title');
 
 assert.match(cssSource, /\.app-document-tab \{[\s\S]*?border-radius: 10px 10px 0 0;/,
   'tabs should use a restrained Chrome-like curved surface');
@@ -205,6 +224,12 @@ assert.match(cssSource, /\.app-document-tabs \{[\s\S]*?padding-inline: var\(--gu
   'the scroll container must reserve equal clearance for both outward tab arcs');
 assert.match(cssSource, /\.app-document-tab \{[\s\S]*?scroll-margin-inline: var\(--guanyi-tab-arc-size\);/,
   'scrolling a tab into view must preserve both outward arcs');
+assert.match(cssSource, /\.app-document-tab__type-page \{[\s\S]*?border: 1\.4px solid currentColor;[\s\S]*?background: var\(--ui-color-background-top\);/,
+  'document type icons should share one compact outlined-page visual language');
+assert.match(cssSource, /data-document-type="txt"[\s\S]+data-document-type="pdf"[\s\S]+data-document-type="epub"/,
+  'TXT, PDF and EPUB tab icons should remain visually distinguishable in addition to their text marks');
+assert.match(cssSource, /\.app-document-tab__type-mark \{[\s\S]*?font-weight: 800;/,
+  'document type abbreviations should stay legible at tab size');
 assert.match(cssSource, /html\.is-desktop-client \.app-topbar \{[\s\S]*?background: var\(--ui-color-fill-light\);/,
   'desktop titlebar must retain the light tab-strip contrast surface');
 assert.match(cssSource, /\.app-topbar__identity \{[\s\S]*?flex: 0 0 var\(--guanyi-sidebar-width\);/,

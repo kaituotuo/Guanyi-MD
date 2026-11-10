@@ -4,5 +4,22 @@
 .guanyi-pdf-tool[aria-pressed="true"] { color:var(--ui-color-text-brand,#d74725); background:var(--ui-color-state-pressed-public,rgba(215,71,37,.12)); }
 .guanyi-pdf-tool:disabled { opacity:.35; cursor:default; }
 .guanyi-pdf-previous svg { transform:rotate(180deg); }
-.guanyi-pdf-page-number { width:54px; min-width:42px; height:28px; border:1px solid var(--ui-color-line-regular,rgba(13,13,13,.16)); border-radius:6px; padding:0 4px; color:var(--ui-color-text-primary,#37332e); background:var(--ui-color-fill-base,#fff); font:inherit; text-align:center; }
-.guanyi-pdf-page-count { flex-shrink:0; white-space:nowrap; font-size:13px; color:var(--ui-color-text-secondary,#777); }
+.guanyi-pdf-control-group { display:inline-flex; align-items:center; min-height:34px; border:1px solid var(--ui-color-line-regular,rgba(13,13,13,.14)); border-radius:8px; background:var(--ui-color-fill-base,#fff); overflow:hidden; }
+.guanyi-pdf-control-group:focus-within { box-shadow:0 0 0 2px var(--ui-color-text-brand,#da4d27); }
+.guanyi-pdf-control-group :focus-visible { outline-offset:-3px; }
+.guanyi-pdf-control-group .guanyi-pdf-tool { min-width:34px; min-height:32px; border:0; border-radius:0; background:transparent; }
+.guanyi-pdf-control-group .guanyi-pdf-tool:hover:not(:disabled) { background:var(--ui-color-state-hover-public,rgba(13,13,13,.06)); }
+.guanyi-pdf-control-group .guanyi-pdf-tool + .guanyi-pdf-tool,
+.guanyi-pdf-control-group .guanyi-pdf-tool + .guanyi-pdf-zoom-select { border-left:1px solid var(--ui-color-line-regular,rgba(13,13,13,.1)); }
+.guanyi-pdf-zoom-select { width:118px; min-width:100px; height:32px; border:0!important; border-left:1px solid var(--ui-color-line-regular,rgba(13,13,13,.1))!important; border-right:1px solid var(--ui-color-line-regular,rgba(13,13,13,.1))!important; border-radius:0!important; padding:0 26px 0 9px!important; background-color:transparent!important; font-size:13px!important; }
+.guanyi-pdf-fit-width { padding-inline:7px!important; }
+.guanyi-pdf-fit-width span { font-size:12px; white-space:nowrap; }
+.guanyi-pdf-page-prefix { padding-left:8px; font-size:13px; color:var(--ui-color-text-secondary,#777); }
+.guanyi-pdf-page-number { width:48px; min-width:42px; height:30px; border:0!important; border-radius:0!important; padding:0 3px!important; color:var(--ui-color-text-primary,#37332e); background:transparent!important; font:inherit; text-align:center; }
+.guanyi-pdf-page-count { flex-shrink:0; padding-right:8px; white-space:nowrap; font-size:13px; color:var(--ui-color-text-secondary,#777); }
+@media (max-width:900px) {
+  .guanyi-pdf-fit-width span { display:none; }
+  .guanyi-pdf-zoom-select { width:98px; }
+  .guanyi-pdf-page-prefix { display:none; }
+  .guanyi-pdf-page-count { padding-left:3px; }
+}

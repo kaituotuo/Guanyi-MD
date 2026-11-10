@@ -867,6 +867,25 @@
   function isPlainTextDocument(doc) {
     return /\.txt$/i.test(String(documentSourceName(doc)).split(/[?#]/)[0]);
   }
+
+  function documentTabType(doc) {
+    const readerFormat = String(doc?.readerFormat || '').toLowerCase();
+    if (readerFormat === 'pdf' || readerFormat === 'epub') return readerFormat;
+    const sourceName = String(documentSourceName(doc)).split(/[?#]/)[0];
+    if (/\.pdf$/i.test(sourceName)) return 'pdf';
+    if (/\.epub$/i.test(sourceName)) return 'epub';
+    if (/\.txt$/i.test(sourceName)) return 'txt';
+    return 'md';
+  }
+
+  function documentTabTypeLabel(type) {
+    return ({ md: 'Markdown', txt: 'TXT', pdf: 'PDF', epub: 'EPUB' })[type] || 'Markdown';
+  }
+
+  function documentTabTypeMark(type) {
+    return ({ md: 'MD', txt: 'TXT', pdf: 'PDF', epub: 'EPUB' })[type] || 'MD';
+  }
+
   function plainTextReadingLineKind(line) {
     const value = String(line || '').replace(/^\uFEFF/, '').trim();
     if (!value) return 'blank';
@@ -3006,16 +3025,35 @@
       tab.className = 'app-document-tab';
       tab.dataset.docId = doc.id;
       tab.dataset.dirty = isDocDirty(doc) ? 'true' : 'false';
+      const documentType = documentTabType(doc);
+      const documentTypeLabel = documentTabTypeLabel(documentType);
+      tab.dataset.documentType = documentType;
       tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-label', `${documentTypeLabel} 文档：${doc.name}${isDocDirty(doc) ? '，有未保存修改' : ''}`);
       tab.setAttribute('aria-selected', doc.id === state.currentDocId ? 'true' : 'false');
       tab.setAttribute('tabindex', doc.id === state.currentDocId ? '0' : '-1');
       tab.draggable = true;
+      const typeIcon = document.createElement('span');
+      typeIcon.className = 'app-document-tab__type';
+      typeIcon.dataset.documentType = documentType;
+      typeIcon.title = `${documentTypeLabel} 文档`;
+      typeIcon.setAttribute('aria-hidden', 'true');
+      const typePage = document.createElement('span');
+      typePage.className = 'app-document-tab__type-page';
+      typePage.setAttribute('aria-hidden', 'true');
+      const typeMark = document.createElement('span');
+      typeMark.className = 'app-document-tab__type-mark';
+      typeMark.textContent = documentTabTypeMark(documentType);
+      typePage.appendChild(typeMark);
+      typeIcon.appendChild(typePage);
       const activate = document.createElement('button');
       activate.type = 'button';
       activate.className = 'app-document-tab__activate';
       activate.dataset.tabAction = 'activate';
       activate.textContent = doc.name;
       activate.title = documentSourceName(doc) || doc.name;
+      activate.setAttribute('aria-label', `${documentTypeLabel} 文档：${doc.name}`);
+      tab.appendChild(typeIcon);
       tab.appendChild(activate);
       if (isDocDirty(doc)) {
         const dirty = document.createElement('span');

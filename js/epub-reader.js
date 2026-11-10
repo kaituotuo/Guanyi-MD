@@ -92,6 +92,7 @@
     let selected = null;
     let currentChapter = '';
     let currentCfi = '';
+    let pageProgression = 'ltr';
     let fontSize = Math.max(80, Math.min(180, Number(options.position?.fontSize) || 100));
     const annotations = normalizeAnnotations(options.edits);
     const controls = [];
@@ -138,6 +139,39 @@
       copyButton.disabled = !value;
     }
 
+    function isEditableKeyboardTarget(target) {
+      const element = target?.nodeType === 3 ? target.parentElement : target;
+      if (!element || typeof element.closest !== 'function') return false;
+      return Boolean(element.closest('input, textarea, select, button, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="tab"], [role="menuitem"], [role="dialog"], [tabindex]:not([tabindex="-1"])'));
+    }
+
+    function readerIsActive() {
+      return shell.isConnected && !shell.closest('[hidden]') && container.getClientRects().length > 0;
+    }
+
+    async function turnPage(direction) {
+      if (!rendition || disposed) return;
+      if ((direction < 0 && previous.disabled) || (direction > 0 && next.disabled)) return;
+      updateSelection(null);
+      await (direction < 0 ? rendition.prev() : rendition.next());
+    }
+
+    function handlePageKey(event) {
+      if (!readerIsActive() || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || isEditableKeyboardTarget(event.target)) return;
+      if (document.querySelector('.app-modal-backdrop:not([hidden])')) return;
+      const space = event.key === ' ' || event.key === 'Spacebar';
+      if (event.shiftKey && !space) return;
+      let direction = 0;
+      if (event.key === 'ArrowRight') direction = pageProgression === 'rtl' ? -1 : 1;
+      else if (event.key === 'ArrowLeft') direction = pageProgression === 'rtl' ? 1 : -1;
+      else if (event.key === 'ArrowDown' || event.key === 'PageDown' || (space && !event.shiftKey)) direction = 1;
+      else if (event.key === 'ArrowUp' || event.key === 'PageUp' || (space && event.shiftKey)) direction = -1;
+      if (!direction) return;
+      event.preventDefault();
+      event.stopPropagation();
+      turnPage(direction).catch((error) => notify(error.message || String(error)));
+    }
+
     function paint(item) {
       try {
         rendition.annotations.highlight(item.cfi, { id: item.id }, () => {
@@ -159,9 +193,9 @@
       await rendition.display(target);
     }
 
-    const previous = button('previous', '上一页', 'chevron-right', async () => { updateSelection(null); await rendition.prev(); });
+    const previous = button('previous', '上一页', 'chevron-right', () => turnPage(-1));
     previous.classList.add('epub-reader__previous');
-    const next = button('next', '下一页', 'chevron-right', async () => { updateSelection(null); await rendition.next(); });
+    const next = button('next', '下一页', 'chevron-right', () => turnPage(1));
     const chapters = document.createElement('select');
     chapters.className = 'epub-reader__chapters';
     chapters.setAttribute('aria-label', 'EPUB 章节目录');
@@ -200,6 +234,7 @@
     const notesButton = button('notes', '高亮与笔记', 'review', () => showNotes(notesPanel.hidden));
     notesButton.setAttribute('aria-expanded', 'false');
     updateSelection(null);
+    document.addEventListener('keydown', handlePageKey, true);
 
     function showNotes(visible) {
       notesPanel.hidden = !visible;
@@ -321,6 +356,7 @@
       disposed = true;
       resizeObserver.disconnect();
       themeObserver.disconnect();
+      document.removeEventListener('keydown', handlePageKey, true);
       rendition?.destroy();
       book.destroy();
       controls.forEach((control) => control.remove());
@@ -331,6 +367,7 @@
       await withTimeout(book.open(buffer), '解析 EPUB ');
       await withTimeout(Promise.all([book.ready, book.opened]), '准备 EPUB ');
       if (disposed) return { dispose, serialize: async () => original.slice(), exportNotes: () => '' };
+      pageProgression = String(book.package?.metadata?.direction || book.spine?.direction || '').toLowerCase() === 'rtl' ? 'rtl' : 'ltr';
       book.spine.hooks.content.register(protectChapter);
       const navigation = await book.loaded.navigation;
       function addChapters(items, level = 0) {
@@ -366,11 +403,7 @@
             notify('外部链接已停用，请复制链接后在浏览器打开');
           }
         }, true);
-        doc.addEventListener('keydown', (event) => {
-          if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-          if (event.key === 'ArrowRight') { event.preventDefault(); next.click(); }
-          if (event.key === 'ArrowLeft') { event.preventDefault(); previous.click(); }
-        });
+        doc.addEventListener('keydown', handlePageKey, true);
       });
       rendition.on('selected', async (cfi, contents) => {
         try {

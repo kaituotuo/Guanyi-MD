@@ -16,9 +16,9 @@
     let disposed = false;
     let closing = false;
     let checkpointTimer;
-    let positionTimer;
     let revision = String(options.edits?.revision || 'original');
     let savedRevision = revision;
+    let zoomPreset = '';
     // The host already owns this buffer. Keep it as the clean revision and give
     // PDF.js a separate copy, avoiding an extra full-document allocation.
     let savedBytes = bytesView(options.bytes);
@@ -28,7 +28,7 @@
     const listeners = new AbortController();
     const controls = [];
 
-    function button(label, symbol, action) {
+    function button(label, symbol, action, parent = toolbar) {
       const element = document.createElement('button');
       element.type = 'button';
       element.className = 'fmt-btn guanyi-pdf-tool';
@@ -37,7 +37,7 @@
       element.innerHTML = icon(symbol);
       element.addEventListener('mousedown', event => event.preventDefault());
       element.addEventListener('click', action, { signal: listeners.signal });
-      toolbar.append(element);
+      parent.append(element);
       controls.push(element);
       return element;
     }
@@ -117,11 +117,11 @@
     }
 
     function reportPosition() {
-      clearTimeout(positionTimer);
-      positionTimer = setTimeout(() => {
-        if (disposed) return;
-        onPosition?.({ page: viewer.pdfViewer.currentPageNumber, zoom: viewer.pdfViewer.currentScaleValue });
-      }, 150);
+      if (disposed || !viewer?.pdfViewer) return;
+      // The host already debounces persistence. Update its in-memory position
+      // synchronously so an immediate tab switch cannot cancel the latest page
+      // or zoom before hide() performs its final persist.
+      onPosition?.({ page: viewer.pdfViewer.currentPageNumber, zoom: zoomPreset || viewer.pdfViewer.currentScaleValue });
     }
 
     function applyFrameAppearance() {
@@ -212,28 +212,112 @@
       };
       button('目录与页面缩略图', 'list-ul', () => nativeClick('viewsManagerToggleButton'));
       button('在 PDF 中查找', 'search', () => viewer.findBar.toggle());
-      const previous = button('上一页', 'chevron-right', () => dispatch('previouspage'));
+
+      const zoomControls = document.createElement('div');
+      zoomControls.className = 'guanyi-pdf-control-group guanyi-pdf-zoom-controls';
+      zoomControls.setAttribute('role', 'group');
+      zoomControls.setAttribute('aria-label', 'PDF 显示比例');
+      toolbar.append(zoomControls);
+      controls.push(zoomControls);
+      const zoomOut = button('缩小', 'zoom-out', () => {
+        zoomPreset = '';
+        dispatch('zoomout');
+      }, zoomControls);
+      const zoomSelect = document.createElement('select');
+      zoomSelect.className = 'guanyi-pdf-zoom-select';
+      zoomSelect.setAttribute('aria-label', 'PDF 显示比例');
+      const currentZoomOption = document.createElement('option');
+      currentZoomOption.value = '__current';
+      currentZoomOption.hidden = true;
+      zoomSelect.append(currentZoomOption);
+      const zoomOptions = [
+        ['0.5', '50%'], ['0.75', '75%'], ['1', '100%'], ['1.25', '125%'],
+        ['1.5', '150%'], ['2', '200%'], ['page-fit', '整页'], ['page-width', '页宽']
+      ];
+      const zoomOptionByValue = new Map();
+      for (const [value, label] of zoomOptions) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        option.dataset.baseLabel = label;
+        zoomSelect.append(option);
+        zoomOptionByValue.set(value, option);
+      }
+      zoomSelect.addEventListener('change', () => {
+        if (zoomSelect.value === '__current') return;
+        zoomPreset = zoomSelect.value === 'page-fit' || zoomSelect.value === 'page-width' ? zoomSelect.value : '';
+        viewer.pdfViewer.currentScaleValue = zoomSelect.value;
+        updateZoom();
+      }, { signal: listeners.signal });
+      zoomControls.append(zoomSelect);
+      controls.push(zoomSelect);
+      const zoomIn = button('放大', 'zoom-in', () => {
+        zoomPreset = '';
+        dispatch('zoomin');
+      }, zoomControls);
+      const fit = button('适合页宽', 'description', () => {
+        zoomPreset = 'page-width';
+        viewer.pdfViewer.currentScaleValue = 'page-width';
+        updateZoom();
+      }, zoomControls);
+      fit.classList.add('guanyi-pdf-fit-width');
+      fit.insertAdjacentHTML('beforeend', '<span>页宽</span>');
+
+      const pageControls = document.createElement('div');
+      pageControls.className = 'guanyi-pdf-control-group guanyi-pdf-page-controls';
+      pageControls.setAttribute('role', 'group');
+      pageControls.setAttribute('aria-label', 'PDF 翻页');
+      toolbar.append(pageControls);
+      controls.push(pageControls);
+      const previous = button('上一页', 'chevron-right', () => dispatch('previouspage'), pageControls);
       previous.classList.add('guanyi-pdf-previous');
+      const pagePrefix = document.createElement('span');
+      pagePrefix.className = 'guanyi-pdf-page-prefix';
+      pagePrefix.textContent = '第';
       const pageInput = document.createElement('input');
       pageInput.className = 'guanyi-pdf-page-number';
       pageInput.type = 'number';
       pageInput.min = '1';
       pageInput.max = String(viewer.pdfDocument.numPages);
-      pageInput.setAttribute('aria-label', 'PDF 页码');
-      pageInput.addEventListener('change', () => {
-        const number = Math.max(1, Math.min(viewer.pdfDocument.numPages, Number(pageInput.value) || 1));
+      pageInput.setAttribute('aria-label', `PDF 页码，共 ${viewer.pdfDocument.numPages} 页`);
+      const commitPageInput = () => {
+        const parsed = Math.round(Number(pageInput.value));
+        const number = Math.max(1, Math.min(viewer.pdfDocument.numPages, Number.isFinite(parsed) ? parsed : 1));
         viewer.pdfViewer.currentPageNumber = number;
-      });
+        pageInput.value = String(number);
+      };
+      pageInput.addEventListener('change', commitPageInput, { signal: listeners.signal });
+      pageInput.addEventListener('focus', () => pageInput.select(), { signal: listeners.signal });
+      pageInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commitPageInput();
+          pageInput.select();
+        } else if (event.key === 'Escape') {
+          pageInput.value = String(viewer.pdfViewer.currentPageNumber);
+          pageInput.blur();
+        }
+      }, { signal: listeners.signal });
       const pageCount = document.createElement('span');
       pageCount.className = 'guanyi-pdf-page-count';
-      pageCount.textContent = `/ ${viewer.pdfDocument.numPages}`;
-      toolbar.append(pageInput, pageCount);
-      controls.push(pageInput, pageCount);
-      const next = button('下一页', 'chevron-right', () => dispatch('nextpage'));
-      button('缩小', 'collapse-all', () => dispatch('zoomout'));
-      button('放大', 'expand-all', () => dispatch('zoomin'));
-      const fit = button('适合页宽', 'description', () => { viewer.pdfViewer.currentScaleValue = 'page-width'; });
-      fit.insertAdjacentHTML('beforeend', '<span>页宽</span>');
+      pageCount.textContent = `页 / 共 ${viewer.pdfDocument.numPages} 页`;
+      pageControls.append(pagePrefix, pageInput, pageCount);
+      controls.push(pagePrefix, pageInput, pageCount);
+      const next = button('下一页', 'chevron-right', () => dispatch('nextpage'), pageControls);
+
+      const isEditingTarget = target => Boolean(target?.isContentEditable || target?.closest?.(
+        'input, textarea, select, [contenteditable="true"], [role="textbox"], dialog[open]'
+      ));
+      childDocument.addEventListener('keydown', event => {
+        if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        if (isEditingTarget(event.target) || viewer.pdfViewer.annotationEditorMode !== 0) return;
+        if (!childDocument.getSelection()?.isCollapsed) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        dispatch(event.key === 'ArrowLeft' ? 'previouspage' : 'nextpage');
+      }, { capture: true, signal: listeners.signal });
+
       const highlighter = button('高亮批注', 'review', () => {
         if (childDocument.getSelection()?.toString().trim()) dispatch('editingaction', { name: 'highlightSelection' });
         else nativeClick('editorHighlightButton');
@@ -246,15 +330,50 @@
       const undo = button('撤销批注', 'undo', () => dispatch('editingaction', { name: 'undo' }));
       const redo = button('恢复批注', 'redo', () => dispatch('editingaction', { name: 'redo' }));
       undo.disabled = redo.disabled = true;
+      function updateZoom({ scale, presetValue } = {}) {
+        const numericScale = Number(scale) || Number(viewer.pdfViewer.currentScale) || 1;
+        const percentage = Math.max(1, Math.round(numericScale * 100));
+        for (const option of zoomOptionByValue.values()) option.textContent = option.dataset.baseLabel;
+        if (presetValue === 'page-fit' || presetValue === 'page-width') zoomPreset = presetValue;
+        else if (presetValue === undefined && Number.isFinite(Number(viewer.pdfViewer.currentScaleValue))) {
+          // PDF.js emits presetValue for page-fit/page-width recalculation on
+          // resize, but omits it for numeric shortcut/gesture zoom. Clear a
+          // stale preset only in the latter case so the displayed mode and the
+          // restored zoom match what the user actually chose.
+          zoomPreset = '';
+        }
+        const scaleValue = String(zoomPreset || presetValue || viewer.pdfViewer.currentScaleValue || '');
+        let selected = zoomOptionByValue.get(scaleValue);
+        if (!selected && Number.isFinite(Number(scaleValue))) {
+          selected = zoomOptions
+            .map(([value]) => zoomOptionByValue.get(value))
+            .find(option => Number.isFinite(Number(option.value)) && Math.abs(Number(option.value) - numericScale) < 0.001);
+        }
+        if (selected) {
+          if (selected.value === 'page-fit' || selected.value === 'page-width') {
+            selected.textContent = `${selected.dataset.baseLabel} · ${percentage}%`;
+          }
+          zoomSelect.value = selected.value;
+        } else {
+          currentZoomOption.textContent = `${percentage}%`;
+          zoomSelect.value = currentZoomOption.value;
+        }
+        zoomSelect.title = `当前显示比例 ${percentage}%`;
+        zoomSelect.setAttribute('aria-label', `PDF 显示比例，当前 ${percentage}%`);
+        zoomOut.disabled = numericScale <= 0.1;
+        zoomIn.disabled = numericScale >= 10;
+        reportPosition();
+      }
       function updatePage() {
         const page = viewer.pdfViewer.currentPageNumber;
         pageInput.value = page;
+        pageInput.setAttribute('aria-label', `PDF 页码，当前第 ${page} 页，共 ${viewer.pdfDocument.numPages} 页`);
         previous.disabled = page <= 1;
         next.disabled = page >= viewer.pdfDocument.numPages;
         reportPosition();
       }
       eventBus.on('pagechanging', updatePage);
-      eventBus.on('scalechanging', reportPosition);
+      eventBus.on('scalechanging', updateZoom);
       eventBus.on('annotationeditormodechanged', ({ mode }) => {
         // Reuse upstream's state to keep toolbar buttons in sync with Escape.
         for (const [buttonElement, id] of [[highlighter, 'editorHighlightButton'], [textNote, 'editorFreeTextButton'], [comment, 'editorCommentButton']]) {
@@ -305,13 +424,17 @@
       eventBus.on('annotationeditorparamschanged', detectCommittedChange);
       const initial = options.position || {};
       const restorePosition = () => {
-        viewer.pdfViewer.currentScaleValue = initial.zoom || 'page-width';
+        const initialZoom = initial.zoom || 'page-width';
+        zoomPreset = initialZoom === 'page-fit' || initialZoom === 'page-width' ? initialZoom : '';
+        viewer.pdfViewer.currentScaleValue = initialZoom;
         viewer.pdfViewer.currentPageNumber = Math.max(1, Math.min(viewer.pdfDocument.numPages, Number(initial.page) || 1));
         updatePage();
+        updateZoom();
       };
       if (viewer.pdfViewer.pageViewsReady) restorePosition();
       else eventBus.on('pagesloaded', restorePosition, { once: true });
       updatePage();
+      updateZoom();
       return {
         async serialize() { return (await checkpoint(true)).bytes; },
         async serializeSnapshot() { return checkpoint(true); },
@@ -320,10 +443,10 @@
           if (disposed) return;
           endEditing();
           await checkpoint(false, false);
+          reportPosition();
           closing = true;
           disposed = true;
           clearTimeout(checkpointTimer);
-          clearTimeout(positionTimer);
           listeners.abort();
           themeObserver.disconnect();
           // Host has persisted the draft; suppress upstream's auto-download-on-close.

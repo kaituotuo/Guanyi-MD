@@ -1,6 +1,6 @@
 {
   "name": "guanyi-md",
-  "version": "1.0.39",
+  "version": "1.0.40",
   "description": "观译阅读器｜Markdown、TXT、PDF、EPUB 本地阅读与批注。",
   "main": "desktop/main.cjs",
   "author": "Guanyi Reader",

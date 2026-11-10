@@ -56,11 +56,69 @@ async function main() {
   const evaluate = expression => window.webContents.executeJavaScript(`(async()=>{return ${expression}})()`);
   const run = statements => window.webContents.executeJavaScript(`(async()=>{${statements}})()`);
   await window.loadFile(path.join(output, 'fixture.html'));
-  await run(`window.changes=[];window.snapshots=[];window.notices=[];window.session=await GuanyiPdfReader.open({bytes:new Uint8Array(${JSON.stringify([...source])}),container:document.getElementById('container'),toolbar:document.getElementById('toolbar'),icon:()=>'<span>•</span>',onChange:e=>changes.push(e),onSnapshot:async(b,r)=>snapshots.push({bytes:Array.from(b),revision:r}),notify:m=>notices.push(m),onPosition:p=>window.position=p,edits:{}});`);
+  await run(`window.changes=[];window.snapshots=[];window.notices=[];window.positions=[];window.session=await GuanyiPdfReader.open({bytes:new Uint8Array(${JSON.stringify([...source])}),container:document.getElementById('container'),toolbar:document.getElementById('toolbar'),icon:()=>'<span>•</span>',onChange:e=>changes.push(e),onSnapshot:async(b,r)=>snapshots.push({bytes:Array.from(b),revision:r}),notify:m=>notices.push(m),onPosition:p=>{window.position=p;positions.push({...p})},edits:{}});`);
   const child = `document.querySelector('iframe').contentWindow`;
   const childDoc = `${child}.document`;
   await until(() => evaluate(`${childDoc}.querySelectorAll('.textLayer span').length>0`), 'PDF text layer');
   assert.equal(await evaluate(`${child}.PDFViewerApplication.pdfDocument.numPages`), 2);
+  // Host controls expose an actual zoom percentage and explicit current/total
+  // page navigation instead of relying on the embedded viewer's hidden toolbar.
+  await until(() => evaluate(`document.querySelector('.guanyi-pdf-zoom-select')?.selectedOptions[0]?.textContent.includes('%')`), 'visible PDF zoom percentage');
+  assert.match(await evaluate(`document.querySelector('.guanyi-pdf-page-count').textContent`), /共 2 页/);
+  assert.match(await evaluate(`document.querySelector('.guanyi-pdf-page-number').getAttribute('aria-label')`), /当前第 1 页，共 2 页/);
+  assert.equal(await evaluate(`document.querySelector('.guanyi-pdf-page-number').value`), '1');
+  assert.equal(await evaluate(`document.querySelector('[aria-label="上一页"]').disabled`), true);
+  assert.equal(await evaluate(`document.querySelector('[aria-label="下一页"]').disabled`), false);
+  await evaluate(`document.querySelector('[aria-label="下一页"]').click()`);
+  await until(() => evaluate(`${child}.PDFViewerApplication.pdfViewer.currentPageNumber===2`), 'PDF next-page button');
+  assert.equal(await evaluate(`window.position.page`), 2, 'page position must update synchronously before a fast tab switch');
+  assert.equal(await evaluate(`document.querySelector('.guanyi-pdf-page-number').value`), '2');
+  assert.equal(await evaluate(`document.querySelector('[aria-label="下一页"]').disabled`), true);
+  // Arrow navigation is intentionally handled only while reading; annotation
+  // text fields and other editable controls retain their normal key behavior.
+  await evaluate(`${childDoc}.dispatchEvent(new (${child}.KeyboardEvent)('keydown',{key:'ArrowLeft',bubbles:true,cancelable:true}))`);
+  await until(() => evaluate(`${child}.PDFViewerApplication.pdfViewer.currentPageNumber===1`), 'PDF ArrowLeft navigation');
+  await evaluate(`(()=>{const input=document.querySelector('.guanyi-pdf-page-number');input.value='2';input.dispatchEvent(new Event('change',{bubbles:true}))})()`);
+  await until(() => evaluate(`${child}.PDFViewerApplication.pdfViewer.currentPageNumber===2`), 'PDF direct page input');
+  await evaluate(`(()=>{const input=document.querySelector('.guanyi-pdf-page-number');input.value='1.6';input.dispatchEvent(new Event('change',{bubbles:true}))})()`);
+  assert.equal(await evaluate(`${child}.PDFViewerApplication.pdfViewer.currentPageNumber`), 2, 'fractional page input must be rounded to an integer');
+  assert.equal(await evaluate(`document.querySelector('.guanyi-pdf-page-number').value`), '2');
+  await evaluate(`(()=>{const input=document.querySelector('.guanyi-pdf-page-number');input.value='999';input.dispatchEvent(new Event('change',{bubbles:true}))})()`);
+  assert.equal(await evaluate(`${child}.PDFViewerApplication.pdfViewer.currentPageNumber`), 2, 'page input must clamp to the final page');
+  await evaluate(`(()=>{const input=document.querySelector('.guanyi-pdf-page-number');input.value='-5';input.dispatchEvent(new Event('change',{bubbles:true}))})()`);
+  assert.equal(await evaluate(`${child}.PDFViewerApplication.pdfViewer.currentPageNumber`), 1, 'page input must clamp to the first page');
+  await evaluate(`${childDoc}.dispatchEvent(new (${child}.KeyboardEvent)('keydown',{key:'ArrowLeft',bubbles:true,cancelable:true}))`);
+  await until(() => evaluate(`${child}.PDFViewerApplication.pdfViewer.currentPageNumber===1`), 'PDF keyboard return to first page');
+  await evaluate(`(()=>{const select=document.querySelector('.guanyi-pdf-zoom-select');select.value='1';select.dispatchEvent(new Event('change',{bubbles:true}))})()`);
+  await until(() => evaluate(`Math.abs(${child}.PDFViewerApplication.pdfViewer.currentScale-1)<0.001`), 'PDF 100% zoom selection');
+  assert.equal(await evaluate(`document.querySelector('.guanyi-pdf-zoom-select').selectedOptions[0].textContent`), '100%');
+  const scaleAt100 = await evaluate(`${child}.PDFViewerApplication.pdfViewer.currentScale`);
+  await evaluate(`document.querySelector('[aria-label="放大"]').click()`);
+  await until(() => evaluate(`${child}.PDFViewerApplication.pdfViewer.currentScale>${scaleAt100}`), 'PDF zoom-in button');
+  assert.match(await evaluate(`document.querySelector('.guanyi-pdf-zoom-select').selectedOptions[0].textContent`), /^\d+%$/);
+  await evaluate(`document.querySelector('[aria-label="缩小"]').click()`);
+  await until(() => evaluate(`Math.abs(${child}.PDFViewerApplication.pdfViewer.currentScale-${scaleAt100})<0.001`), 'PDF zoom-out button');
+  await evaluate(`(()=>{const select=document.querySelector('.guanyi-pdf-zoom-select');select.value='page-fit';select.dispatchEvent(new Event('change',{bubbles:true}))})()`);
+  await until(() => evaluate(`document.querySelector('.guanyi-pdf-zoom-select').selectedOptions[0].textContent.startsWith('整页 · ')`), 'PDF fit-page percentage');
+  assert.match(await evaluate(`document.querySelector('.guanyi-pdf-zoom-select').selectedOptions[0].textContent`), /\d+%$/);
+  assert.equal(await evaluate(`window.position.zoom`), 'page-fit', 'fit preset must persist as a responsive mode');
+  // PDF.js also accepts native keyboard/gesture zoom. Its numeric scale event
+  // must clear the old fit preset instead of restoring page-fit next time.
+  await evaluate(`${child}.PDFViewerApplication.zoomIn()`);
+  await until(() => evaluate(`/^\\d+%$/.test(document.querySelector('.guanyi-pdf-zoom-select').selectedOptions[0].textContent)`), 'PDF native numeric zoom clears fit preset');
+  assert.ok(!['page-fit', 'page-width'].includes(await evaluate(`window.position.zoom`)), 'numeric zoom must persist the actual scale');
+  await evaluate(`(()=>{const select=document.querySelector('.guanyi-pdf-zoom-select');select.value='page-width';select.dispatchEvent(new Event('change',{bubbles:true}))})()`);
+  await until(() => evaluate(`document.querySelector('.guanyi-pdf-zoom-select').selectedOptions[0].textContent.startsWith('页宽 · ')`), 'PDF page-width preset after numeric zoom');
+  assert.equal(await evaluate(`window.position.zoom`), 'page-width', 'page-width preset must survive responsive recalculation');
+  await fs.writeFile(path.join(output, 'controls.png'), await window.webContents.capturePage().then(image => image.toPNG()));
+  // Reopen after exercising several render modes so the annotation placement
+  // test starts from a clean page-width viewer and cannot inherit a pending
+  // PDF.js scale render from the controls test.
+  await run(`const zoom=document.querySelector('.guanyi-pdf-zoom-select');zoom.value='1.25';zoom.dispatchEvent(new Event('change',{bubbles:true}));const page=document.querySelector('.guanyi-pdf-page-number');page.value='2';page.dispatchEvent(new Event('change',{bubbles:true}));window.positionBeforeFastDispose={...window.position};await session.dispose();window.positionAfterDispose={...window.position};`);
+  assert.deepEqual(await evaluate(`window.positionBeforeFastDispose`), { page: 2, zoom: '1.25' }, 'latest position must exist before immediate dispose');
+  assert.deepEqual(await evaluate(`window.positionAfterDispose`), { page: 2, zoom: '1.25' }, 'dispose must synchronously report the final position');
+  await run(`document.getElementById('toolbar').replaceChildren();window.session=await GuanyiPdfReader.open({bytes:new Uint8Array(${JSON.stringify([...source])}),container:document.getElementById('container'),toolbar:document.getElementById('toolbar'),icon:()=>'<span>•</span>',onChange:e=>changes.push(e),onSnapshot:async(b,r)=>snapshots.push({bytes:Array.from(b),revision:r}),notify:m=>notices.push(m),onPosition:p=>{window.position=p;positions.push({...p})},edits:{}});`);
+  await until(() => evaluate(`${childDoc}.querySelectorAll('.textLayer span').length>0`), 'fresh PDF text layer after controls');
   // Use upstream FreeText editor through the adapter's public toolbar.
   await evaluate(`document.querySelector('[aria-label="文字笔记"]').click()`);
   await until(() => evaluate(`${child}.PDFViewerApplication.pdfViewer.annotationEditorMode===3`), 'FreeText mode');

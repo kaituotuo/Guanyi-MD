@@ -12,9 +12,11 @@ const profile = path.join(fixture, 'profile');
 process.env.NODE_ENV = 'test';
 process.env.GUANYI_TEST_USER_DATA = profile;
 const mdPath = path.join(fixture, '原有文档.md');
+const txtPath = path.join(fixture, '阅读摘录.txt');
 const pdfPath = path.join(fixture, '测试 PDF.pdf');
 const epubPath = path.join(fixture, '测试 EPUB.epub');
 fs.writeFileSync(mdPath, '# Markdown regression\n\nKeep this original.');
+fs.writeFileSync(txtPath, '纯文本阅读摘录。');
 const pdf = new jsPDF();
 pdf.text('PDF reading test', 20, 30);
 pdf.addPage();
@@ -65,6 +67,10 @@ async function until(predicate, label) {
   await evaluate("document.querySelector('#btn-open-doc').click()");
   await until(() => evaluate(`window.__MD_EDITOR_TEST__.getState().docs.some(d=>d.desktopPath===${JSON.stringify(mdPath)})`), 'Markdown chooser');
   const mdId = await evaluate('window.__MD_EDITOR_TEST__.getState().currentDocId');
+  selectedPath = txtPath;
+  await evaluate("document.querySelector('#btn-open-doc').click()");
+  await until(() => evaluate(`window.__MD_EDITOR_TEST__.getState().docs.some(d=>d.desktopPath===${JSON.stringify(txtPath)})`), 'TXT chooser');
+  const txtId = await evaluate('window.__MD_EDITOR_TEST__.getState().currentDocId');
   selectedPath = pdfPath;
   await evaluate("document.querySelector('#btn-open-doc').click()");
   await until(() => evaluate('Boolean(document.querySelector(".app-reader-toolbar:not([hidden]) .app-reader-save"))'), 'PDF viewer ready');
@@ -99,6 +105,14 @@ async function until(predicate, label) {
   await evaluate("document.querySelector('#btn-open-doc').click()");
   await until(() => evaluate('document.querySelector(".app-reader-toolbar:not([hidden]) .app-reader-save")?.textContent.includes("导出笔记")'), 'EPUB viewer ready');
   const epubId = await evaluate('window.__MD_EDITOR_TEST__.getState().currentDocId');
+  const expectedTabIds = { md: mdId, txt: txtId, pdf: pdfId, epub: epubId };
+  for (const [type, id] of Object.entries(expectedTabIds)) {
+    const tabType = await evaluate(`document.querySelector('[data-doc-id="${id}"]')?.dataset.documentType`);
+    const mark = await evaluate(`document.querySelector('[data-doc-id="${id}"] .app-document-tab__type-mark')?.textContent`);
+    assert.equal(tabType, type, `${type} tab should expose its document type`);
+    assert.equal(mark, ({ md: 'MD', txt: 'TXT', pdf: 'PDF', epub: 'EPUB' })[type]);
+  }
+  fs.writeFileSync(path.join(fixture, 'document-type-tabs.png'), (await window.capturePage()).toPNG());
   assert.equal(await evaluate('window.__MD_EDITOR_TEST__.saveCurrentDocument()'), true);
   assert.ok(savedPath.endsWith('.md'));
   await evaluate(`document.querySelector('[data-doc-id="${mdId}"] .app-document-tab__activate').click()`);
