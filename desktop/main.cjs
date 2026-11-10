@@ -22,6 +22,7 @@ const MEILISEARCH_VERSION = '1.53.1';
 const APP_URL_PROTOCOLS = new Set(['file:']);
 const EXTERNAL_URL_PROTOCOLS = new Set(['http:', 'https:']);
 const DESKTOP_OPEN_EXTENSIONS = new Set(['.md', '.markdown', '.txt']);
+const DESKTOP_DIRECTORY_EXTENSIONS = new Set([...DESKTOP_OPEN_EXTENSIONS, ...BINARY_DOCUMENT_EXTENSIONS]);
 const DESKTOP_IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif']);
 const DESKTOP_MAX_FILE_SIZE = 20 * 1024 * 1024;
 const DESKTOP_DIRECTORY_MAX_DEPTH = 5;
@@ -212,7 +213,7 @@ function shouldIgnoreDesktopDirectoryEntry(name, kind, depth) {
   if (kind === 'directory') return value === 'node_modules' || depth >= DESKTOP_DIRECTORY_MAX_DEPTH;
   const lower = value.toLowerCase();
   if (lower.endsWith('.review.md') || lower.endsWith('.review.json')) return true;
-  return !DESKTOP_OPEN_EXTENSIONS.has(path.extname(lower));
+  return !DESKTOP_DIRECTORY_EXTENSIONS.has(path.extname(lower));
 }
 
 async function inspectDesktopDirectory(rawPath) {
@@ -246,8 +247,10 @@ async function scanDesktopDirectory(rawPath) {
         try {
           const filePath = safeDirectoryEntryPath(root.path, relativePath);
           const stats = await fs.promises.stat(filePath);
-          if (stats.size > DESKTOP_MAX_FILE_SIZE) {
-            errors.push({ path: relativePath, reason: '文件超过 20 MB，未载入' });
+          const binary = BINARY_DOCUMENT_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+          const maximum = binary ? MAX_BINARY_DOCUMENT_SIZE : DESKTOP_MAX_FILE_SIZE;
+          if (stats.size > maximum) {
+            errors.push({ path: relativePath, code: 'FILE_TOO_LARGE', reason: `文件超过 ${binary ? 100 : 20} MB，未载入` });
           } else {
             entries.push({
               relativePath,

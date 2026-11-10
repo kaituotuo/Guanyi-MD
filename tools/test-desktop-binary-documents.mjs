@@ -95,7 +95,7 @@ try {
     process, Buffer, console, URL, setTimeout, clearTimeout,
     __dirname: path.join(projectRoot, 'desktop')
   });
-  vm.runInContext(`${mainSource}\nmainWindow = { webContents: testSender }; installDesktopFileHandlers();`, Object.assign(context, { testSender: sender }));
+  vm.runInContext(`${mainSource}\nmainWindow = { webContents: testSender }; installDesktopFileHandlers(); installDesktopDirectoryHandlers();`, Object.assign(context, { testSender: sender }));
   const invoke = (channel, payload, source = sender) => handlers.get(channel)({ sender: source }, payload);
   const chosen = await invoke('guanyi-files:choose');
   assert.deepEqual(Array.from(chosen), [openPath, path.join(fixture, '电子书.epub')]);
@@ -129,9 +129,38 @@ try {
   await assert.rejects(invoke('guanyi-files:cache-binary', { id: 'reader-ipc', bytes: pdf }, {}), /不受信任/);
   await assert.rejects(invoke('guanyi-files:save-binary-as', { suggestedName: 'x.pdf', bytes: pdf }, {}), /不受信任/);
   await assert.rejects(invoke('guanyi-files:read-cached-binary', 'reader-ipc', {}), /不受信任/);
-  assert.equal(vm.runInContext(`shouldIgnoreDesktopDirectoryEntry('book.epub', 'file', 0)`, context), true);
-  assert.equal(vm.runInContext(`shouldIgnoreDesktopDirectoryEntry('book.pdf', 'file', 0)`, context), true);
+  assert.equal(vm.runInContext(`shouldIgnoreDesktopDirectoryEntry('book.epub', 'file', 0)`, context), false);
+  assert.equal(vm.runInContext(`shouldIgnoreDesktopDirectoryEntry('book.pdf', 'file', 0)`, context), false);
   assert.equal(vm.runInContext(`shouldIgnoreDesktopDirectoryEntry('book.md', 'file', 0)`, context), false);
+  const readingRoot = path.join(fixture, '最近的阅读');
+  const books = path.join(readingRoot, '文学名著');
+  fs.mkdirSync(books, { recursive: true });
+  fs.writeFileSync(path.join(books, '作品.PDF'), pdf);
+  fs.writeFileSync(path.join(books, '电子书.epub'), epub);
+  fs.writeFileSync(path.join(books, '笔记.md'), '# note');
+  fs.writeFileSync(path.join(books, '.隐藏.pdf'), pdf);
+  fs.writeFileSync(path.join(books, '笔记.REVIEW.md'), '# review');
+  fs.symlinkSync(openPath, path.join(books, '链接.pdf'));
+  const longPdf = path.join(books, '长篇.pdf');
+  fs.writeFileSync(longPdf, pdf);
+  fs.truncateSync(longPdf, 21 * 1024 * 1024);
+  const tooLargePdf = path.join(books, '超大.pdf');
+  fs.writeFileSync(tooLargePdf, pdf);
+  fs.truncateSync(tooLargePdf, 232 * 1024 * 1024);
+  const tooLargeText = path.join(books, '超大.txt');
+  fs.writeFileSync(tooLargeText, 'text');
+  fs.truncateSync(tooLargeText, 21 * 1024 * 1024);
+  const scan = await invoke('guanyi-directories:scan', readingRoot);
+  const scannedNames = Array.from(scan.entries, entry => entry.relativePath);
+  assert.deepEqual(scannedNames.sort(), ['文学名著/作品.PDF', '文学名著/电子书.epub', '文学名著/笔记.md', '文学名著/长篇.pdf'].sort());
+  assert.ok(scan.entries.every(entry => !('bytes' in entry)), 'directory scan returns metadata, not binary content');
+  assert.ok(Array.from(scan.errors).some(entry => entry.path === '文学名著/超大.pdf' && entry.code === 'FILE_TOO_LARGE' && /100 MB/.test(entry.reason)));
+  assert.ok(Array.from(scan.errors).some(entry => entry.path === '文学名著/超大.txt' && entry.code === 'FILE_TOO_LARGE' && /20 MB/.test(entry.reason)));
+  const directoryBook = await invoke('guanyi-directories:read', { rootPath: readingRoot, relativePath: '文学名著/电子书.epub' });
+  assert.deepEqual(Buffer.from(directoryBook.bytes), epub);
+  const directoryPdf = await invoke('guanyi-directories:read', { rootPath: readingRoot, relativePath: '文学名著/作品.PDF' });
+  assert.deepEqual(Buffer.from(directoryPdf.bytes), pdf);
+  await assert.rejects(invoke('guanyi-directories:read', { rootPath: readingRoot, relativePath: '../原文件.pdf' }), /目录内路径无效/);
   let quitCount = 0;
   let closed = false;
   electron.app.quit = () => { quitCount += 1; };
@@ -147,7 +176,7 @@ try {
   await vm.runInContext('prepareNativeClose(closingWindow)', context);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(quitCount, 1, 'a Quit requested during close must resume after the close checkpoint');
-  console.log('desktop binary documents: PASS (read/open, atomic save, cache, size limits, text write isolation)');
+  console.log('desktop binary documents: PASS (read/open, directory PDF/EPUB scan, size errors, atomic save, cache, text write isolation)');
 } finally {
   fs.rmSync(fixture, { recursive: true, force: true });
 }

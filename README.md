@@ -13,15 +13,15 @@
 
 PDF / EPUB 首版编辑范围为高亮、批注和笔记。不提供 PDF 正文重排、OCR、EPUB 正文改写或 DRM 绕过。扫描 PDF 能否选中文字取决于文件是否已有文字层。
 
-## 1.0.38 安装包
+## 1.0.39 本地体验包
 
-本轮 macOS Apple Silicon（M1 / M2 / M3 / M4 等）安装包验收完成后放在：
+本轮 macOS Apple Silicon（M1 / M2 / M3 / M4 等）安装包放在：
 
-`release/current/Guanyi-Reader-1.0.38-mac-arm64.dmg`
+`release/current/Guanyi-Reader-1.0.39-mac-arm64.dmg`
 
-GitHub Releases：[发行页面](https://github.com/kaituotuo/Guanyi-MD/releases)。本轮只发布 macOS ARM64；Windows 当前本地产物仍为旧名称的 `1.0.34`，不属于 1.0.38 Release。
+GitHub Releases：[发行页面](https://github.com/kaituotuo/Guanyi-MD/releases)。已发布的 v1.0.38 保留原安装包和校验值；1.0.39 先作为本地验收包。本轮只构建 macOS ARM64，Windows 当前本地产物仍为 `1.0.34`。
 
-从旧名称「观绎 MD」升级：先保存内容并用 **Command+Q** 完全退出旧应用，将「观译阅读器.app」放入“应用程序”，再从“应用程序”打开新名称，检查“关于”显示 **1.0.38**。名称改变后，旧 Dock 图标可能仍指向旧应用，需要固定新应用图标。
+安装前先保存内容并用 **Command+Q** 完全退出旧应用，将「观译阅读器.app」放入“应用程序”，再从“应用程序”打开并检查“关于”显示 **1.0.39**。顶部品牌字标为「观译」，macOS 应用名保持「观译阅读器」。旧 Dock 图标可能仍指向旧应用，需要固定新应用图标。
 
 应用标识仍为 `com.guanyi.md`，本地数据目录仍为 `guanyi-md`，已有文档、目录、设置和索引继续沿用。请勿删除 `~/Library/Application Support/guanyi-md`。应用改名不会自动删除旧名称的 `.app`。
 
@@ -29,16 +29,18 @@ GitHub Releases：[发行页面](https://github.com/kaituotuo/Guanyi-MD/releases
 
 ## 本次变化
 
-- 新增 PDF / EPUB 阅读、高亮、批注和笔记，直接复用成熟开源阅读引擎。
+- 添加目录时收录 Markdown、TXT、PDF 和 EPUB；PDF/EPUB 在左侧保持原文件名，点击后按二进制格式进入对应阅读器。
+- 顶部品牌字标缩短为「观译」；目录扫描对超过大小上限的文件显示跳过原因。
+- 保留 PDF / EPUB 阅读、高亮、批注和笔记，复用成熟开源阅读引擎。
 - 工具栏随文档格式切换，沿用产品图标。
-- 修复分栏模式点击任务列表后跳到文末的问题；光标与两侧滚动位置保持稳定。
+- 保留分栏模式任务列表输入不跳到文末的修复；光标与两侧滚动位置保持稳定。
 - PDF 草稿写入失败时保留当前批注实例；正常关闭会等待保存，避免最后输入丢失。
 - 外部 PDF / EPUB 更新后重新打开会创建新的阅读记录，保留旧记录的批注。
 
 ## 使用范围与数据
 
 - 文本文件支持 `.md`、`.markdown`、`.txt`，单份不超过 20 MB；PDF / EPUB 单份不超过 100 MB。
-- 目录扫描默认最多 5 层，只扫描 Markdown / TXT；全库关键词和语义搜索也面向这些文本格式。
+- 目录扫描默认最多 5 层，可收录 Markdown、TXT、PDF 和 EPUB；全库关键词和语义搜索仍面向 Markdown / TXT 正文。
 - Markdown 支持图片、表格、任务列表、50 步撤销、批注伴随文件、明暗主题和多页签。
 - 本地搜索使用随应用提供的 `bge-small-zh-v1.5` INT8 ONNX 模型与 Meilisearch；索引与查询运行在本机。
 - AI 辅助阅读须主动触发，使用配置的服务提供商。生成辅助阅读可能发送当前 Markdown 全文；问作品会发送问题、上下文和选取的原文证据。请先确认内容适合发送给该服务。

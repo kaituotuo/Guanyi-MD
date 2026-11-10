@@ -1,6 +1,6 @@
 {
   "name": "guanyi-md",
-  "version": "1.0.38",
+  "version": "1.0.39",
   "description": "观译阅读器｜Markdown、TXT、PDF、EPUB 本地阅读与批注。",
   "main": "desktop/main.cjs",
   "author": "Guanyi Reader",
@@ -20,6 +20,7 @@
     "test:desktop-layout": "node tools/test-desktop-layout-contract.mjs",
     "test:desktop-layout-electron": "node tools/test-electron-layout.mjs",
     "test:directory-refresh": "node tools/test-directory-refresh.mjs",
+    "test:directory-binary-electron": "node tools/run-electron-smoke.mjs tools/electron-directory-binary-smoke.cjs",
     "test:search-navigation": "node tools/test-search-navigation.mjs",
     "test:desktop-file-open": "node tools/test-desktop-file-open.mjs",
     "test:desktop-file-actions": "node tools/test-electron-file-actions.mjs",

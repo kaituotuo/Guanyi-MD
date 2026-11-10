@@ -97,6 +97,7 @@ const expectedScripts = [
     'test:desktop-layout',
   'test:desktop-layout-electron',
   'test:desktop-file-actions',
+  'test:directory-binary-electron',
   'test:document-rename',
   'test:regression-catalog',
   'test:regression:editor',

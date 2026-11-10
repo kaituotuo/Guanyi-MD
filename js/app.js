@@ -24,14 +24,16 @@
   const DIRECTORY_HANDLE_STORE = 'directories';
   const HANDLE_DB_VERSION = 2;
   const CONTENT_MIGRATION_VERSION = 1;
-  const PRESET_MIGRATION_VERSION = 7;
+  const PRESET_MIGRATION_VERSION = 8;
   const DIRECTORY_MIGRATION_VERSION = 1;
   const OPEN_EXTS = ['.md', '.markdown', '.txt', '.epub', '.pdf'];
-  const DIRECTORY_EXTS = ['.md', '.markdown', '.txt'];
+  const DIRECTORY_EXTS = ['.md', '.markdown', '.txt', '.epub', '.pdf'];
   const DIRECTORY_MAX_DEPTH = 5;
   const DIRECTORY_MAX_FILES = 500;
   const DIRECTORY_MAX_FILE_SIZE_MB = 20;
   const DIRECTORY_MAX_FILE_SIZE = DIRECTORY_MAX_FILE_SIZE_MB * 1024 * 1024;
+  const DIRECTORY_BINARY_MAX_FILE_SIZE_MB = 100;
+  const DIRECTORY_BINARY_MAX_FILE_SIZE = DIRECTORY_BINARY_MAX_FILE_SIZE_MB * 1024 * 1024;
   const DIRECTORY_SCAN_INTERVAL = 5 * 60 * 1000;
   const DIRECTORY_IMAGE_MAX_FILE_SIZE = 20 * 1024 * 1024;
   const DATA_URL_IMAGE_MAX_FILE_SIZE = 1024 * 1024;
@@ -1446,6 +1448,11 @@
     return result;
   }
 
+  function directoryScanComplete(scan) {
+    return !scan.truncated && !scan.depthLimited
+      && !(scan.errors || []).some((error) => error.code !== 'FILE_TOO_LARGE');
+  }
+
   function serializeDirectory(directory) {
     return {
       id: directory.id,
@@ -1471,7 +1478,7 @@
       'doc-3': { name: '空白模板', fingerprints: ['156:1957678079'], targetId: 'builtin-general-template' }
     };
     const factoryPresetUpgrades = {
-      'builtin-product-intro': { name: '产品介绍', fingerprints: ['549:979998719', '792:810326343', '993:1781648031'] },
+      'builtin-product-intro': { name: '产品介绍', fingerprints: ['549:979998719', '792:810326343', '993:1781648031', '1541:1042623205'] },
       'builtin-product-intro-en': { name: '产品介绍（英文）', fingerprints: ['1211:2407879867', '1735:3783713428'] }
     };
     const presetById = new Map(presets.map((preset) => [preset.id, preset]));
@@ -5446,8 +5453,11 @@
           } else if (!shouldIgnoreDirectoryEntry(name, 'file', depth)) {
             try {
               const file = await entryHandle.getFile();
-              if (file.size > DIRECTORY_MAX_FILE_SIZE) {
-                errors.push({ path: normalizeRelativePath(`${prefix}/${name}`), reason: `文件超过 ${DIRECTORY_MAX_FILE_SIZE_MB} MB，未载入` });
+              const binary = !!window.GuanyiReaderHost?.format(name);
+              const maxBytes = binary ? DIRECTORY_BINARY_MAX_FILE_SIZE : DIRECTORY_MAX_FILE_SIZE;
+              const maxMb = binary ? DIRECTORY_BINARY_MAX_FILE_SIZE_MB : DIRECTORY_MAX_FILE_SIZE_MB;
+              if (file.size > maxBytes) {
+                errors.push({ path: normalizeRelativePath(`${prefix}/${name}`), code: 'FILE_TOO_LARGE', reason: `文件超过 ${maxMb} MB，未载入` });
               } else {
                 entries.push({
                   relativePath: normalizeRelativePath(`${prefix}/${name}`),
@@ -5535,8 +5545,9 @@
         : await enumerateDirectoryFiles(directory.handle);
       const existingDocs = state.docs.filter((doc) => doc.directoryId === directory.id);
       const diff = diffDirectoryIndex(existingDocs, scan.entries);
-      const scanComplete = !scan.errors.length && !scan.truncated && !scan.depthLimited;
-      const missing = partitionMissingDirectoryDocs(diff.missing, scanComplete, isDocDirty);
+      const scanComplete = directoryScanComplete(scan);
+      const missing = partitionMissingDirectoryDocs(diff.missing, scanComplete,
+        (doc) => isDocDirty(doc) || (isReaderDocument(doc) && doc.contentLoaded !== false));
       let refreshedCurrent = false;
 
       diff.added.forEach((entry) => markSemanticIndexDirty(directoryDocId(directory.id, entry.relativePath)));
@@ -5544,11 +5555,14 @@
       [...missing.removed, ...missing.retained].forEach((doc) => markSemanticIndexDirty(doc.id));
 
       for (const entry of diff.added) {
+        const readerFormat = window.GuanyiReaderHost?.format(entry.fileName) || null;
+        const initialContent = readerFormat === 'pdf' ? JSON.stringify({ revision: 'original' }) : (readerFormat ? '{}' : '');
         const doc = {
           id: directoryDocId(directory.id, entry.relativePath),
-          name: entry.fileName.replace(/\.(md|markdown|txt)$/i, ''),
-          content: '',
-          lastSavedContent: '',
+          name: entry.fileName.replace(/\.(md|markdown|txt|epub|pdf)$/i, ''),
+          content: initialContent,
+          lastSavedContent: initialContent,
+          readerFormat,
           fileHandle: entry.handle || null,
           directoryHandle: directory.handle || null,
           desktopPath: entry.path || null,
@@ -5571,10 +5585,24 @@
 
       for (const item of diff.changed) {
         const { doc, entry } = item;
+        const readerFormat = window.GuanyiReaderHost?.format(entry.fileName) || null;
         doc.fileHandle = entry.handle || null;
         doc.directoryHandle = directory.handle || null;
         doc.desktopPath = entry.path || doc.desktopPath || null;
         doc.localFileName = entry.fileName;
+        if (readerFormat) {
+          doc.readerFormat = readerFormat;
+          // Preserve cached bytes and annotations for an already opened book.
+          // A changed source must not silently replace its reading record.
+          if (doc.contentLoaded === false) {
+            doc.externalModifiedAt = entry.lastModified;
+            doc.externalSize = entry.size;
+          }
+          doc.syncState = 'updated';
+          doc.unread = doc.id !== state.currentDocId;
+          await persistDocHandles(doc);
+          continue;
+        }
         doc.externalModifiedAt = entry.lastModified;
         doc.externalSize = entry.size;
         const diskContent = entry.file
@@ -5655,9 +5683,10 @@
       updateConflictBar();
       if (opts.announce) {
         const summary = directory.lastScanSummary;
-        tip(summary.added || summary.updated || summary.removed || summary.missing
+        const message = summary.added || summary.updated || summary.removed || summary.missing
           ? `扫描完成：新增 ${summary.added}，更新 ${summary.updated}，移出 ${summary.removed}，待处理 ${summary.missing}`
-          : '扫描完成，暂无更新');
+          : '扫描完成，暂无更新';
+        tip(`${message}${summary.errors ? `；跳过 ${summary.errors} 个文件，可在“添加目录”中查看原因` : ''}`);
       }
       return directory.lastScanSummary;
     } catch (error) {
@@ -5727,21 +5756,50 @@
     return directoryRefreshPromise;
   }
 
+  function directoryReadFailureState(error) {
+    if (error?.code === 'ENOENT' || error?.name === 'NotFoundError') return 'missing';
+    if (error?.code === 'EACCES' || error?.code === 'EPERM'
+      || error?.name === 'NotAllowedError' || error?.name === 'SecurityError') return 'permission-required';
+    return 'read-error';
+  }
+
+  async function prepareDirectoryReader(doc, bytes) {
+    const reader = await window.GuanyiReaderHost.prepare({
+      id: doc.id, name: doc.localFileName || doc.relativePath, bytes
+    });
+    doc.readerFormat = reader.readerFormat;
+    doc.content = reader.content;
+    doc.lastSavedContent = reader.lastSavedContent;
+    doc.readerPosition = null;
+    doc.contentLoaded = true;
+    doc.externalContent = null;
+    histories.set(doc.id, { entries: [doc.content], uiEntries: [null], index: 0, lastInputAt: 0, lastInputSource: null });
+  }
+
   async function readDirectoryDocument(doc, interactive) {
     if (!isDirectoryDoc(doc)) return true;
+    doc.readerFormat ||= window.GuanyiReaderHost?.format(doc.localFileName || doc.relativePath) || null;
+    if (isReaderDocument(doc) && doc.contentLoaded) {
+      doc.unread = false;
+      return true;
+    }
     const directory = directoryForDoc(doc);
     const desktopApi = desktopDirectoryApi();
     if (directory?.rootPath && desktopApi) {
       try {
         const record = await readDesktopDirectoryEntry(directory, doc);
-        const content = decodeTextBytes(record.bytes);
-        if (!doc.contentLoaded || (doc.syncState === 'updated' && !isDocDirty(doc))) {
-          doc.content = content;
-          doc.lastSavedContent = content;
-          doc.contentLoaded = true;
-          doc.externalContent = null;
-          histories.set(doc.id, { entries: [content], uiEntries: [null], index: 0, lastInputAt: 0, lastInputSource: null });
-          reconcileReviewCommentsWithDocument(doc);
+        if (isReaderDocument(doc)) {
+          await prepareDirectoryReader(doc, desktopBytes(record.bytes));
+        } else {
+          const content = decodeTextBytes(record.bytes);
+          if (!doc.contentLoaded || (doc.syncState === 'updated' && !isDocDirty(doc))) {
+            doc.content = content;
+            doc.lastSavedContent = content;
+            doc.contentLoaded = true;
+            doc.externalContent = null;
+            histories.set(doc.id, { entries: [content], uiEntries: [null], index: 0, lastInputAt: 0, lastInputSource: null });
+            reconcileReviewCommentsWithDocument(doc);
+          }
         }
         doc.desktopPath = record.path || doc.desktopPath;
         doc.externalModifiedAt = Number(record.lastModified) || 0;
@@ -5752,9 +5810,10 @@
         saveState({ silent: true });
         return true;
       } catch (error) {
-        directory.permissionState = 'denied';
-        doc.syncState = error?.code === 'ENOENT' ? 'missing' : 'permission-required';
+        doc.syncState = directoryReadFailureState(error);
+        if (doc.syncState === 'permission-required') directory.permissionState = 'denied';
         renderDocList();
+        renderDirectoryModal();
         updateConflictBar();
         if (interactive) tip(`无法读取文档：${error.message || '请重新连接目录'}`);
         return false;
@@ -5778,8 +5837,12 @@
     }
     try {
       const file = await doc.fileHandle.getFile();
-      if (file.size > DIRECTORY_MAX_FILE_SIZE) throw new Error(`文件超过 ${DIRECTORY_MAX_FILE_SIZE_MB} MB，无法在编辑器中打开`);
-      if (!doc.contentLoaded || (doc.syncState === 'updated' && !isDocDirty(doc))) {
+      const maxMb = isReaderDocument(doc) ? DIRECTORY_BINARY_MAX_FILE_SIZE_MB : DIRECTORY_MAX_FILE_SIZE_MB;
+      const maxBytes = isReaderDocument(doc) ? DIRECTORY_BINARY_MAX_FILE_SIZE : DIRECTORY_MAX_FILE_SIZE;
+      if (file.size > maxBytes) throw new Error(`文件超过 ${maxMb} MB，无法打开`);
+      if (isReaderDocument(doc)) {
+        await prepareDirectoryReader(doc, await file.arrayBuffer());
+      } else if (!doc.contentLoaded || (doc.syncState === 'updated' && !isDocDirty(doc))) {
         const content = await readFileAsText(file);
         doc.content = content;
         doc.lastSavedContent = content;
@@ -5794,11 +5857,11 @@
       saveState({ silent: true });
       return true;
     } catch (error) {
-      if (error && error.name === 'NotFoundError') doc.syncState = 'missing';
-      else doc.syncState = 'permission-required';
+      doc.syncState = directoryReadFailureState(error);
       renderDocList();
+      renderDirectoryModal();
       updateConflictBar();
-      tip(`无法读取文档：${error.message || '未知错误'}`);
+      if (interactive) tip(`无法读取文档：${error.message || '未知错误'}`);
       return false;
     }
   }
@@ -10253,6 +10316,7 @@
     const labels = {
       conflict: ['冲突', 'is-conflict'],
       'permission-required': ['需授权', 'is-warning'],
+      'read-error': ['无法读取', 'is-warning'],
       missing: ['缺失', 'is-muted'],
       updated: ['更新', 'is-updated']
     };
@@ -10300,7 +10364,7 @@
     name.className = `app-doc-item__name${canRename ? ' is-renamable' : ''}`;
     name.textContent = confirming
       ? (diskFile ? '从列表移除？文件保留' : '确认删除文档？')
-      : (directoryDoc ? `${doc.name}${fileExtension(doc.localFileName)}` : doc.name);
+      : (directoryDoc ? (doc.localFileName || `${doc.name}${fileExtension(doc.localFileName)}`) : doc.name);
     name.title = confirming
       ? (diskFile ? '仅移除浏览器中的列表记录，不删除本地文件' : `确认删除「${doc.name}」`)
       : (directoryDoc ? doc.relativePath : (diskFile ? `本地文件：${doc.localFileName || doc.name}` : doc.name));
@@ -10444,15 +10508,23 @@
       group.className = 'app-tree-group app-tree-group--directory';
       const subtitle = directory.lastScanStatus === 'scanning'
         ? '正在扫描…'
-        : (directory.permissionState !== 'granted' ? '需要授权' : directory.handleName);
-      group.appendChild(createTreeRoot(directory.name, docs.length, directory.collapsed, 'toggle-directory', { directoryId: directory.id }, subtitle));
+        : (directory.permissionState !== 'granted' ? '需要授权'
+          : (directory.lastScanSummary?.errors
+            ? `${directory.handleName} · 跳过 ${directory.lastScanSummary.errors} 个文件`
+            : directory.handleName));
+      const root = createTreeRoot(directory.name, docs.length, directory.collapsed, 'toggle-directory', { directoryId: directory.id }, subtitle);
+      if (directory.lastScanSummary?.errors) {
+        root.title = directory.lastScanSummary.errorDetails?.map((item) => `${item.path}：${item.reason}`).join('；')
+          || `跳过 ${directory.lastScanSummary.errors} 个文件；在“添加目录”中查看原因`;
+      }
+      group.appendChild(root);
       const children = document.createElement('ul');
       children.className = 'app-tree-children';
       children.hidden = directory.collapsed;
       if (!docs.length) {
         const empty = document.createElement('li');
         empty.className = 'app-tree-empty';
-        empty.textContent = directory.lastScanStatus === 'scanning' ? '正在查找 Markdown / TXT…' : '暂无 Markdown / TXT 文档';
+        empty.textContent = directory.lastScanStatus === 'scanning' ? '正在查找 Markdown / TXT / PDF / EPUB…' : '暂无 Markdown / TXT / PDF / EPUB 文档';
         children.appendChild(empty);
       } else {
         appendDirectoryNode(children, buildDirectoryTree(docs), directory, renamingId, 0);
@@ -10513,7 +10585,7 @@
 
   function directoryStatusText(directory) {
     if (directory.permissionState !== 'granted') return desktopDirectoryApi() ? '需要重新连接目录' : '需要重新授权';
-    if (directory.lastScanStatus === 'scanning') return '正在扫描 Markdown / TXT 文档…';
+    if (directory.lastScanStatus === 'scanning') return '正在扫描 Markdown / TXT / PDF / EPUB 文档…';
     if (directory.lastScanStatus === 'error') return directory.lastScanSummary?.error || '扫描失败';
     const summary = directory.lastScanSummary;
     if (!summary) return formatScanTime(directory.lastScannedAt);
@@ -10602,7 +10674,7 @@
 
   function uniqueDirectoryName(baseName) {
     const names = new Set(state.directories.map((directory) => directory.name));
-    const base = String(baseName || '智能体目录').trim() || '智能体目录';
+    const base = String(baseName || '文档目录').trim() || '文档目录';
     if (!names.has(base)) return base;
     let index = 2;
     while (names.has(`${base} ${index}`)) index += 1;

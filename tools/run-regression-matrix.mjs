@@ -18,6 +18,7 @@ const checks = {
   'desktop-layout': [node, ['tools/test-desktop-layout-contract.mjs']],
   'desktop-layout-electron': [node, ['tools/test-electron-layout.mjs']],
   'directory-refresh': [node, ['tools/test-directory-refresh.mjs']],
+  'directory-binary-electron': [node, ['tools/run-electron-smoke.mjs', 'tools/electron-directory-binary-smoke.cjs']],
   'search-navigation': [node, ['tools/test-search-navigation.mjs']],
   'desktop-file-open': [node, ['tools/test-desktop-file-open.mjs']],
   'desktop-file-actions': [node, ['tools/test-electron-file-actions.mjs']],
@@ -56,10 +57,10 @@ const groups = {
     'original-answer', 'work-question', 'desktop-ai-bridge', 'search-navigation', 'single-file-sync', 'syntax-app'
   ],
   directory: [
-    'catalog', 'directory-refresh', 'desktop-file-open', 'desktop-file-actions', 'document-rename', 'upgrade-persistence',
+    'catalog', 'directory-refresh', 'directory-binary-electron', 'desktop-file-open', 'desktop-file-actions', 'document-rename', 'upgrade-persistence',
     'tabs-file-actions', 'search-navigation', 'semantic-search', 'desktop-menu', 'desktop-layout', 'desktop-layout-electron', 'single-file-sync', 'syntax-app', 'syntax-main', 'syntax-preload'
   ],
-  readers: ['catalog', 'single-file-sync', 'desktop-binary-documents', 'desktop-binary-electron', 'epub-reader', 'pdf-reader', 'reader-host', 'reader-integration'],
+  readers: ['catalog', 'single-file-sync', 'desktop-binary-documents', 'desktop-binary-electron', 'directory-binary-electron', 'epub-reader', 'pdf-reader', 'reader-host', 'reader-integration'],
   search: [
     'catalog', 'search-navigation', 'original-answer', 'work-question', 'desktop-ai-bridge', 'semantic-search',
     'semantic-worker', 'semantic-electron', 'semantic-real-books', 'syntax-semantic'
