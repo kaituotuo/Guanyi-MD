@@ -3,7 +3,8 @@
   'use strict';
 
   const VIEWER_URL = 'vendor/pdfjs/web/viewer.html?file=';
-  const copyBytes = (bytes) => new Uint8Array(bytes).slice();
+  const bytesView = (bytes) => bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const copyBytes = (bytes) => bytesView(bytes).slice();
 
   async function open(options) {
     const { container, toolbar, icon, onChange, onSnapshot, notify, onPosition } = options;
@@ -18,7 +19,9 @@
     let positionTimer;
     let revision = String(options.edits?.revision || 'original');
     let savedRevision = revision;
-    let savedBytes = copyBytes(options.bytes);
+    // The host already owns this buffer. Keep it as the clean revision and give
+    // PDF.js a separate copy, avoiding an extra full-document allocation.
+    let savedBytes = bytesView(options.bytes);
     let checkpointQueue = Promise.resolve();
     let themeObserver;
     let storageHash;
@@ -45,7 +48,7 @@
         // Keep the user's insertion point until their current text edit commits.
         const focused = frame.contentDocument?.activeElement;
         if (focused?.isContentEditable || /^(INPUT|TEXTAREA)$/.test(focused?.tagName || '')) return;
-        checkpoint().catch(error => notify(`PDF 草稿保存失败：${error.message}`));
+        checkpoint(false, false).catch(error => notify(`PDF 草稿保存失败：${error.message}`));
       }, 450);
     }
 
@@ -64,7 +67,19 @@
       const commentDialog = childDocument.getElementById('commentManagerDialog');
       const commentSave = childDocument.getElementById('commentManagerSaveButton');
       if (commentDialog?.open && !commentSave?.disabled) commentSave.click();
-      viewer.pdfViewer._layerProperties.annotationEditorUIManager?.endCurrentEditing();
+      const manager = viewer.pdfViewer._layerProperties.annotationEditorUIManager;
+      manager?.endCurrentEditing();
+      // PDF.js may clear its active-editor pointer on blur before a tab click
+      // reaches us. Commit any FreeText editor still in edit mode explicitly.
+      if (manager) {
+        for (let page = 0; page < viewer.pdfViewer.pagesCount; page += 1) {
+          const editors = manager.getEditors?.(page);
+          if (!editors) continue;
+          for (const editor of editors) {
+            if (editor.div?.classList.contains('freeTextEditor') && editor.isInEditMode()) editor.commitOrRemove();
+          }
+        }
+      }
       childDocument.activeElement?.blur();
     }
 
@@ -77,23 +92,25 @@
       }
     }
 
-    function checkpoint(commit = false) {
+    function checkpoint(commit = false, copyResult = true) {
       if (commit && !disposed) endEditing();
       // Flush native undo/delete/commit synchronously before the host takes its
       // saved revision, rather than depending on a later pointer/key event.
       syncStorageRevision();
       clearTimeout(checkpointTimer);
       const job = checkpointQueue.catch(() => {}).then(async () => {
-        if (disposed || savedRevision === revision) return { bytes: copyBytes(savedBytes), revision: savedRevision };
+        if (disposed || savedRevision === revision) {
+          return { bytes: copyResult ? copyBytes(savedBytes) : savedBytes, revision: savedRevision };
+        }
         const capturedRevision = revision;
         const documentProxy = viewer.pdfDocument;
         const bytes = documentProxy.annotationStorage.size
           ? await documentProxy.saveDocument()
           : await documentProxy.getData();
-        if (onSnapshot) await onSnapshot(copyBytes(bytes), capturedRevision);
         savedBytes = copyBytes(bytes);
+        if (onSnapshot) await onSnapshot(savedBytes, capturedRevision);
         savedRevision = capturedRevision;
-        return { bytes: copyBytes(bytes), revision: capturedRevision };
+        return { bytes: copyResult ? copyBytes(savedBytes) : savedBytes, revision: capturedRevision };
       });
       checkpointQueue = job;
       return job;
@@ -255,6 +272,17 @@
       childDocument.addEventListener('input', event => {
         if (event.target.closest('.annotationEditorLayer, .annotationLayer, #commentManagerDialog')) markChanged();
       }, { capture: true, signal: listeners.signal });
+      let committingFreeTextBlur = false;
+      childDocument.addEventListener('blur', event => {
+        if (committingFreeTextBlur || !event.target.matches?.('.freeTextEditor [contenteditable=true]')) return;
+        // A tab click blurs the native editor before dispose() can flush it.
+        // Commit while PDF.js still tracks this editor as active.
+        committingFreeTextBlur = true;
+        try {
+          viewer.pdfViewer._layerProperties.annotationEditorUIManager?.endCurrentEditing();
+          syncStorageRevision();
+        } finally { committingFreeTextBlur = false; }
+      }, { capture: true, signal: listeners.signal });
       childDocument.addEventListener('focusout', () => scheduleCheckpoint(), { signal: listeners.signal });
       frame.contentWindow.addEventListener('beforeunload', () => {
         endEditing();
@@ -287,11 +315,11 @@
       return {
         async serialize() { return (await checkpoint(true)).bytes; },
         async serializeSnapshot() { return checkpoint(true); },
-        async flush() { return (await checkpoint(true)).bytes; },
+        async flush() { return (await checkpoint(true, false)).bytes; },
         async dispose() {
           if (disposed) return;
           endEditing();
-          await checkpoint();
+          await checkpoint(false, false);
           closing = true;
           disposed = true;
           clearTimeout(checkpointTimer);

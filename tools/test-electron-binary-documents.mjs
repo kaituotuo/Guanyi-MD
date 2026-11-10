@@ -10,6 +10,8 @@ const output = path.join(root, '.tmp-test', 'electron-binary-documents');
 await fs.mkdir(output, { recursive: true });
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
+env.NODE_ENV = 'test';
+if (env.GUANYI_TEST_FOREGROUND !== '1') env.GUANYI_TEST_BACKGROUND = '1';
 await new Promise((resolve, reject) => {
   const child = spawn(require('electron'), [path.join(root, 'tools', 'electron-binary-documents-smoke.cjs'), output], { cwd: root, env, stdio: 'inherit' });
   child.once('error', reject);

@@ -17,6 +17,8 @@ await mkdir(outputDirectory, { recursive: true });
 
 const environment = { ...process.env };
 delete environment.ELECTRON_RUN_AS_NODE;
+environment.NODE_ENV = 'test';
+if (environment.GUANYI_TEST_FOREGROUND !== '1') environment.GUANYI_TEST_BACKGROUND = '1';
 
 await new Promise((resolve, reject) => {
   const child = spawn(electron, [smokeScript, outputDirectory], {

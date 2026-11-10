@@ -14,13 +14,23 @@ const pdf = Buffer.from('%PDF-1.7\nfixture A\n%%EOF');
 const pdfNext = Buffer.from('%PDF-1.7\nfixture B\n%%EOF');
 const epub = Buffer.from('PK\x03\x04epub fixture container');
 const fsApi = fs.promises;
+function sparseFile(filePath, header, size) {
+  fs.writeFileSync(filePath, header);
+  fs.truncateSync(filePath, size);
+  return filePath;
+}
 
 try {
   assert.throws(() => binary.binaryDocumentBytes('string'), /数据无效/);
   assert.throws(() => binary.binaryDocumentBytes(Buffer.alloc(0)), /为空/);
   assert.throws(() => binary.binaryDocumentBytes(pdf, '.epub'), /格式不符/);
   assert.throws(() => binary.binaryDocumentBytes(epub, '.pdf'), /格式不符/);
-  assert.throws(() => binary.binaryDocumentBytes(Buffer.alloc(binary.MAX_BINARY_DOCUMENT_SIZE + 1)), /100 MB/);
+  assert.equal(binary.binaryDocumentSizeLimit('.PDF'), 1024 * 1024 * 1024);
+  assert.equal(binary.binaryDocumentSizeLimit('.epub'), 100 * 1024 * 1024);
+  assert.doesNotThrow(() => binary.validateBinaryDocumentSize(binary.MAX_PDF_DOCUMENT_SIZE, '.pdf'));
+  assert.throws(() => binary.validateBinaryDocumentSize(binary.MAX_PDF_DOCUMENT_SIZE + 1, '.pdf'), /1024 MB/);
+  assert.doesNotThrow(() => binary.validateBinaryDocumentSize(binary.MAX_EPUB_DOCUMENT_SIZE, '.epub'));
+  assert.throws(() => binary.validateBinaryDocumentSize(binary.MAX_EPUB_DOCUMENT_SIZE + 1, '.epub'), /100 MB/);
   const padded = Buffer.concat([Buffer.from('ignore'), pdf, Buffer.from('ignore')]);
   assert.deepEqual(binary.binaryDocumentBytes(padded.subarray(6, 6 + pdf.length), '.pdf'), pdf);
 
@@ -30,6 +40,14 @@ try {
   const writes = [binary.cacheBinaryDocument(fixture, 'reader-same-draft', pdf), binary.cacheBinaryDocument(fixture, 'reader-same-draft', pdfNext)];
   await Promise.all(writes);
   assert.deepEqual(Buffer.from(await binary.readCachedBinaryDocument(fixture, 'reader-same-draft')), pdfNext);
+  // Cache names have no extension. Read the header before allocating the body,
+  // and retain EPUB's smaller cap even when its prefix contains a PDF marker.
+  sparseFile(path.join(fixture, 'binary-documents', 'reader-large-epub.bin'), epub, binary.MAX_EPUB_DOCUMENT_SIZE + 1);
+  await assert.rejects(binary.readCachedBinaryDocument(fixture, 'reader-large-epub'), /100 MB/);
+  sparseFile(path.join(fixture, 'binary-documents', 'reader-polyglot-epub.bin'), Buffer.concat([epub, pdf]), binary.MAX_EPUB_DOCUMENT_SIZE + 1);
+  await assert.rejects(binary.readCachedBinaryDocument(fixture, 'reader-polyglot-epub'), /100 MB/);
+  sparseFile(path.join(fixture, 'binary-documents', 'reader-too-large-pdf.bin'), pdf, binary.MAX_PDF_DOCUMENT_SIZE + 1);
+  await assert.rejects(binary.readCachedBinaryDocument(fixture, 'reader-too-large-pdf'), /1024 MB/);
 
   let selected = { canceled: false, filePath: path.join(fixture, '另存文件') };
   let dialogCount = 0;
@@ -106,12 +124,14 @@ try {
   assert.match(broken[0].error, /格式不符/);
   const largePath = path.join(fixture, '大型.pdf');
   fs.writeFileSync(largePath, pdf);
-  fs.truncateSync(largePath, 21 * 1024 * 1024);
-  assert.equal((await invoke('guanyi-files:read', [largePath]))[0].bytes.byteLength, 21 * 1024 * 1024);
+  fs.truncateSync(largePath, 101 * 1024 * 1024);
+  assert.equal((await invoke('guanyi-files:read', [largePath]))[0].bytes.byteLength, 101 * 1024 * 1024);
   const hugePath = path.join(fixture, '超大.pdf');
   fs.writeFileSync(hugePath, pdf);
-  fs.truncateSync(hugePath, binary.MAX_BINARY_DOCUMENT_SIZE + 1);
-  assert.match((await invoke('guanyi-files:read', [hugePath]))[0].error, /100 MB/);
+  fs.truncateSync(hugePath, binary.MAX_PDF_DOCUMENT_SIZE + 1);
+  assert.match((await invoke('guanyi-files:read', [hugePath]))[0].error, /1024 MB/);
+  const hugeEpub = sparseFile(path.join(fixture, '超大.epub'), epub, binary.MAX_EPUB_DOCUMENT_SIZE + 1);
+  assert.match((await invoke('guanyi-files:read', [hugeEpub]))[0].error, /100 MB/);
   const hugeText = path.join(fixture, '大型.txt');
   fs.writeFileSync(hugeText, 'text');
   fs.truncateSync(hugeText, 21 * 1024 * 1024);
@@ -146,15 +166,19 @@ try {
   fs.truncateSync(longPdf, 21 * 1024 * 1024);
   const tooLargePdf = path.join(books, '超大.pdf');
   fs.writeFileSync(tooLargePdf, pdf);
-  fs.truncateSync(tooLargePdf, 232 * 1024 * 1024);
+  fs.truncateSync(tooLargePdf, binary.MAX_PDF_DOCUMENT_SIZE + 1);
+  sparseFile(path.join(books, 'PDF上限.pdf'), pdf, binary.MAX_PDF_DOCUMENT_SIZE);
+  sparseFile(path.join(books, 'EPUB上限.epub'), epub, binary.MAX_EPUB_DOCUMENT_SIZE);
+  sparseFile(path.join(books, '超大.epub'), epub, binary.MAX_EPUB_DOCUMENT_SIZE + 1);
   const tooLargeText = path.join(books, '超大.txt');
   fs.writeFileSync(tooLargeText, 'text');
   fs.truncateSync(tooLargeText, 21 * 1024 * 1024);
   const scan = await invoke('guanyi-directories:scan', readingRoot);
   const scannedNames = Array.from(scan.entries, entry => entry.relativePath);
-  assert.deepEqual(scannedNames.sort(), ['文学名著/作品.PDF', '文学名著/电子书.epub', '文学名著/笔记.md', '文学名著/长篇.pdf'].sort());
+  assert.deepEqual(scannedNames.sort(), ['文学名著/作品.PDF', '文学名著/电子书.epub', '文学名著/笔记.md', '文学名著/长篇.pdf', '文学名著/PDF上限.pdf', '文学名著/EPUB上限.epub'].sort());
   assert.ok(scan.entries.every(entry => !('bytes' in entry)), 'directory scan returns metadata, not binary content');
-  assert.ok(Array.from(scan.errors).some(entry => entry.path === '文学名著/超大.pdf' && entry.code === 'FILE_TOO_LARGE' && /100 MB/.test(entry.reason)));
+  assert.ok(Array.from(scan.errors).some(entry => entry.path === '文学名著/超大.pdf' && entry.code === 'FILE_TOO_LARGE' && /1024 MB/.test(entry.reason)));
+  assert.ok(Array.from(scan.errors).some(entry => entry.path === '文学名著/超大.epub' && entry.code === 'FILE_TOO_LARGE' && /100 MB/.test(entry.reason)));
   assert.ok(Array.from(scan.errors).some(entry => entry.path === '文学名著/超大.txt' && entry.code === 'FILE_TOO_LARGE' && /20 MB/.test(entry.reason)));
   const directoryBook = await invoke('guanyi-directories:read', { rootPath: readingRoot, relativePath: '文学名著/电子书.epub' });
   assert.deepEqual(Buffer.from(directoryBook.bytes), epub);
@@ -176,7 +200,7 @@ try {
   await vm.runInContext('prepareNativeClose(closingWindow)', context);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(quitCount, 1, 'a Quit requested during close must resume after the close checkpoint');
-  console.log('desktop binary documents: PASS (read/open, directory PDF/EPUB scan, size errors, atomic save, cache, text write isolation)');
+  console.log('desktop binary documents: PASS (PDF 1024 MB / EPUB 100 MB boundaries, >100 MB PDF read, directory scan, atomic save, cache, text write isolation)');
 } finally {
   fs.rmSync(fixture, { recursive: true, force: true });
 }

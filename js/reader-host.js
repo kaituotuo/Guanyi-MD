@@ -1,7 +1,8 @@
 (function () {
   'use strict';
 
-  const MAX_BYTES = 100 * 1024 * 1024;
+  const MAX_PDF_BYTES = 1024 * 1024 * 1024;
+  const MAX_EPUB_BYTES = 100 * 1024 * 1024;
   let active = null;
   let saving = false;
   let database;
@@ -71,15 +72,17 @@
     // Reopening the source cannot reconstruct missing PDF annotations. Keep
     // that record intact and let the host open a separate copy of the source.
     if (doc.readerDraftKey) return false;
-    await cache(doc.id, new Uint8Array(bytes));
+    await cache(doc.id, bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
     return true;
   }
 
   async function prepare({ id, name, bytes }) {
     const readerFormat = format(name);
-    const data = new Uint8Array(bytes);
+    const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
     if (!readerFormat) throw new Error('不支持的阅读格式');
-    if (!data.length || data.byteLength > MAX_BYTES) throw new Error('请选择小于 100 MB 的有效文档');
+    const maxMb = readerFormat === 'pdf' ? 1024 : 100;
+    const maxBytes = readerFormat === 'pdf' ? MAX_PDF_BYTES : MAX_EPUB_BYTES;
+    if (!data.length || data.byteLength > maxBytes) throw new Error(`请选择不超过 ${maxMb} MB 的有效文档`);
     const prefix = new TextDecoder().decode(data.subarray(0, 1024));
     if (readerFormat === 'pdf' ? !prefix.includes('%PDF-') : !prefix.startsWith('PK')) {
       throw new Error(`文件内容不是有效的 ${readerFormat.toUpperCase()}`);

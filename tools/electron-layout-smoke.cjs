@@ -170,6 +170,10 @@ async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
 
 async function main() {
   await app.whenReady();
+  if (process.env.GUANYI_TEST_FOREGROUND !== '1' && process.platform === 'darwin') {
+    app.setActivationPolicy('accessory');
+    app.dock?.hide();
+  }
   const consoleErrors = [];
   const window = new BrowserWindow({
     width: 1440,

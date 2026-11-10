@@ -11,7 +11,11 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const watchdog = setTimeout(() => app.exit(1), 60000);
 (async () => {
   await app.whenReady();
-  const window = new BrowserWindow({ width: 1280, height: 820, show: true, webPreferences: { backgroundThrottling: false, contextIsolation: true, nodeIntegration: false } });
+  if (process.env.GUANYI_TEST_FOREGROUND !== '1' && process.platform === 'darwin') {
+    app.setActivationPolicy('accessory');
+    app.dock?.hide();
+  }
+  const window = new BrowserWindow({ width: 1280, height: 820, show: process.env.GUANYI_TEST_FOREGROUND === '1', webPreferences: { backgroundThrottling: false, contextIsolation: true, nodeIntegration: false } });
   window.webContents.on('console-message', (_event, level, message) => { if(level >= 2) console.log(message.slice(0,500)); });
   await window.loadFile(html);
   const run = code => window.webContents.executeJavaScript(`(async()=>{try{return await eval(${JSON.stringify(code)})}catch(e){return {testError:e.stack}}})()`).then(result=>{if(result?.testError)throw new Error(result.testError);return result;});

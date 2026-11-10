@@ -32,6 +32,10 @@ async function waitForRenderer(window, timeout = 12000) {
 
 async function main() {
   await app.whenReady();
+  if (process.env.GUANYI_TEST_FOREGROUND !== '1' && process.platform === 'darwin') {
+    app.setActivationPolicy('accessory');
+    app.dock?.hide();
+  }
   await Promise.all([
     fs.promises.mkdir(sourceDirectory, { recursive: true }),
     fs.promises.mkdir(addedDirectory, { recursive: true }),

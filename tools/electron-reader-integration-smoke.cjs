@@ -86,7 +86,9 @@ async function until(predicate, label) {
   window.webContents.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...point});
   window.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...point});
   await until(() => evaluate(`Boolean(${child}.document.querySelector('.freeTextEditor [contenteditable=true]'))`), 'PDF note input');
-  await evaluate(`(()=>{const el=${child}.document.querySelector('.freeTextEditor [contenteditable=true]');el.textContent='切换后批注保留';el.dispatchEvent(new InputEvent('input',{bubbles:true}));})()`);
+  await evaluate(`(()=>{const el=${child}.document.querySelector('.freeTextEditor [contenteditable=true]');el.focus();})()`);
+  await window.webContents.insertText('切换后批注保留');
+  await until(() => evaluate(`${child}.document.querySelector('.freeTextEditor [contenteditable=true]')?.textContent.includes('切换后批注保留')`), 'PDF note typed');
   // Immediately reopen the same PDF while its old reader is still saving.
   await evaluate(`document.querySelector('[data-doc-id="${mdId}"] .app-document-tab__activate').click();document.querySelector('[data-doc-id="${pdfId}"] .app-document-tab__activate').click();`);
   await until(() => evaluate('Boolean(document.querySelector(".app-reader-toolbar:not([hidden]) .app-reader-save"))'), 'rapid PDF reopen');

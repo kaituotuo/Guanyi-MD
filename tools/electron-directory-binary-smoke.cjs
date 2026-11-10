@@ -31,7 +31,7 @@ pdf.addPage();
 pdf.text('Nested PDF page', 20, 30);
 fs.writeFileSync(nestedPdfPath, Buffer.from(pdf.output('arraybuffer')));
 fs.writeFileSync(oversizedPath, '%PDF-1.7\n');
-fs.truncateSync(oversizedPath, 101 * 1024 * 1024);
+fs.truncateSync(oversizedPath, 1025 * 1024 * 1024);
 
 async function makeEpub(target, title) {
   const zip = new JSZip();
@@ -103,7 +103,7 @@ async function until(predicate, label, timeout = 30000) {
   assert.ok(scanResult.summary.errors >= 1, 'over-limit PDF should be reported');
   assert.ok(scanResult.summary.errorDetails.some(item => item.path === path.basename(oversizedPath)), 'over-limit PDF path should be visible in scan diagnostics');
   const warning = await evaluate("document.querySelector('.app-directory-item__scan-warning')?.textContent || ''");
-  assert.ok(warning.includes(path.basename(oversizedPath)) && /100\s*MB/.test(warning), `oversized PDF warning must be visible in directory manager: ${warning}`);
+  assert.ok(warning.includes(path.basename(oversizedPath)) && /1024\s*MB/.test(warning), `oversized PDF warning must be visible in directory manager: ${warning}`);
   await evaluate("document.getElementById('btn-directory-done').click()");
   assert.equal(await evaluate("document.getElementById('directory-modal').hidden"), true);
   await until(() => evaluate("getComputedStyle(document.getElementById('directory-modal')).display === 'none'"), 'directory modal closed');
@@ -135,6 +135,30 @@ async function until(predicate, label, timeout = 30000) {
   await clickDoc(pdfDoc.id);
   assert.equal(await evaluate(`window.__MD_EDITOR_TEST__.getState().docs.find(d => d.id === ${JSON.stringify(pdfDoc.id)}).readerFormat`), 'pdf');
   await until(() => evaluate("document.querySelector('.app-reader-container:not([hidden]) iframe')?.contentWindow?.PDFViewerApplication?.pdfDocument?.numPages === 1"), 'directory PDF pages');
+  const pdfViewer = "document.querySelector('.app-reader-container:not([hidden]) iframe')?.contentWindow";
+  await until(() => evaluate(`Boolean(
+    ${pdfViewer}?.document?.getElementById('editorFreeTextButton')
+    && !${pdfViewer}?.document?.getElementById('editorFreeTextButton')?.disabled
+  )`), 'PDF annotation controls ready');
+  await evaluate("document.querySelector('[aria-label=\"文字笔记\"]').click()");
+  await until(() => evaluate(`${pdfViewer}.PDFViewerApplication.pdfViewer.annotationEditorMode === 3`), 'PDF text note mode');
+  await until(() => evaluate(`Boolean(${pdfViewer}.document.querySelector('.annotationEditorLayer')?.checkVisibility())`), 'PDF annotation layer');
+  const notePoint = await evaluate(`(() => {
+    const frame = document.querySelector('.app-reader-container:not([hidden]) iframe').getBoundingClientRect();
+    const layer = ${pdfViewer}.document.querySelector('.annotationEditorLayer').getBoundingClientRect();
+    return {x: Math.round(frame.x + layer.x + 120), y: Math.round(frame.y + layer.y + 180)};
+  })()`);
+  window.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...notePoint });
+  window.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...notePoint });
+  await until(() => evaluate(`Boolean(${pdfViewer}.document.querySelector('.freeTextEditor [contenteditable=true]'))`), 'PDF note input');
+  await evaluate(`(() => {
+    const field = ${pdfViewer}.document.querySelector('.freeTextEditor [contenteditable=true]');
+    field.textContent = '目录旧版批注保留';
+    field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: '目录旧版批注保留' }));
+  })()`);
+  await evaluate('window.GuanyiReaderHost.flush()');
+  await until(() => evaluate(`${pdfViewer}?.PDFViewerApplication?.pdfDocument?.annotationStorage?.size > 0`), 'PDF note committed');
+  await until(() => evaluate(`Boolean(window.__MD_EDITOR_TEST__.getState().docs.find(doc => doc.id === ${JSON.stringify(pdfDoc.id)})?.readerDraftKey)`), 'PDF annotation draft cached');
   await fs.promises.writeFile(path.join(fixture, 'directory-pdf.png'), (await window.capturePage()).toPNG());
 
   const epubDoc = docs.find(doc => doc.file === '中文 EPUB.epub');
@@ -146,7 +170,8 @@ async function until(predicate, label, timeout = 30000) {
   await makeEpub(extraEpubPath, '刷新后新增');
   pdf.addPage();
   pdf.text('Externally changed PDF', 20, 30);
-  fs.writeFileSync(pdfPath, Buffer.from(pdf.output('arraybuffer')));
+  const updatedPdfBytes = Buffer.from(pdf.output('arraybuffer'));
+  fs.writeFileSync(pdfPath, updatedPdfBytes);
   const summary = await evaluate(`window.__MD_EDITOR_TEST__.scanDirectory(window.__MD_EDITOR_TEST__.getState().directories.find(d => d.id === ${JSON.stringify(directoryId)}), {interactive:false, announce:false})`);
   assert.ok(summary.added >= 1 && summary.updated >= 1, JSON.stringify(summary));
   const refreshed = await evaluate(`window.__MD_EDITOR_TEST__.getState().docs.filter(d => d.directoryId === ${JSON.stringify(directoryId)}).map(d => ({file:d.localFileName,content:d.content,readerFormat:d.readerFormat}))`);
@@ -154,12 +179,75 @@ async function until(predicate, label, timeout = 30000) {
   const changedPdf = refreshed.find(doc => doc.file === '中文 PDF.pdf');
   assert.equal(changedPdf.readerFormat, 'pdf');
   assert.ok(!changedPdf.content.startsWith('%PDF-'), 'changed PDF must not be converted to text');
+  const oldPdfStatus = await evaluate(`window.__MD_EDITOR_TEST__.getState().docs.find(d => d.id === ${JSON.stringify(pdfDoc.id)}).syncState`);
+  assert.equal(oldPdfStatus, 'updated', 'changed source should flag the old cached reading record');
+  await clickDoc(pdfDoc.id);
+  await until(() => evaluate(`${pdfViewer}?.PDFViewerApplication?.pdfDocument?.numPages === 1`), 'cached PDF must keep its original page count');
+  const originalAnnotations = await until(() => evaluate(`(async () => {
+    const page = await ${pdfViewer}.PDFViewerApplication.pdfDocument.getPage(1);
+    const values = (await page.getAnnotations()).map(item => item.contentsObj?.str || '');
+    return values.some(text => text.includes('目录旧版批注保留')) ? values : null;
+  })()`), 'cached PDF note restored');
+  assert.ok(originalAnnotations.some(text => text.includes('目录旧版批注保留')));
+  const beforeUpdatedOpen = await evaluate('window.__MD_EDITOR_TEST__.getState().docs.length');
+  const updateAction = `[...document.querySelectorAll('#doc-list .app-doc-item')].find(item => item.dataset.docId === ${JSON.stringify(pdfDoc.id)})?.querySelector('[data-action="open-updated-reader"]')`;
+  await until(() => evaluate(`Boolean(${updateAction})`), 'open updated PDF action');
+  await evaluate(`${updateAction}.click()`);
+  await until(() => evaluate(`(() => {
+    const state = window.__MD_EDITOR_TEST__.getState();
+    const current = state.docs.find(doc => doc.id === state.currentDocId);
+    return current?.sourceKind === 'local-file' && current.desktopPath === ${JSON.stringify(pdfPath)} && current.id !== ${JSON.stringify(pdfDoc.id)};
+  })()`), 'updated PDF opened separately');
+  const updatedPdfId = await evaluate('window.__MD_EDITOR_TEST__.getState().currentDocId');
+  assert.equal(await evaluate('window.__MD_EDITOR_TEST__.getState().docs.length'), beforeUpdatedOpen + 1);
+  await until(() => evaluate(`${pdfViewer}?.PDFViewerApplication?.pdfDocument?.numPages === 3`), 'updated PDF has three pages');
+  await fs.promises.writeFile(path.join(fixture, 'directory-pdf-disk-version.png'), (await window.capturePage()).toPNG());
+  assert.equal(await evaluate(`window.__MD_EDITOR_TEST__.getState().docs.find(d => d.id === ${JSON.stringify(pdfDoc.id)}).syncState`), 'updated');
+  await clickDoc(pdfDoc.id);
+  await until(() => evaluate(`${pdfViewer}?.PDFViewerApplication?.pdfDocument?.numPages === 1`), 'old PDF remains available after opening disk version');
+
+  const epubOriginalBytes = fs.readFileSync(epubPath);
+  await evaluate("document.getElementById('btn-add-directory').click()");
+  const removeAction = `document.querySelector('.app-directory-item[data-directory-id="${directoryId}"] [data-action="remove-directory"]')`;
+  await evaluate(`${removeAction}.click()`);
+  await evaluate(`document.querySelector('.app-directory-item[data-directory-id="${directoryId}"] [data-action="confirm-remove-directory"]').click()`);
+  await until(() => evaluate(`!window.__MD_EDITOR_TEST__.getState().directories.some(d => d.id === ${JSON.stringify(directoryId)})`), 'directory removed');
+  const retained = await evaluate(`window.__MD_EDITOR_TEST__.getState().docs.filter(d => [${JSON.stringify(pdfDoc.id)}, ${JSON.stringify(epubDoc.id)}].includes(d.id)).map(d => ({id:d.id,sourceKind:d.sourceKind,directoryId:d.directoryId,contentLoaded:d.contentLoaded,readerFormat:d.readerFormat}))`);
+  assert.equal(retained.length, 2, 'loaded PDF and EPUB reading records must be retained');
+  assert.ok(retained.every(doc => doc.sourceKind === 'local-file' && !doc.directoryId && doc.contentLoaded), JSON.stringify(retained));
+  assert.ok(retained.some(doc => doc.readerFormat === 'pdf') && retained.some(doc => doc.readerFormat === 'epub'));
+  const myDocuments = await evaluate(`[...document.querySelectorAll('#doc-list .app-tree-group')][0]?.textContent || ''`);
+  assert.ok(myDocuments.includes('中文 PDF') && myDocuments.includes('中文 EPUB'), 'retained books must appear under My Documents');
+  assert.deepEqual(fs.readFileSync(pdfPath), updatedPdfBytes, 'removing directory must preserve source PDF');
+  assert.deepEqual(fs.readFileSync(epubPath), epubOriginalBytes, 'removing directory must preserve source EPUB');
+  await evaluate("document.getElementById('btn-directory-done').click()");
+  await until(async () => {
+    try {
+      const persisted = JSON.parse(fs.readFileSync(path.join(profile, 'state', 'editor-state-v1.json'), 'utf8'));
+      return !persisted.directories.some(directory => directory.id === directoryId)
+        && persisted.docs.some(doc => doc.id === pdfDoc.id)
+        && persisted.docs.some(doc => doc.id === epubDoc.id);
+    } catch (_) { return false; }
+  }, 'retained reading records persisted');
+  await fs.promises.writeFile(path.join(fixture, 'directory-removed.png'), (await window.capturePage()).toPNG());
+  await clickDoc(epubDoc.id);
+  await until(() => evaluate("document.querySelector('.epub-reader__viewer iframe')?.contentDocument?.body?.textContent?.includes('目录中的 EPUB 正文')"), 'retained EPUB opens after directory removal');
+  await clickDoc(pdfDoc.id);
+  await until(() => evaluate(`${pdfViewer}?.PDFViewerApplication?.pdfDocument?.numPages === 1`), 'retained old PDF opens after directory removal');
+  assert.ok((await evaluate(`(async () => {
+    const page = await ${pdfViewer}.PDFViewerApplication.pdfDocument.getPage(1);
+    return (await page.getAnnotations()).map(item => item.contentsObj?.str || '');
+  })()`)).some(text => text.includes('目录旧版批注保留')), 'retained PDF note must survive directory removal');
+  assert.ok(await evaluate(`window.__MD_EDITOR_TEST__.getState().docs.some(d => d.id === ${JSON.stringify(updatedPdfId)})`), 'new disk-version tab must survive directory removal');
 
   window.webContents.reload();
   await until(() => evaluate('Boolean(window.__MD_EDITOR_TEST__)').catch(() => false), 'reload app');
-  await until(() => evaluate(`window.__MD_EDITOR_TEST__.getState().directories.some(d => d.rootPath === ${JSON.stringify(directoryPath)})`), 'directory restored');
+  await until(() => evaluate(`window.__MD_EDITOR_TEST__.getState().docs.some(d => d.id === ${JSON.stringify(pdfDoc.id)})`), 'retained reading record restored');
+  assert.ok(!await evaluate(`window.__MD_EDITOR_TEST__.getState().directories.some(d => d.rootPath === ${JSON.stringify(directoryPath)})`));
+  await clickDoc(pdfDoc.id);
+  await until(() => evaluate(`${pdfViewer}?.PDFViewerApplication?.pdfDocument?.numPages === 1`), 'retained PDF reopens after reload');
   assert.deepEqual(errors, []);
-  console.log('Mixed directory Electron smoke passed: MD/TXT/PDF/EPUB list and open, nested paths, over-limit warning, binary refresh and reload.');
+  console.log('Mixed directory Electron smoke passed: MD/TXT/PDF/EPUB, over-limit warning, cached PDF annotations versus new disk revision, directory removal retention and reload.');
   console.log(fixture);
   clearTimeout(watchdog);
   app.exit(0);

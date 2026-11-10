@@ -32,8 +32,8 @@
   const DIRECTORY_MAX_FILES = 500;
   const DIRECTORY_MAX_FILE_SIZE_MB = 20;
   const DIRECTORY_MAX_FILE_SIZE = DIRECTORY_MAX_FILE_SIZE_MB * 1024 * 1024;
-  const DIRECTORY_BINARY_MAX_FILE_SIZE_MB = 100;
-  const DIRECTORY_BINARY_MAX_FILE_SIZE = DIRECTORY_BINARY_MAX_FILE_SIZE_MB * 1024 * 1024;
+  const PDF_MAX_FILE_SIZE_MB = 1024;
+  const EPUB_MAX_FILE_SIZE_MB = 100;
   const DIRECTORY_SCAN_INTERVAL = 5 * 60 * 1000;
   const DIRECTORY_IMAGE_MAX_FILE_SIZE = 20 * 1024 * 1024;
   const DATA_URL_IMAGE_MAX_FILE_SIZE = 1024 * 1024;
@@ -5436,6 +5436,12 @@
     return isDirectoryDoc(doc) ? state.directories.find((directory) => directory.id === doc.directoryId) || null : null;
   }
 
+  function documentFileSizeLimit(format) {
+    const maxMb = format === 'pdf' ? PDF_MAX_FILE_SIZE_MB
+      : (format === 'epub' ? EPUB_MAX_FILE_SIZE_MB : DIRECTORY_MAX_FILE_SIZE_MB);
+    return { maxMb, maxBytes: maxMb * 1024 * 1024 };
+  }
+
   async function enumerateDirectoryFiles(directoryHandle) {
     const entries = [], errors = [];
     let visited = 0, truncated = false, depthLimited = false;
@@ -5453,9 +5459,7 @@
           } else if (!shouldIgnoreDirectoryEntry(name, 'file', depth)) {
             try {
               const file = await entryHandle.getFile();
-              const binary = !!window.GuanyiReaderHost?.format(name);
-              const maxBytes = binary ? DIRECTORY_BINARY_MAX_FILE_SIZE : DIRECTORY_MAX_FILE_SIZE;
-              const maxMb = binary ? DIRECTORY_BINARY_MAX_FILE_SIZE_MB : DIRECTORY_MAX_FILE_SIZE_MB;
+              const { maxBytes, maxMb } = documentFileSizeLimit(window.GuanyiReaderHost?.format(name));
               if (file.size > maxBytes) {
                 errors.push({ path: normalizeRelativePath(`${prefix}/${name}`), code: 'FILE_TOO_LARGE', reason: `文件超过 ${maxMb} MB，未载入` });
               } else {
@@ -5508,6 +5512,18 @@
   }
 
   async function scanDirectory(directory, options) {
+    if (!directory || directory.removing || directory.scanFinished || !state.directories.includes(directory)) return null;
+    let finishScan;
+    const finished = new Promise((resolve) => { finishScan = resolve; });
+    directory.scanFinished = finished;
+    try { return await scanDirectoryInternal(directory, options); }
+    finally {
+      if (directory.scanFinished === finished) directory.scanFinished = null;
+      finishScan();
+    }
+  }
+
+  async function scanDirectoryInternal(directory, options) {
     const opts = options || {};
     if (!directory || activeDirectoryScanId === directory.id) return null;
     const desktopApi = desktopDirectoryApi();
@@ -5671,7 +5687,7 @@
         missing: missing.retained.length,
         deferred: missing.deferred.length,
         errors: scan.errors.length,
-        errorDetails: scan.errors.slice(0, 5),
+        errorDetails: scan.errors,
         total: scan.entries.length,
         truncated: scan.truncated,
         depthLimited: scan.depthLimited
@@ -5778,6 +5794,16 @@
 
   async function readDirectoryDocument(doc, interactive) {
     if (!isDirectoryDoc(doc)) return true;
+    if (directoryForDoc(doc)?.removing) return false;
+    if (doc.readingPromise) return doc.readingPromise;
+    const reading = readDirectoryDocumentInternal(doc, interactive);
+    doc.readingPromise = reading;
+    try { return await reading; }
+    finally { if (doc.readingPromise === reading) doc.readingPromise = null; }
+  }
+
+  async function readDirectoryDocumentInternal(doc, interactive) {
+    if (!isDirectoryDoc(doc)) return true;
     doc.readerFormat ||= window.GuanyiReaderHost?.format(doc.localFileName || doc.relativePath) || null;
     if (isReaderDocument(doc) && doc.contentLoaded) {
       doc.unread = false;
@@ -5811,7 +5837,6 @@
         return true;
       } catch (error) {
         doc.syncState = directoryReadFailureState(error);
-        if (doc.syncState === 'permission-required') directory.permissionState = 'denied';
         renderDocList();
         renderDirectoryModal();
         updateConflictBar();
@@ -5837,8 +5862,7 @@
     }
     try {
       const file = await doc.fileHandle.getFile();
-      const maxMb = isReaderDocument(doc) ? DIRECTORY_BINARY_MAX_FILE_SIZE_MB : DIRECTORY_MAX_FILE_SIZE_MB;
-      const maxBytes = isReaderDocument(doc) ? DIRECTORY_BINARY_MAX_FILE_SIZE : DIRECTORY_MAX_FILE_SIZE;
+      const { maxMb, maxBytes } = documentFileSizeLimit(doc.readerFormat);
       if (file.size > maxBytes) throw new Error(`文件超过 ${maxMb} MB，无法打开`);
       if (isReaderDocument(doc)) {
         await prepareDirectoryReader(doc, await file.arrayBuffer());
@@ -5863,6 +5887,33 @@
       updateConflictBar();
       if (interactive) tip(`无法读取文档：${error.message || '未知错误'}`);
       return false;
+    }
+  }
+
+  async function openUpdatedDirectoryReader(doc) {
+    if (!isDirectoryDoc(doc) || !isReaderDocument(doc) || doc.syncState !== 'updated' || doc.contentLoaded === false) return;
+    try {
+      await window.GuanyiReaderHost.flush();
+      if (doc.desktopPath && desktopFileApi()) {
+        await importDesktopFiles([doc.desktopPath]);
+        return;
+      }
+      const directory = directoryForDoc(doc);
+      if (!directory?.handle || !doc.fileHandle) throw new Error('请重新连接文档目录');
+      let permission = await queryReadWritePermission(directory.handle);
+      if (permission !== 'granted') permission = await ensureReadWritePermission(directory.handle) ? 'granted' : 'denied';
+      directory.permissionState = permission;
+      if (permission !== 'granted') throw new Error('请重新授权文档目录');
+      const file = await doc.fileHandle.getFile();
+      const { maxMb, maxBytes } = documentFileSizeLimit(doc.readerFormat);
+      if (file.size > maxBytes) throw new Error(`文件超过 ${maxMb} MB，无法打开`);
+      const opened = await addReaderDocument({
+        name: file.name, bytes: await file.arrayBuffer(), fileHandle: doc.fileHandle,
+        lastModified: file.lastModified, size: file.size
+      });
+      activateImportedDocs([opened]);
+    } catch (error) {
+      tip(`无法打开磁盘新版本：${error.message || '未知错误'}`);
     }
   }
 
@@ -10313,6 +10364,9 @@
 
   function docStatus(doc) {
     if (!isDirectoryDoc(doc)) return null;
+    if (doc.syncState === 'updated' && isReaderDocument(doc) && doc.contentLoaded) {
+      return ['有新版本', 'is-updated'];
+    }
     const labels = {
       conflict: ['冲突', 'is-conflict'],
       'permission-required': ['需授权', 'is-warning'],
@@ -10363,7 +10417,10 @@
     const name = document.createElement('span');
     name.className = `app-doc-item__name${canRename ? ' is-renamable' : ''}`;
     name.textContent = confirming
-      ? (diskFile ? '从列表移除？文件保留' : '确认删除文档？')
+      ? (directoryDoc && ((isReaderDocument(doc) && doc.contentLoaded) || isDocDirty(doc))
+        ? '从目录移出？阅读记录保留'
+        : (isReaderDocument(doc) ? '移除阅读记录？批注将删除'
+          : (diskFile ? '从列表移除？文件保留' : '确认删除文档？')))
       : (directoryDoc ? (doc.localFileName || `${doc.name}${fileExtension(doc.localFileName)}`) : doc.name);
     name.title = confirming
       ? (diskFile ? '仅移除浏览器中的列表记录，不删除本地文件' : `确认删除「${doc.name}」`)
@@ -10375,16 +10432,23 @@
       const badge = document.createElement('span');
       badge.className = `app-doc-status ${status[1]}`;
       badge.textContent = status[0];
+      if (isReaderDocument(doc) && doc.syncState === 'updated') {
+        badge.title = '当前页签保留旧版阅读记录；使用右侧按钮打开磁盘新版本';
+      }
       li.appendChild(badge);
     }
 
     const actions = document.createElement('div');
     actions.className = 'app-doc-item__actions';
     if (confirming) {
+      const retainedReader = directoryDoc && ((isReaderDocument(doc) && doc.contentLoaded) || isDocDirty(doc));
       actions.innerHTML =
-        `<button type="button" class="app-doc-item__action${diskFile ? '' : ' app-doc-item__action--danger'}" data-action="confirm-remove" title="${diskFile ? '确认从列表移除（不删除本地文件）' : '确认删除文档'}" aria-label="${diskFile ? '确认从列表移除' : '确认删除'} ${doc.name}">${ICON_CONFIRM}</button>` +
+        `<button type="button" class="app-doc-item__action${diskFile ? '' : ' app-doc-item__action--danger'}" data-action="confirm-remove" title="${retainedReader ? '确认移出目录并保留阅读记录' : (isReaderDocument(doc) ? '确认删除本地批注记录（原文件保留）' : (diskFile ? '确认从列表移除（不删除本地文件）' : '确认删除文档'))}" aria-label="${retainedReader ? '确认移出目录' : (diskFile ? '确认从列表移除' : '确认删除')} ${doc.name}">${ICON_CONFIRM}</button>` +
         `<button type="button" class="app-doc-item__action" data-action="cancel-remove" title="取消" aria-label="取消">${ICON_CANCEL}</button>`;
     } else {
+      const updatedReaderAction = directoryDoc && isReaderDocument(doc) && doc.syncState === 'updated' && doc.contentLoaded
+        ? `<button type="button" class="app-doc-item__action" data-action="open-updated-reader" title="打开磁盘新版本；旧版批注保留" aria-label="打开磁盘新版本">${ICON_REFRESH}</button>`
+        : '';
       const renameAction = canRename
         ? `<button type="button" class="app-doc-item__action" data-action="rename" title="${diskFile ? '重命名本地文件' : '重命名文档'}" aria-label="${diskFile ? '重命名本地文件' : '重命名文档'} ${doc.name}">${ICON_RENAME}</button>`
         : '';
@@ -10394,7 +10458,7 @@
           ? `<button type="button" class="app-doc-item__action" data-action="remove" title="从列表移除（不删除本地文件）" aria-label="从列表移除 ${doc.name}">${ICON_CANCEL}</button>`
           : `<button type="button" class="app-doc-item__action app-doc-item__action--danger" data-action="remove" title="删除文档" aria-label="删除文档 ${doc.name}">${ICON_DELETE}</button>`)
         : '';
-      actions.innerHTML = renameAction + removeAction;
+      actions.innerHTML = updatedReaderAction + renameAction + removeAction;
     }
     li.appendChild(actions);
     return li;
@@ -10546,6 +10610,7 @@
     if (activeSearchNavigation?.docId !== id) activeSearchNavigation = null;
     if (isDirectoryDoc(doc)) {
       const readable = await readDirectoryDocument(doc, true);
+      if (!state.docs.includes(doc) || directoryForDoc(doc)?.removing) return;
       if (!readable && !doc.contentLoaded) return;
     }
     if (id === state.currentDocId) {
@@ -10764,18 +10829,55 @@
     }
   }
 
+  async function detachedDirectoryParentHandle(doc) {
+    const root = directoryForDoc(doc)?.handle;
+    if (!root || !doc.fileHandle) return doc.directoryHandle || null;
+    const parts = normalizeRelativePath(doc.relativePath).split('/');
+    parts.pop();
+    try { return await directoryHandleAtPath(root, parts); }
+    catch (error) { return doc.directoryHandle || null; }
+  }
+
+  function detachDirectoryDocument(doc, parentHandle) {
+    doc.sourceKind = 'local-file';
+    doc.directoryId = null;
+    doc.relativePath = null;
+    doc.directoryHandle = parentHandle || doc.directoryHandle || null;
+    doc.storageKind = 'external';
+  }
+
   async function removeDirectory(directory) {
-    if (!directory) return;
-    const removedDocs = state.docs.filter((doc) => doc.directoryId === directory.id);
+    if (!directory || directory.removing || !state.directories.includes(directory)) return;
+    flushPendingPreviewCommit();
+    directory.removing = true;
+    try {
+      if (directory.scanFinished) await directory.scanFinished;
+      await Promise.allSettled(state.docs.filter((doc) => doc.directoryId === directory.id)
+        .map((doc) => doc.readingPromise).filter(Boolean));
+      await window.GuanyiReaderHost?.flush?.();
+    } catch (error) {
+      directory.removing = false;
+      tip(`阅读记录尚未保存，目录未移除：${error.message || '请重试'}`);
+      return;
+    }
+    const directoryDocs = state.docs.filter((doc) => doc.directoryId === directory.id);
+    const retainedDocs = directoryDocs.filter((doc) => (isReaderDocument(doc) && doc.contentLoaded !== false) || isDocDirty(doc));
+    const retainedIds = new Set(retainedDocs.map((doc) => doc.id));
+    const removedDocs = directoryDocs.filter((doc) => !retainedIds.has(doc.id));
     const removedIds = new Set(removedDocs.map((doc) => doc.id));
-    removedDocs.forEach((doc) => {
-      histories.delete(doc.id);
-      markSemanticIndexDirty(doc.id);
-    });
-    state.docs = state.docs.filter((doc) => doc.directoryId !== directory.id);
+    directoryDocs.forEach((doc) => markSemanticIndexDirty(doc.id));
+    removedDocs.forEach((doc) => { histories.delete(doc.id); tabSessions.delete(doc.id); });
+    for (const doc of retainedDocs) detachDirectoryDocument(doc, await detachedDirectoryParentHandle(doc));
+    state.docs = state.docs.filter((doc) => !removedIds.has(doc.id));
     state.openDocIds = state.openDocIds.filter((id) => !removedIds.has(id));
-    state.directories = state.directories.filter((item) => item.id !== directory.id)
-      .map((item, index) => ({ ...item, order: index }));
+    state.directories = state.directories.filter((item) => item.id !== directory.id);
+    state.directories.forEach((item, index) => { item.order = index; });
+    if (!state.docs.length) {
+      state.docs.push({
+        id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name: '未命名文档', content: '', lastSavedContent: '', sourceKind: 'browser', lastOpenedAt: 0
+      });
+    }
     if (removedIds.has(state.currentDocId)) {
       const next = state.docs.find((doc) => !isDirectoryDoc(doc)) || state.docs[0];
       state.currentDocId = next ? next.id : null;
@@ -10783,11 +10885,12 @@
     }
     confirmDirectoryRemoveId = null;
     await removePersistedDirectory(directory.id);
+    await Promise.all(retainedDocs.map((doc) => persistDocHandles(doc)));
     saveState({ silent: true });
     renderDirectoryModal();
     renderDocList();
     updateConflictBar();
-    tip(`已移除「${directory.name}」，本地文件未删除`);
+    tip(`已移除「${directory.name}」，本地文件未删除${retainedDocs.length ? `；${retainedDocs.length} 条阅读记录或未保存修改保留在“我的文档”` : ''}`);
   }
 
   function bindDirectoryManager() {
@@ -11068,8 +11171,15 @@
   }
 
   async function addReaderDocument({ name, bytes, desktopPath, fileHandle, lastModified, size }) {
-    const existing = desktopPath && state.docs.findLast((doc) => doc.desktopPath === desktopPath && isReaderDocument(doc)
+    let existing = desktopPath && state.docs.findLast((doc) => isLocalFileDoc(doc) && doc.desktopPath === desktopPath && isReaderDocument(doc)
       && doc.externalModifiedAt === lastModified && doc.externalSize === size);
+    if (!existing && fileHandle) {
+      for (const doc of state.docs) {
+        if (!isLocalFileDoc(doc) || !isReaderDocument(doc) || !doc.fileHandle
+          || doc.externalModifiedAt !== lastModified || doc.externalSize !== size) continue;
+        if (await doc.fileHandle.isSameEntry?.(fileHandle)) { existing = doc; break; }
+      }
+    }
     if (existing && await window.GuanyiReaderHost.reuse(existing, bytes)) return existing;
     const id = `reader-${crypto.randomUUID()}`;
     const reader = await window.GuanyiReaderHost.prepare({ id, name, bytes });
@@ -11085,8 +11195,10 @@
     const imported = [];
     for (const file of files) {
       try {
-        if (window.GuanyiReaderHost?.format(file.name)) {
-          if (file.size > 100 * 1024 * 1024) throw new Error('文件超过 100 MB');
+        const readerFormat = window.GuanyiReaderHost?.format(file.name);
+        if (readerFormat) {
+          const { maxMb, maxBytes } = documentFileSizeLimit(readerFormat);
+          if (file.size > maxBytes) throw new Error(`文件超过 ${maxMb} MB`);
           imported.push(await addReaderDocument({ name: file.name, bytes: await file.arrayBuffer(), lastModified: file.lastModified, size: file.size }));
           continue;
         }
@@ -11105,8 +11217,10 @@
         if (handle.kind && handle.kind !== 'file') continue;
         const file = await handle.getFile();
         if (!isOpenableFile(file)) continue;
-        if (window.GuanyiReaderHost?.format(file.name)) {
-          if (file.size > 100 * 1024 * 1024) throw new Error('文件超过 100 MB');
+        const readerFormat = window.GuanyiReaderHost?.format(file.name);
+        if (readerFormat) {
+          const { maxMb, maxBytes } = documentFileSizeLimit(readerFormat);
+          if (file.size > maxBytes) throw new Error(`文件超过 ${maxMb} MB`);
           imported.push(await addReaderDocument({ name: file.name, bytes: await file.arrayBuffer(), fileHandle: handle, lastModified: file.lastModified, size: file.size }));
           continue;
         }
@@ -11736,7 +11850,31 @@
     });
   }
 
-  function removeDoc(doc) {
+  async function removeDoc(doc) {
+    if (!state.docs.includes(doc)) return;
+    if (isDirectoryDoc(doc) && directoryForDoc(doc)?.removing) return;
+    flushPendingPreviewCommit();
+    const retainedDirectoryDoc = isDirectoryDoc(doc)
+      && ((isReaderDocument(doc) && doc.contentLoaded !== false) || isDocDirty(doc));
+    if (isReaderDocument(doc)) {
+      try { await window.GuanyiReaderHost?.flush?.(); }
+      catch (error) {
+        tip(`阅读记录尚未保存，未移除文档：${error.message || '请重试'}`);
+        return;
+      }
+    }
+    if (!state.docs.includes(doc) || (retainedDirectoryDoc && !isDirectoryDoc(doc))) return;
+    if (retainedDirectoryDoc) {
+      detachDirectoryDocument(doc, await detachedDirectoryParentHandle(doc));
+      markSemanticIndexDirty(doc.id);
+      await persistDocHandles(doc);
+      confirmDocActionId = null;
+      saveState({ silent: true });
+      renderDocList();
+      updateConflictBar();
+      tip(`已从目录移出「${doc.name}」，阅读记录保留在“我的文档”`);
+      return;
+    }
     if (state.docs.length === 1) { tip('至少保留一个文档'); confirmDocActionId = null; renderDocList(); return; }
     const localFile = isDiskFileDoc(doc);
     const index = state.docs.findIndex((d) => d.id === doc.id);
@@ -11746,7 +11884,8 @@
     delete reviewStore.documents[doc.id];
     persistReviewStore();
     histories.delete(doc.id);
-    removePersistedHandles(doc.id);
+    tabSessions.delete(doc.id);
+    await removePersistedHandles(doc.id);
     if (state.currentDocId === doc.id) {
       const next = state.docs[Math.min(index, state.docs.length - 1)];
       state.currentDocId = next.id;
@@ -11822,6 +11961,7 @@
       if (!item || item.classList.contains('is-renaming')) return;
       const doc = state.docs.find((d) => d.id === item.dataset.docId);
       if (!doc) return;
+      if (action === 'open-updated-reader') { event.stopPropagation(); void openUpdatedDirectoryReader(doc); return; }
       if (action === 'rename') { event.stopPropagation(); beginRename(doc); return; }
       if (shouldBeginInlineDocumentRename(
         doc,
@@ -11838,7 +11978,7 @@
         if (isDiskFileDoc(doc)) tip('仅从列表移除，不会删除本地文件');
         return;
       }
-      if (action === 'confirm-remove') { event.stopPropagation(); removeDoc(doc); return; }
+      if (action === 'confirm-remove') { event.stopPropagation(); void removeDoc(doc); return; }
       if (action === 'cancel-remove') { event.stopPropagation(); confirmDocActionId = null; renderDocList(); return; }
       switchDoc(doc.id);
     });

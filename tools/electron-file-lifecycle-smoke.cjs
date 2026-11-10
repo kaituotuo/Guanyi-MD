@@ -37,6 +37,7 @@ fs.writeFileSync(path.join(profile, 'state', 'editor-state-v1.json'), JSON.strin
 }));
 process.env.NODE_ENV = 'test';
 process.env.GUANYI_TEST_USER_DATA = profile;
+const backgroundTest = process.env.GUANYI_TEST_BACKGROUND === '1';
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 async function until(predicate, label, timeout = 12000) {
@@ -159,21 +160,29 @@ async function main() {
   assert.equal((await current()).syncState, 'conflict');
   assert.equal(fs.readFileSync(moved.desktopPath, 'utf8'), '外部程序更新的磁盘内容');
 
-  // Finder-style events must restore/foreground the app and activate the requested tab.
+  // Finder-style events must activate the requested tab. Foreground behavior is
+  // checked only in explicit foreground runs so automated validation stays quiet.
   const emitOpen = (filePath) => app.emit('open-file', { preventDefault() {} }, filePath);
   const assertOpened = async (filePath) => {
     await until(async () => (await current())?.desktopPath === filePath, 'requested document activation');
-    await until(() => window.isVisible() && !window.isMinimized() && window.isFocused(), 'main window foreground');
+    if (backgroundTest) {
+      assert.equal(window.isVisible(), false, 'background validation window must remain hidden');
+      assert.equal(window.isFocused(), false, 'background validation must not steal focus');
+    } else {
+      await until(() => window.isVisible() && !window.isMinimized() && window.isFocused(), 'main window foreground');
+    }
     assert.equal(await evaluate(`document.activeElement.id`), 'preview-editor');
   };
-  window.minimize();
-  await until(() => window.isMinimized(), 'minimize');
+  if (!backgroundTest) {
+    window.minimize();
+    await until(() => window.isMinimized(), 'minimize');
+  }
   emitOpen(sourcePath);
   await assertOpened(sourcePath);
   await imagesReady();
   const screenshot = path.join(outputDirectory, 'desktop-file-lifecycle.png');
   fs.writeFileSync(screenshot, (await window.webContents.capturePage()).toPNG());
-  window.hide();
+  if (!backgroundTest) window.hide();
   emitOpen(moved.desktopPath);
   await assertOpened(moved.desktopPath);
 

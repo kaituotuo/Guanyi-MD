@@ -34,6 +34,10 @@ async function createFixture() {
 async function run() {
   stage('creating EPUB fixture');
   await app.whenReady();
+  if (process.env.GUANYI_TEST_FOREGROUND !== '1' && process.platform === 'darwin') {
+    app.setActivationPolicy('accessory');
+    app.dock?.hide();
+  }
   await fs.mkdir(output, { recursive: true });
   const bytes = await createFixture();
   await fs.writeFile(path.join(output, '阅读与批注验收.epub'), bytes);
@@ -45,7 +49,7 @@ async function run() {
   await fs.writeFile(htmlPath, html);
   // epub.js schedules pagination and location reporting with animation frames.
   // The suite must keep rendering when another app covers this test window.
-  const win = new BrowserWindow({ width: 1080, height: 760, show: true, webPreferences: { backgroundThrottling: false, contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  const win = new BrowserWindow({ width: 1080, height: 760, show: process.env.GUANYI_TEST_FOREGROUND === '1', webPreferences: { backgroundThrottling: false, contextIsolation: true, nodeIntegration: false, sandbox: true } });
   const failures = [];
   const runtimeFailures = [];
   win.webContents.on('console-message', (event) => { if (event.level === 'error') { failures.push(event.message); if (/Uncaught|TypeError|ReferenceError/.test(event.message)) runtimeFailures.push(event.message); } });

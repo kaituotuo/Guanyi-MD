@@ -9,6 +9,8 @@ const script = process.argv[2];
 if (!script) throw new Error('Provide the Electron smoke test script.');
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
+env.NODE_ENV = 'test';
+if (env.GUANYI_TEST_FOREGROUND !== '1') env.GUANYI_TEST_BACKGROUND = '1';
 await new Promise((resolve, reject) => {
   const child = spawn(require('electron'), [path.resolve(root, script), ...process.argv.slice(3)], { cwd: root, env, stdio: 'inherit' });
   child.once('error', reject);

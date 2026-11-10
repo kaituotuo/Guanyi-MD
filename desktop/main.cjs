@@ -5,7 +5,7 @@ const { SemanticSearchWorkerClient } = require('./semantic-search-worker-client.
 const { disposeDesktopAiRequests, installDesktopAiHandlers } = require('./ai-transport.cjs');
 const {
   BINARY_DOCUMENT_EXTENSIONS,
-  MAX_BINARY_DOCUMENT_SIZE,
+  binaryDocumentSizeLimit,
   binaryDocumentBytes,
   saveBinaryDocumentAs,
   cacheBinaryDocument,
@@ -28,6 +28,8 @@ const DESKTOP_MAX_FILE_SIZE = 20 * 1024 * 1024;
 const DESKTOP_DIRECTORY_MAX_DEPTH = 5;
 const DESKTOP_DIRECTORY_MAX_FILES = 500;
 const DESKTOP_STATE_MAX_SIZE = 128 * 1024 * 1024;
+const backgroundTest = process.env.NODE_ENV === 'test'
+  && (process.env.GUANYI_TEST_BACKGROUND === '1' || process.env.GUANYI_TEST_FOREGROUND !== '1');
 
 // Keep upgrades on one stable profile even if product metadata changes later.
 const testUserDataPath = process.env.NODE_ENV === 'test' && path.isAbsolute(process.env.GUANYI_TEST_USER_DATA || '')
@@ -94,6 +96,7 @@ function showMainWindow() {
     createWindow();
     return;
   }
+  if (backgroundTest) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show();
   if (process.platform === 'darwin') app.focus({ steal: true });
@@ -177,18 +180,20 @@ function desktopImageMime(filePath) {
 async function readDesktopFile(filePath) {
   const stats = await fs.promises.stat(filePath);
   if (!stats.isFile()) throw new Error('目标不是文件');
-  const binary = BINARY_DOCUMENT_EXTENSIONS.has(path.extname(filePath).toLowerCase());
-  const maximum = binary ? MAX_BINARY_DOCUMENT_SIZE : DESKTOP_MAX_FILE_SIZE;
-  if (stats.size > maximum) throw new Error(binary ? '文件超过 100 MB' : '文件超过 20 MB');
+  const extension = path.extname(filePath).toLowerCase();
+  const binary = BINARY_DOCUMENT_EXTENSIONS.has(extension);
+  const maximum = binary ? binaryDocumentSizeLimit(extension) : DESKTOP_MAX_FILE_SIZE;
+  if (stats.size > maximum) throw new Error(`文件超过 ${maximum / (1024 * 1024)} MB`);
   const bytes = await fs.promises.readFile(filePath);
-  if (bytes.length > maximum) throw new Error(binary ? '文件超过 100 MB' : '文件超过 20 MB');
-  if (binary) binaryDocumentBytes(bytes, path.extname(filePath).toLowerCase());
+  if (bytes.length > maximum) throw new Error(`文件超过 ${maximum / (1024 * 1024)} MB`);
+  if (binary) binaryDocumentBytes(bytes, extension);
   return {
     path: filePath,
     name: path.basename(filePath),
     size: bytes.byteLength,
     lastModified: stats.mtimeMs,
-    bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+    bytes: bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+      ? bytes.buffer : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
   };
 }
 
@@ -247,10 +252,11 @@ async function scanDesktopDirectory(rawPath) {
         try {
           const filePath = safeDirectoryEntryPath(root.path, relativePath);
           const stats = await fs.promises.stat(filePath);
-          const binary = BINARY_DOCUMENT_EXTENSIONS.has(path.extname(filePath).toLowerCase());
-          const maximum = binary ? MAX_BINARY_DOCUMENT_SIZE : DESKTOP_MAX_FILE_SIZE;
+          const extension = path.extname(filePath).toLowerCase();
+          const binary = BINARY_DOCUMENT_EXTENSIONS.has(extension);
+          const maximum = binary ? binaryDocumentSizeLimit(extension) : DESKTOP_MAX_FILE_SIZE;
           if (stats.size > maximum) {
-            errors.push({ path: relativePath, code: 'FILE_TOO_LARGE', reason: `文件超过 ${binary ? 100 : 20} MB，未载入` });
+            errors.push({ path: relativePath, code: 'FILE_TOO_LARGE', reason: `文件超过 ${maximum / (1024 * 1024)} MB，未载入` });
           } else {
             entries.push({
               relativePath,
@@ -1060,6 +1066,10 @@ if (!app.requestSingleInstanceLock()) {
   if (process.platform === 'win32') app.setAppUserModelId('com.guanyi.md');
 
   app.whenReady().then(() => {
+    if (backgroundTest && process.platform === 'darwin') {
+      app.setActivationPolicy('accessory');
+      app.dock?.hide();
+    }
     configureAboutPanel();
     installApplicationMenu();
     installSemanticSearchHandlers();
