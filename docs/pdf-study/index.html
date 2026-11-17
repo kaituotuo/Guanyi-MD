@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>观译 · PDF 智能研读交互原型</title>
+  <link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true"><defs>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M3 4.5c3.2-.8 6.2-.2 9 2v14c-2.8-2.2-5.8-2.8-9-2V4.5Zm18 0c-3.2-.8-6.2-.2-9 2v14c2.8-2.2 5.8-2.8 9-2V4.5Z"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4L12 3ZM20 2v4m-2-2h4"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 8h18v11H3zM3 8V5h7l2 3"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24"><path d="M10 6H4v8h6V6Zm10 0h-6v8h6V6ZM10 14c0 3-2 4-4 4m14-4c0 3-2 4-4 4"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M4 4h16v12h-9l-5 4v-4H4V4Zm4 4h8m-8 4h5"/></symbol>
+    <symbol id="i-cards" viewBox="0 0 24 24"><path d="m7 4 12 2-2 15-12-2L7 4ZM3 15 2 6l3-.3m4 4 7 1m-7 3 5 .7"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19 15A8 8 0 0 1 9 5a8 8 0 1 0 10 10Z"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M4 10h10a6 6 0 0 1 0 12M4 10l5-5M4 10l5 5"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1"/></symbol>
+  </defs></svg>
+  <div class="prototype-bar"><span><span class="prototype-dot"></span>交互原型 <b>v0.3</b><span class="bar-separator">/</span>PDF 智能研读</span><div><span class="demo-note">演示资料 · 无真实模型请求</span><a href="PRD.md" target="_blank">查看 PRD ↗</a><button id="help-button">体验指引</button></div></div>
+  <div class="application">
+    <header class="titlebar">
+      <div class="identity"><div class="traffic" aria-hidden="true"><i></i><i></i><i></i></div><strong>观译</strong><span>俯仰观物，译述我心</span></div>
+      <div class="document-tabs" aria-label="打开的文档"><button class="document-tab active" data-document="textbook"><span class="pdf-type">PDF</span><span>运动生理学 · 学习示例</span></button><button class="document-tab" data-document="paper"><span class="pdf-type">PDF</span><span>训练干预 · 论文示例</span></button></div>
+      <button id="theme-button" class="icon-button" aria-label="切换深浅主题" title="切换深浅主题"><svg><use href="#i-moon"/></svg></button>
+    </header>
+    <div class="workspace">
+      <aside class="library" id="library" aria-label="学习专题与文档">
+        <div class="library-top"><span class="eyebrow">我的专题</span><h1>学习与思考<span class="topic-dot"></span></h1><p>适用于各学科 · 当前示例：运动健康</p></div>
+        <div class="library-group-title"><svg><use href="#i-folder"/></svg>学习资料<span>02</span></div>
+        <button class="library-document active" data-document="textbook"><span class="pdf-type">PDF</span><span><strong>运动生理学</strong><small>教材示例 · 186 页</small></span><span class="doc-read-dot"></span></button>
+        <button class="library-document" data-document="paper"><span class="pdf-type">PDF</span><span><strong>训练干预与功能表现</strong><small>论文示例 · 8 页</small></span></button>
+        <div class="outline-heading"><span id="outline-label">章节目录</span><span class="muted-small">演示</span></div>
+        <nav id="outline" aria-label="PDF 目录"></nav>
+        <div class="library-bottom"><div><svg><use href="#i-target"/></svg><span>今天的学习目标</span></div><p id="learning-goal">说清楚“耗氧量”与“供氧能力”的区别。</p><button id="goal-button">编辑目标 <span>↗</span></button></div>
+      </aside>
+      <main class="reading-column">
+        <div class="reader-toolbar"><div class="toolbar-left"><button class="icon-button" id="library-toggle" aria-label="展开或收起文档目录" title="文档目录"><svg><use href="#i-menu"/></svg></button><span class="toolbar-divider"></span><button class="icon-button" id="previous-page" aria-label="上一页"><svg><use href="#i-left"/></svg></button><label class="page-input-wrap"><input id="page-input" type="number" min="1" value="42" aria-label="当前页码"><span id="total-pages">/ 186</span></label><button class="icon-button" id="next-page" aria-label="下一页"><svg><use href="#i-right"/></svg></button></div><div class="toolbar-right"><select id="zoom-select" aria-label="页面显示比例"><option value="fit">适合页宽</option><option value="0.8">80%</option><option value="1">100%</option><option value="1.2">120%</option></select><button class="study-toggle" id="study-toggle" aria-expanded="true"><svg><use href="#i-spark"/></svg><span>智能研读</span></button></div></div>
+        <div class="reading-meta"><span id="reading-breadcrumb">第二章 · 氧运输与运动</span><button id="return-button" hidden><svg><use href="#i-back"/></svg>返回阅读位置</button><span class="read-state" id="read-state"><span></span>文字层可用</span></div>
+        <div class="paper-scroll" id="paper-scroll"><article class="pdf-page" id="pdf-page" aria-label="PDF 演示页面"></article></div>
+        <div class="reader-footer"><span id="document-footer">教材学习 · 原文排版视图</span><span>选中文字，即可解释、摘录或提问 <kbd>⌘</kbd><kbd>↵</kbd></span></div>
+        <div class="selection-menu" id="selection-menu" hidden><span>已选原文</span><button data-selection-action="explain"><svg><use href="#i-spark"/></svg>解释这段</button><button data-selection-action="save"><svg><use href="#i-cards"/></svg>生成学习卡</button><button data-selection-action="annotate"><svg><use href="#i-note"/></svg>批注</button><button class="icon-button" data-selection-action="clear" aria-label="取消选区"><svg><use href="#i-close"/></svg></button></div>
+      </main>
+      <aside class="study-panel" id="study-panel" aria-label="智能研读面板">
+        <div class="study-heading"><div><svg><use href="#i-spark"/></svg><h2>智能研读</h2></div><button class="icon-button" id="study-close" aria-label="收起智能研读"><svg><use href="#i-close"/></svg></button></div>
+        <div class="panel-tabs" role="tablist" aria-label="智能研读功能"><button role="tab" aria-selected="true" data-panel="guide">导读</button><button role="tab" aria-selected="false" data-panel="ask">文档对话</button><button role="tab" aria-selected="false" data-panel="cards">学习卡<span id="card-count">0</span></button><button role="tab" aria-selected="false" data-panel="notes">批注</button></div>
+        <div class="panel-content" id="panel-content" role="tabpanel" tabindex="0"></div>
+        <div class="panel-footer"><svg><use href="#i-check"/></svg><span>原文与解释分开呈现 · 引用可回到页面</span></div>
+      </aside>
+    </div>
+    <footer class="app-status"><span><span class="status-dot"></span>本地演示 · 学习卡保存在当前浏览器</span><div><label for="scenario-select">预览状态</label><select id="scenario-select"><option value="ready">正常研读</option><option value="indexing">索引构建中</option><option value="scan">扫描件 · 待 OCR</option><option value="insufficient">证据不足</option><option value="error">模型请求失败</option><option value="stale">原文件已更新</option></select><button id="reset-button">重置演示</button></div></footer>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <dialog id="modal"><form method="dialog"><button class="modal-close icon-button" aria-label="关闭对话框"><svg><use href="#i-close"/></svg></button><div id="modal-content"></div></form></dialog>
+  <script src="prototype.js"></script>
+</body>
+</html>

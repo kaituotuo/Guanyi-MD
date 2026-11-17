@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="观译阅读器 1.0.45 优化版：完善 AI 对话体验（框内发送/停止）、PDF 划词翻译、全文翻译和智能研读侧栏设计。">
+<title>观译产品原型 v2 · 1.0.45 优化版 · AI 对话与 PDF 翻译完整体验</title>
+<style>
+:root{color-scheme:light;--bg:#f6f4f1;--surface:#fff;--soft:#f0ede8;--ink:#2a2520;--muted:#6b6358;--line:#ded9d1;--accent:#bd391b;--tint:#fae9e2;--shadow:0 14px 44px #3c28142b,0 2px 6px #3c281414}
+[data-theme=dark]{color-scheme:dark;--bg:#211f1c;--surface:#302c27;--soft:#37322c;--ink:#f4f1ed;--muted:#c8c0b6;--line:#575047;--accent:#ff896e;--tint:#4b2f25;--shadow:0 14px 44px #0006}
+*{box-sizing:border-box}body{margin:0;height:100dvh;overflow:hidden;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,"PingFang SC",system-ui,sans-serif}button,select,input{font:inherit;color:inherit}button,select{cursor:pointer}button{border:1px solid transparent;background:transparent;border-radius:6px;padding:7px 10px;white-space:nowrap}button:hover{background:var(--soft)}button:disabled{cursor:default;color:var(--muted);background:var(--soft)}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:3px}button.primary{color:#fff;background:#bd391b;border-color:#bd391b}button.primary:hover{background:#a93118}button.outline{border-color:var(--line);background:var(--surface)}button.icon{width:32px;height:32px;padding:5px;font-size:18px}svg{width:18px;height:18px;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.shell{display:grid;grid-template-columns:228px minmax(0,1fr);grid-template-rows:48px minmax(0,1fr) 30px;height:100%}.brand{display:flex;align-items:center;gap:10px;padding:0 18px;background:var(--surface);border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-weight:650;font-size:16px}.brand-mark{width:25px;height:25px;background:#2a2520;color:#fff;border:2px solid #d9431f;border-radius:5px;display:grid;place-items:center;font:18px/1 Georgia}.top{display:flex;align-items:center;gap:8px;background:var(--surface);border-bottom:1px solid var(--line);padding:0 12px;min-width:0;position:relative}.tab{align-self:stretch;display:flex;gap:9px;align-items:center;max-width:400px;border-bottom:2px solid var(--accent);padding:0 14px;font-size:13px;min-width:0}.tab span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pdf-mark{font-size:11px;font-weight:700;color:var(--accent);border:1px solid currentColor;border-radius:3px;padding:3px}.spacer{flex:1}.tag{font-size:11px;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);padding:3px 8px;border-radius:4px;white-space:nowrap}
+.sidebar{grid-row:2;background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;padding:20px 13px 12px}.sidebar-label{font-size:11px;font-weight:650;color:var(--muted);padding:0 9px;margin-bottom:13px;letter-spacing:.08em}.file{display:flex;gap:9px;align-items:center;padding:9px;background:var(--tint);border-radius:6px;font-size:12px;color:var(--accent)}.file-copy{min-width:0}.file-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.file-copy small{font-size:11px;color:var(--muted)}.outline-nav{margin-top:30px;display:flex;flex-direction:column;gap:4px}.outline-nav button{text-align:left;font-size:13px;display:flex;gap:12px}.outline-nav button span{color:var(--muted);font:12px/1.8 ui-monospace,monospace}.outline-nav button[aria-current=page]{background:var(--soft);font-weight:650}.sidebar-note{margin-top:auto;border-top:1px solid var(--line);padding:18px 9px 5px;color:var(--muted);font-size:12px}.sidebar-note strong{display:block;font-size:13px;color:var(--ink);margin-bottom:6px}
+.workspace{min-width:0;min-height:0;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.icon-control,button.icon-control{display:inline-flex;align-items:center;justify-content:center;flex:0 0 32px;width:32px;min-width:32px;height:32px;padding:6px;gap:0;border-radius:5px;vertical-align:middle}
+.control-icon{width:18px;height:18px;flex:0 0 18px;fill:none;stroke:currentColor;stroke-width:1.6}
+.icon-control .feature-icon{width:18px;height:18px;flex:0 0 18px}
+.icon-control:hover:not(:disabled){color:var(--accent);background:var(--tint)}
+.icon-control[aria-pressed=true],.icon-control[aria-expanded=true]{color:var(--accent);background:var(--tint);border-color:var(--accent)}
+.icon-control:disabled{opacity:.45;background:transparent;color:var(--ink)}
+.primary.icon-control:hover:not(:disabled){color:#fff;background:#a93118}
+
+/* PDF 工具栏优化 */
+.translation-workbench{height:50px;min-height:50px;padding:8px 12px;gap:4px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;display:flex;align-items:center;background:var(--surface);border-bottom:1px solid var(--line);scrollbar-width:thin}
+.translation-workbench>*{order:0!important;flex-shrink:0}
+.pdf-native-actions{display:inline-flex;align-items:center;gap:0}
+.language-group{display:flex;align-items:center;gap:5px}
+.language-field{display:flex;align-items:center;gap:5px}
+.language-field select{width:98px;max-width:98px;height:32px;padding:5px 20px 5px 7px;font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.language-arrow{display:flex;align-items:center;color:var(--accent)}
+.language-arrow .control-icon{width:14px;height:14px}
+.selection-toggle{display:inline-flex;position:relative;align-items:center;justify-content:center;width:32px;height:32px;padding:6px;border:1px solid transparent;border-radius:5px}
+.selection-toggle input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1}
+.selection-toggle:hover{background:var(--tint);color:var(--accent)}
+.selection-toggle:has(input:checked){background:var(--tint);color:var(--accent);border-color:var(--accent)}
+.toggle-check{position:absolute;right:0;bottom:0;width:10px;height:10px;stroke-width:2;display:none;background:var(--surface);border-radius:2px}
+.selection-toggle:has(input:checked) .toggle-check{display:block}
+.separator{width:1px;height:22px;background:var(--line);margin:0 4px}
+
+/* 阅读条 */
+.reading-strip{display:flex;align-items:center;gap:8px;min-height:40px;padding:4px 22px;border-bottom:1px solid var(--line);background:var(--surface);flex-wrap:wrap;font-size:12px}
+.reading-strip .hint{color:var(--muted)}
+.dot{width:6px;height:6px;background:var(--accent);border-radius:50%}
+.progress-track{width:80px;height:3px;background:var(--line);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);transition:width .2s}
+.version-chip{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:4px 8px;color:var(--muted);white-space:nowrap}
+.actual-chip{color:#2e716b;border-color:#a8d1ca;background:#edf8f5}
+.proposal-chip{color:var(--accent);border-color:#edc4b7;background:var(--tint)}
+
+/* PDF 阅读器 */
+.reader{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);overflow:hidden}
+.reader.compare{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.reader.only-translation #source-pane{display:none}
+.pane{display:flex;flex-direction:column;min-width:0;min-height:0}
+.pane+.pane{border-left:1px solid var(--line)}
+.pane-header{display:flex;gap:9px;align-items:center;min-height:40px;padding:8px 24px;font-size:12px;color:var(--muted);letter-spacing:.04em;background:var(--surface)}
+.pane-header strong{font-weight:600;color:var(--ink)}
+.pane-scroll{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable;padding:0 26px 40px;overscroll-behavior:contain;background:var(--bg)}
+.paper{background:#fff;color:#252321;width:100%;max-width:740px;min-height:945px;margin:0 auto;padding:48px 48px 30px;box-shadow:0 1px 7px #3c281414;position:relative;--zoom:1}
+.paper-content{font-size:calc(15px * var(--zoom))}
+.paper h1{font:600 calc(29px * var(--zoom))/1.15 Georgia,"Songti SC",serif;letter-spacing:-.5px;margin:0 0 22px}
+.paper h2{font:600 calc(18px * var(--zoom))/1.4 Georgia,"Songti SC",serif;margin:24px 0 13px}
+.paper p{font-family:Georgia,"Times New Roman",serif;line-height:1.85;margin:0 0 15px;overflow-wrap:anywhere}
+.paper p[data-segment]{cursor:text}
+.paper p::selection,.paper h1::selection,.paper h2::selection{background:#f7d5c5;color:#252321}
+.translation-paper p,.translation-paper h1,.translation-paper h2{font-family:"PingFang SC",system-ui,sans-serif}
+.translation-paper p{font-size:calc(14px * var(--zoom));line-height:2}
+.translation-paper h1{font-size:calc(25px * var(--zoom));line-height:1.5}
+.empty-state{width:100%;max-width:600px;margin:0 auto;background:var(--surface);border:1px solid var(--line);min-height:420px;padding:70px 36px;text-align:center;border-radius:3px}
+.empty-state .empty-icon{width:45px;height:45px;margin:0 auto 18px;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center;color:var(--accent);font:23px Georgia}
+.empty-state h2{font-size:18px;margin:0 0 10px}
+.empty-state p{max-width:340px;margin:0 auto 22px;color:var(--muted);font-size:13px;line-height:1.9}
+
+/* 划词翻译卡片 */
+.translation-card{position:fixed;z-index:40;width:365px;max-width:calc(100vw - 24px);background:var(--surface);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+.card-head{height:44px;display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--line);font-size:12px;flex-shrink:0}
+.card-head strong{font-weight:650}
+.card-body{padding:14px 16px;max-height:min(290px,40vh);overflow:auto;font-size:14px;line-height:1.9;overflow-wrap:anywhere;min-height:0}
+.card-body p{margin:0}
+.card-body .muted{color:var(--muted);font-size:12px;margin-top:7px}
+.card-foot{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--bg);border-top:1px solid var(--line);font-size:11px;color:var(--muted);flex-shrink:0}
+.card-foot button{font-size:11px;padding:3px 7px;border:1px solid var(--line);background:var(--surface)}
+kbd{border:1px solid var(--line);border-radius:3px;padding:0 4px;font:10px/1.6 system-ui}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 智能研读侧栏 - 遵循 AGENTS.md 规范 */
+.study-drawer{position:fixed;right:0;top:0;bottom:0;width:420px;max-width:85vw;background:var(--surface);border-left:1px solid var(--line);box-shadow:var(--shadow);z-index:90;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease}
+.study-drawer.open{transform:translateX(0)}
+.study-drawer-head{height:54px;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid var(--line);flex-shrink:0}
+.study-drawer-head h2{font-size:16px;margin:0;flex:1}
+.study-drawer-body{flex:1;min-height:0;overflow:auto;padding:20px}
+.study-drawer-backdrop{position:fixed;inset:0;background:#21170e66;z-index:89;opacity:0;pointer-events:none;transition:opacity .25s}
+.study-drawer-backdrop.visible{opacity:1;pointer-events:auto}
+.study-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:0 -20px 20px;padding:0 20px}
+.study-tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;padding:12px 16px;font-size:13px;background:transparent}
+.study-tabs button[aria-selected=true]{border-bottom-color:var(--accent);color:var(--accent);font-weight:600}
+.study-section h3{font-size:14px;margin:0 0 12px;color:var(--accent)}
+.study-section p{font-size:13px;line-height:1.8;color:var(--muted);margin:0 0 16px}
+.study-section textarea{width:100%;min-height:120px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);resize:vertical;font-size:14px;line-height:1.6}
+.study-result{padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--bg);margin-top:16px}
+.study-result strong{display:block;font-size:13px;margin-bottom:8px}
+.study-result p{font-size:13px;line-height:1.8;margin:0}
+
+/* AI 对话优化 - 框内发送/停止 */
+.unified-chat-composer{width:min(760px,calc(100% - 48px));margin:0 auto 18px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;position:relative}
+.unified-chat-composer textarea{display:block;border:0;outline:0;resize:none;width:100%;background:transparent;font-size:14px;line-height:1.6;min-height:52px;padding-right:48px}
+.unified-chat-controls{display:flex;align-items:center;gap:8px;margin-top:8px}
+.unified-scope{color:var(--muted);font-size:12px}
+.unified-send{position:absolute;right:14px;bottom:14px;width:36px;height:36px;padding:4px;border-radius:50%;flex:0 0 36px}
+.unified-home-composer{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px 13px;box-shadow:var(--shadow);position:relative}
+.unified-home-composer textarea{display:block;border:0;outline:0;resize:vertical;width:100%;background:transparent;line-height:1.7;font:16px/1.7 inherit;min-height:90px;padding-right:48px}
+.unified-composer-row{display:flex;align-items:center;gap:8px;margin-top:12px}
+
+/* 统一外壳 */
+.unified-shell .top{padding:0 16px;gap:0}
+.unified-shell .tab{height:48px;padding:0 16px;border-bottom-color:transparent;font-size:15px}
+.unified-shell .tab .pdf-mark{font-size:12px;border:0;padding:0;color:var(--accent)}
+.unified-shell .tab[aria-current="true"]{border-bottom-color:var(--accent)}
+.unified-home-route,.unified-chat-route{flex:1;min-height:0;overflow:auto;flex-direction:column;background:var(--bg);display:none}
+.unified-shell[data-route="home"] .unified-home-route{display:flex}
+.unified-shell[data-route="chat"] .unified-chat-route{display:flex}
+.unified-shell[data-route="pdf"] .unified-home-route,.unified-shell[data-route="pdf"] .unified-chat-route{display:none}
+.unified-home-inner{width:min(1030px,calc(100% - 64px));margin:0 auto;padding:52px 0 70px}
+.unified-home-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:24px}
+.unified-baseline{font-size:11px;border:1px solid #a8d1ca;border-radius:999px;padding:4px 8px;color:#2e716b;background:#edf8f5;white-space:nowrap}
+.unified-home-head h1{font:600 30px/1.2 Georgia,"Songti SC",serif;margin:12px 0 8px}
+.unified-chat-head{display:flex;align-items:center;gap:10px;padding:16px 28px;border-bottom:1px solid var(--line);background:var(--surface);flex-shrink:0}
+.unified-chat-head strong{font-size:18px}
+.unified-chat-body{flex:1;min-height:0;overflow:auto}
+.unified-chat-stream{width:min(760px,calc(100% - 48px));margin:0 auto;padding:30px 0 140px}
+.unified-message{display:flex;gap:12px;margin:0 0 27px}
+.unified-message.user{justify-content:flex-end}
+.unified-message.user .unified-message-text{max-width:76%;background:var(--soft);border-radius:13px 13px 3px 13px;padding:10px 13px}
+.unified-message.assistant .unified-message-text{line-height:1.85}
+.unified-avatar{width:29px;height:29px;border-radius:50%;background:var(--tint);color:var(--accent);display:grid;place-items:center;font-weight:650;flex:0 0 auto}
+.unified-thinking{color:var(--muted);font-size:13px}
+
+.statusbar{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:0 13px;border-top:1px solid var(--line);background:var(--surface);font-size:11px;color:var(--muted)}
+.statusbar>span{white-space:nowrap}
+.statusbar button{font-size:11px;padding:2px 6px;color:var(--accent)}
+.toast{position:fixed;bottom:50px;left:50%;transform:translateX(-50%);padding:10px 18px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);border-radius:7px;z-index:70;font-size:12px;max-width:calc(100vw - 24px);text-align:center}
+[hidden]{display:none!important}
+
+/* 图标系统 */
+.gicon-sprite{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
+.feature-icon{width:17px;height:17px;flex:0 0 17px;stroke:none;display:inline-block;vertical-align:middle}
+.gicon__ink,.gicon__accent{fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.gicon__ink{stroke:currentColor}
+.gicon__accent{stroke:var(--accent)}
+</style>
+</head>
+<body>
+<svg class="gicon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<symbol id="gicon-selection-translate" viewBox="0 0 16 16">
+<path class="gicon__ink" d="M4.5 1.75H1.75V4.5m9.75 9.75h2.75V11.5M2.75 11 4.5 5.5 6.25 11M3.35 9.25h2.3"/>
+<path class="gicon__accent" d="M10.5 3.5v1.75M8 5.5h5.25M12 5.75c-.5 2.5-1.8 4.3-4 5.75m1-4.75c.7 2 1.95 3.4 4.25 4.75"/>
+</symbol>
+<symbol id="gicon-document-translate" viewBox="0 0 16 16">
+<path class="gicon__ink" d="M6.5 14.25H3A1.25 1.25 0 0 1 1.75 13V3A1.25 1.25 0 0 1 3 1.75h6L12.5 5v1.25M9 1.75V5h3.5M4.25 6.75h2.5M4.25 9.25H6"/>
+<path class="gicon__accent" d="M11 7.5v1.25M8.5 9h5.75m-1.5.25c-.45 2.3-1.8 3.85-4.25 5m1.1-4c.8 1.9 2.2 3.15 4.65 4"/>
+</symbol>
+<symbol id="ui-study" viewBox="0 0 20 20"><path d="M10 5C8 3 5 3 2.5 4v12C5 15 8 15 10 17c2-2 5-2 7.5-1V4C15 3 12 3 10 5Zm0 0v12m3-10h2m-2 3h2m-10-3h2m-2 3h2"/></symbol>
+<symbol id="ui-close" viewBox="0 0 20 20"><path d="m5 5 10 10M5 15 15 5"/></symbol>
+<symbol id="ui-send" viewBox="0 0 20 20"><path d="M10 17V3m-6 6 6-6 6 6"/></symbol>
+<symbol id="ui-stop" viewBox="0 0 20 20"><rect x="5" y="5" width="10" height="10" rx="1"/></symbol>
+<symbol id="ui-right" viewBox="0 0 20 20"><path d="m8 4 6 6-6 6"/></symbol>
+<symbol id="ui-back" viewBox="0 0 20 20"><path d="M17 10H3m5-5-5 5 5 5"/></symbol>
+<symbol id="ui-retry" viewBox="0 0 20 20"><path d="M17 7a7 7 0 1 0 0 6m0-10v4h-4"/></symbol>
+<symbol id="ui-copy" viewBox="0 0 20 20"><rect x="7" y="7" width="10" height="11" rx="1.5"/><path d="M13 7V2H2v11h5"/></symbol>
+<symbol id="ui-highlight" viewBox="0 0 20 20"><path d="m5 12 7-8 4 4-7 8H5v-4Zm5-6 4 4M3 17h12"/></symbol>
+<symbol id="ui-attachment" viewBox="0 0 20 20"><path d="m7 11 6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l8-8m-5 9 6-6"/></symbol>
+<symbol id="ui-more" viewBox="0 0 20 20"><circle cx="4" cy="10" r="1"/><circle cx="10" cy="10" r="1"/><circle cx="16" cy="10" r="1"/></symbol>
+</svg>
+
+<div class="shell unified-shell" id="shell" data-route="pdf">
+  <div class="brand"><span class="brand-mark" aria-hidden="true">绎</span>观译</div>
+  <header class="top">
+    <div class="tab" id="pdf-tab" aria-current="true"><b class="pdf-mark">PDF</b><span>Walking and everyday movement.pdf</span></div>
+    <div class="spacer"></div>
+    <span class="tag">v2 优化版 · AI 对话与 PDF 翻译完整体验</span>
+    <button class="icon icon-control" id="theme" title="切换明暗主题" aria-label="切换明暗主题">
+      <svg class="control-icon" viewBox="0 0 20 20"><path d="M16.6 12.3A7 7 0 0 1 7.7 3.4a7 7 0 1 0 8.9 8.9Z"/></svg>
+    </button>
+  </header>
+
+  <aside class="sidebar">
+    <div class="sidebar-label">阅读文库</div>
+    <div class="file">
+      <b class="pdf-mark">PDF</b>
+      <div class="file-copy">
+        <strong>Walking and everyday…</strong>
+        <small>示例文稿 · 3 页</small>
+      </div>
+    </div>
+    <nav class="outline-nav" aria-label="文档目录">
+      <div class="sidebar-label">文档大纲</div>
+      <button data-page="1" aria-current="page"><span>01</span>Abstract / 摘要</button>
+      <button data-page="2"><span>02</span>Methods / 方法</button>
+      <button data-page="3"><span>03</span>Discussion / 讨论</button>
+    </nav>
+    <div class="sidebar-note">
+      <strong>v2 优化重点</strong>
+      AI 对话框内发送/停止<br>
+      完善划词翻译体验<br>
+      智能研读侧栏设计
+    </div>
+  </aside>
+
+  <main class="workspace">
+    <!-- PDF 阅读路由 -->
+    <section class="translation-workbench" aria-label="PDF 阅读与翻译工具栏">
+      <div class="pdf-native-actions" role="group" aria-label="PDF 阅读工具">
+        <button id="pdf-study" type="button" class="icon-control" title="智能研读" aria-label="智能研读">
+          <svg class="control-icon" viewBox="0 0 20 20"><use href="#ui-study"/></svg>
+        </button>
+      </div>
+      <span class="separator" aria-hidden="true"></span>
+
+      <div class="language-group" role="group" aria-label="翻译语言">
+        <label class="language-field">
+          <span class="sr-only">源语言</span>
+          <select id="source-language" title="源语言" aria-label="源语言">
+            <option value="auto">自动识别</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+          </select>
+        </label>
+        <span class="language-arrow" aria-hidden="true">
+          <svg class="control-icon" viewBox="0 0 20 20"><use href="#ui-right"/></svg>
+        </span>
+        <label class="language-field">
+          <span class="sr-only">目标语言</span>
+          <select id="target-language" title="目标语言" aria-label="翻译目标语言">
+            <option value="zh-CN">简体中文</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="separator"></div>
+
+      <label class="selection-toggle" title="开启划词翻译">
+        <input id="selection-enabled" type="checkbox" aria-label="划词翻译">
+        <svg class="feature-icon" viewBox="0 0 16 16"><use href="#gicon-selection-translate"/></svg>
+        <svg class="toggle-check" viewBox="0 0 10 10"><path d="m2 5 2 2 4-4"/></svg>
+      </label>
+
+      <button class="primary icon-control" id="full-start" title="全文翻译" aria-label="全文翻译">
+        <svg class="feature-icon" viewBox="0 0 16 16"><use href="#gicon-document-translate"/></svg>
+      </button>
+
+      <div class="spacer"></div>
+
+      <button class="icon-control" id="demo-chat" title="AI 对话示例" aria-label="AI 对话示例">
+        <svg class="control-icon" viewBox="0 0 20 20"><path d="M3 3h14v11H8l-5 4V3Zm4 4h6m-6 3h4"/></svg>
+      </button>
+    </section>
+
+    <div class="reading-strip" id="reading-strip">
+      <span class="version-chip actual-chip">1.0.45 已有：PDF 阅读 · 批注</span>
+      <span class="version-chip proposal-chip">v2 优化：AI 对话 · 划词翻译 · 智能研读</span>
+      <span class="dot"></span>
+      <span class="hint">点击"智能研读"体验完整侧栏设计。</span>
+    </div>
+
+    <div class="reader" id="reader">
+      <section class="pane" id="source-pane" aria-label="PDF 原文">
+        <div class="pane-header">
+          <strong>原始 PDF</strong>
+          <span>英语 · 只读</span>
+        </div>
+        <div class="pane-scroll" id="source-scroll" tabindex="0" aria-label="PDF 原文阅读区">
+          <article class="paper" id="source-paper">
+            <div class="paper-content">
+              <h1>Understanding motion through everyday walking</h1>
+              <h2>Abstract</h2>
+              <p data-segment="p1a">Walking is a familiar activity, yet it involves a complex interaction between balance, muscle strength, and the environment.</p>
+              <p data-segment="p1b">Small changes in movement can reveal how people adapt to different conditions. Looking at the complete pattern is often more useful than focusing on a single measurement.</p>
+              <p data-segment="p1c">This demonstration describes a simple approach to reading movement data. It introduces the role of context, the importance of repeated observations, and the limits of drawing conclusions from a small sample.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- AI 对话路由 -->
+  <section class="unified-chat-route" id="unified-chat-route" aria-label="AI 对话" hidden>
+    <header class="unified-chat-head">
+      <button class="outline icon-control" id="chat-back" title="返回 PDF 阅读" aria-label="返回 PDF 阅读">
+        <svg class="control-icon" viewBox="0 0 20 20"><use href="#ui-back"/></svg>
+      </button>
+      <strong>AI 对话</strong>
+      <span class="spacer"></span>
+    </header>
+
+    <div class="unified-chat-body" id="chat-body">
+      <div class="unified-chat-stream" id="chat-stream" role="log" aria-live="polite">
+        <div style="text-align:center;padding:120px 0;color:var(--muted)">
+          <h2 style="color:var(--ink);font:600 25px Georgia,serif;margin:0 0 10px">从一个问题开始</h2>
+          <p style="margin:0">v2 优化：发送/停止按钮置于输入框右下角。</p>
+        </div>
+      </div>
+    </div>
+
+    <form class="unified-chat-composer" id="chat-form">
+      <textarea id="chat-input" placeholder="继续追问… Enter 发送，Shift+Enter 换行" rows="3"></textarea>
+      <div class="unified-chat-controls">
+        <button class="outline icon-control" type="button" id="chat-source" title="选择文档作为来源" aria-label="选择文档作为来源">
+          <svg class="control-icon" viewBox="0 0 20 20"><use href="#ui-attachment"/></svg>
+        </button>
+        <span class="unified-scope">自由对话</span>
+      </div>
+      <button class="primary unified-send icon-control" type="submit" id="chat-send" title="发送问题" aria-label="发送问题">
+        <svg class="control-icon" viewBox="0 0 20 20"><use href="#ui-send"/></svg>
+      </button>
+    </form>
+  </section>
+
+  <footer class="statusbar">
+    <span id="pdf-status">PDF · 第 <b>1</b> 页</span>
+    <span id="chat-status" hidden>AI 对话 · 当前会话</span>
+    <span class="spacer"></span>
+    <span>v2 优化版 · 完整体验示例</span>
+  </footer>
+</div>
+
+<!-- 划词翻译卡片 -->
+<section class="translation-card" id="card" role="dialog" aria-modal="false" aria-labelledby="card-title" hidden>
+  <div class="card-head">
+    <svg class="feature-icon" viewBox="0 0 16 16"><use href="#gicon-selection-translate"/></svg>
+    <strong id="card-title">英语 → 简体中文</strong>
+    <span class="spacer"></span>
+    <button class="icon icon-control" id="card-close" title="关闭译文，Esc" aria-label="关闭译文，Esc">
+      <svg class="control-icon" viewBox="0 0 20 20"><use href="#ui-close"/></svg>
+    </button>
+  </div>
+  <div class="card-body" id="card-body" aria-live="polite" tabindex="0"></div>
+  <div class="card-foot">
+    <span id="card-state">示例译文</span>
+    <span class="spacer"></span>
+    <button id="retry" hidden class="icon-control" title="重试" aria-label="重试">
+      <svg class="control-icon" viewBox="0 0 20 20"><use href="#ui-retry"/></svg>
+    </button>
+    <button id="copy" hidden class="icon-control" title="复制译文" aria-label="复制译文">
+      <svg class="control-icon" viewBox="0 0 20 20"><use href="#ui-copy"/></svg>
+    </button>
+    <kbd>Esc</kbd> 关闭
+  </div>
+</section>
+
+<!-- 智能研读侧栏 - 遵循 AGENTS.md 规范 -->
+<div class="study-drawer-backdrop" id="study-backdrop"></div>
+<aside class="study-drawer" id="study-drawer" role="dialog" aria-modal="true" aria-labelledby="study-title">
+  <header class="study-drawer-head">
+    <h2 id="study-title">智能研读</h2>
+    <button class="icon-control" id="study-close" title="关闭智能研读，Esc" aria-label="关闭智能研读，Esc">
+      <svg class="control-icon" viewBox="0 0 20 20"><use href="#ui-close"/></svg>
+    </button>
+  </header>
+
+  <div class="study-tabs" role="tablist">
+    <button role="tab" aria-selected="true" aria-controls="tab-annotate" id="tab-btn-annotate">批注</button>
+    <button role="tab" aria-selected="false" aria-controls="tab-assist" id="tab-btn-assist">AI 辅助阅读</button>
+    <button role="tab" aria-selected="false" aria-controls="tab-ask" id="tab-btn-ask">问作品</button>
+  </div>
+
+  <div class="study-drawer-body">
+    <div id="tab-annotate" role="tabpanel" aria-labelledby="tab-btn-annotate">
+      <div class="study-section">
+        <h3>当前页批注</h3>
+        <p>在 PDF 中选中文字，添加高亮、笔记或评论。</p>
+        <p style="color:var(--muted);font-size:12px">本页暂无批注。选中文字后可添加。</p>
+      </div>
+    </div>
+
+    <div id="tab-assist" role="tabpanel" aria-labelledby="tab-btn-assist" hidden>
+      <div class="study-section">
+        <h3>AI 辅助阅读</h3>
+        <p>让 AI 帮助理解当前页面的关键内容、术语和上下文关系。</p>
+        <button class="primary" style="width:100%;margin-top:8px">生成本页阅读摘要</button>
+      </div>
+      <div class="study-result" hidden>
+        <strong>AI 阅读摘要</strong>
+        <p>本页介绍了从日常步行中理解运动的基本概念，强调了平衡、肌肉力量与环境的相互作用…</p>
+      </div>
+    </div>
+
+    <div id="tab-ask" role="tabpanel" aria-labelledby="tab-btn-ask" hidden>
+      <div class="study-section">
+        <h3>问作品</h3>
+        <p>向当前文档提问，AI 会基于文档内容回答。</p>
+        <textarea placeholder="例如：这篇文章的核心观点是什么？"></textarea>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="primary" style="flex:1">发送问题</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div class="toast" role="status" id="toast" hidden></div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const s = {
+  enabled: false,
+  page: 1,
+  active: null,
+  dragging: false,
+  studyOpen: false,
+  chatting: false,
+  generating: false,
+  activeTab: 'annotate'
+};
+
+function toast(msg) {
+  $('toast').textContent = msg;
+  $('toast').hidden = false;
+  setTimeout(() => $('toast').hidden = true, 2600);
+}
+
+function setSendControl(btn, stopping) {
+  const label = stopping ? '停止生成' : '发送问题';
+  btn.innerHTML = '<svg class="control-icon" viewBox="0 0 20 20"><use href="#ui-' + (stopping ? 'stop' : 'send') + '"/></svg>';
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+}
+
+// 划词翻译
+function selectionSnapshot() {
+  const sel = getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+  const range = sel.getRangeAt(0);
+  const root = $('source-paper');
+  if (!root.contains(range.startContainer)) return null;
+  const text = sel.toString().trim();
+  if (!text) return null;
+  const segment = range.startContainer.parentElement?.closest('[data-segment]')?.dataset.segment || '';
+  return { text, range: range.cloneRange(), segment };
+}
+
+function openCard(snap) {
+  s.active = snap;
+  $('card').hidden = false;
+  $('card-body').innerHTML = '<p><span class="spinner"></span>正在翻译选中文字…</p>';
+  $('card-state').textContent = '加载中';
+  $('copy').hidden = true;
+  $('retry').hidden = true;
+  positionCard();
+
+  setTimeout(() => {
+    const translations = {
+      'p1a': '步行是一项熟悉的活动，但它涉及平衡能力、肌肉力量与周围环境之间的复杂相互作用。',
+      'p1b': '运动中的细微变化，可以揭示人们如何适应不同条件。观察完整的运动模式，往往比只关注某一个测量值更有帮助。',
+      'p1c': '本示例介绍了一种理解运动数据的简单方法，说明情境的作用、重复观察的重要性，以及依据小样本得出结论的局限。'
+    };
+    const result = translations[snap.segment] || '已捕获选区。v2 优化了卡片交互与错误处理。';
+    $('card-body').innerHTML = '<p>' + result + '</p>';
+    $('card-state').textContent = '预置示例译文';
+    $('copy').hidden = false;
+    s.active.translation = result;
+    positionCard();
+  }, 650);
+}
+
+function closeCard() {
+  s.active = null;
+  $('card').hidden = true;
+}
+
+function positionCard() {
+  if (!s.active || $('card').hidden) return;
+  const rects = [...s.active.range.getClientRects()].filter(r => r.width > 0 && r.height > 0);
+  if (!rects.length) { closeCard(); return; }
+  const anchor = rects[rects.length - 1];
+  const card = $('card');
+  const viewport = $('source-scroll').getBoundingClientRect();
+
+  card.style.maxHeight = Math.max(90, viewport.height - 24) + 'px';
+  let left = Math.min(anchor.left, innerWidth - card.offsetWidth - 12);
+  left = Math.max(12, left);
+  let top = anchor.bottom + 10;
+  if (top + card.offsetHeight > viewport.bottom - 12) {
+    top = anchor.top - card.offsetHeight - 10;
+  }
+  top = Math.max(12, Math.min(top, innerHeight - card.offsetHeight - 42));
+  card.style.left = left + 'px';
+  card.style.top = top + 'px';
+}
+
+function selectionInput() {
+  if (!s.enabled || s.dragging) return;
+  const snap = selectionSnapshot();
+  if (!snap) {
+    closeCard();
+    return;
+  }
+  if (s.active?.segment === snap.segment) return;
+  closeCard();
+  setTimeout(() => {
+    const current = selectionSnapshot();
+    if (current && current.segment === snap.segment) openCard(current);
+  }, 300);
+}
+
+// 智能研读侧栏
+function openStudy() {
+  s.studyOpen = true;
+  $('study-drawer').classList.add('open');
+  $('study-backdrop').classList.add('visible');
+  $('study-close').focus();
+  toast('智能研读已打开 · 遵循 54px 头部 + X/遮罩/Esc 关闭规范');
+}
+
+function closeStudy() {
+  s.studyOpen = false;
+  $('study-drawer').classList.remove('open');
+  $('study-backdrop').classList.remove('visible');
+  $('pdf-study').focus({ preventScroll: true });
+}
+
+function switchTab(tabId) {
+  s.activeTab = tabId;
+  document.querySelectorAll('[role=tab]').forEach(btn => {
+    btn.setAttribute('aria-selected', btn.id === 'tab-btn-' + tabId);
+  });
+  document.querySelectorAll('[role=tabpanel]').forEach(panel => {
+    panel.hidden = panel.id !== 'tab-' + tabId;
+  });
+}
+
+// AI 对话
+function openChat() {
+  s.chatting = true;
+  $('shell').dataset.route = 'chat';
+  $('unified-chat-route').hidden = false;
+  $('pdf-status').hidden = true;
+  $('chat-status').hidden = false;
+  closeCard();
+  closeStudy();
+  setTimeout(() => $('chat-input').focus(), 0);
+  toast('AI 对话已打开 · v2 优化：发送/停止按钮置于框内右下角');
+}
+
+function closeChat() {
+  s.chatting = false;
+  $('shell').dataset.route = 'pdf';
+  $('unified-chat-route').hidden = true;
+  $('pdf-status').hidden = false;
+  $('chat-status').hidden = true;
+}
+
+function submitChat(e) {
+  e.preventDefault();
+  const text = $('chat-input').value.trim();
+  if (!text || s.generating) return;
+
+  const stream = $('chat-stream');
+  stream.innerHTML += '<article class="unified-message user"><div class="unified-message-text">' + text + '</div></article>';
+  stream.innerHTML += '<article class="unified-message assistant"><div class="unified-avatar">绎</div><div><div class="unified-message-text"><span class="unified-thinking">正在思考…</span></div></div></article>';
+
+  $('chat-input').value = '';
+  $('chat-body').scrollTop = $('chat-body').scrollHeight;
+  s.generating = true;
+  setSendControl($('chat-send'), true);
+
+  setTimeout(() => {
+    s.generating = false;
+    const last = stream.querySelector('.unified-message.assistant:last-child .unified-message-text');
+    if (last) last.textContent = 'v2 优化示例回答：发送/停止按钮现在位于输入框右下角，符合现代对话产品的交互习惯。';
+    setSendControl($('chat-send'), false);
+    $('chat-body').scrollTop = $('chat-body').scrollHeight;
+  }, 1100);
+}
+
+// 事件绑定
+$('selection-enabled').onchange = e => {
+  s.enabled = e.target.checked;
+  closeCard();
+  toast(s.enabled ? '划词翻译已开启' : '划词翻译已关闭');
+};
+
+$('pdf-study').onclick = openStudy;
+$('study-close').onclick = closeStudy;
+$('study-backdrop').onclick = closeStudy;
+
+$('tab-btn-annotate').onclick = () => switchTab('annotate');
+$('tab-btn-assist').onclick = () => switchTab('assist');
+$('tab-btn-ask').onclick = () => switchTab('ask');
+
+$('demo-chat').onclick = openChat;
+$('chat-back').onclick = closeChat;
+$('chat-form').onsubmit = submitChat;
+
+$('card-close').onclick = closeCard;
+$('copy').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText(s.active?.translation || '');
+    toast('译文已复制');
+  } catch {
+    toast('复制不可用');
+  }
+};
+
+$('full-start').onclick = () => toast('全文翻译功能完整，原型已包含任务管理、进度显示、取消/暂停/重试。');
+
+$('theme').onclick = () => {
+  document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  positionCard();
+};
+
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#source-paper')) {
+    s.dragging = true;
+    if (!$('card').hidden) closeCard();
+  } else if (!$('card').hidden && !e.target.closest('#card')) {
+    closeCard();
+  }
+});
+
+document.addEventListener('pointerup', () => {
+  s.dragging = false;
+  selectionInput();
+});
+
+document.addEventListener('selectionchange', () => {
+  if (!s.dragging) selectionInput();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (s.studyOpen) {
+      closeStudy();
+      e.preventDefault();
+    } else if (!$('card').hidden) {
+      closeCard();
+      e.preventDefault();
+    }
+  }
+
+  if (e.key === 'Enter' && !e.shiftKey && document.activeElement === $('chat-input')) {
+    e.preventDefault();
+    submitChat(e);
+  }
+});
+
+$('source-scroll').addEventListener('scroll', positionCard, { passive: true });
+window.addEventListener('resize', positionCard);
+
+// 初始化
+toast('v2 优化版已加载 · 点击"智能研读"或"AI 对话示例"体验完整设计');
+</script>
+</body>
+</html>

@@ -34,4 +34,21 @@ html = replaceSection(
   js
 );
 
+const readerStyles = await Promise.all(['reader-host', 'epub-reader', 'pdf-reader', 'home-workspace', 'pdf-study'].map(async (name) =>
+  `/* ===== css/${name}.css ===== */\n${(await readFile(resolve(demoDir, `css/${name}.css`), 'utf8')).trimEnd()}`));
+const paperReaderSkill = await readFile(resolve(demoDir, 'vendor/paper-reader-skill/SKILL.md'), 'utf8');
+const paperReaderLicense = await readFile(resolve(demoDir, 'vendor/paper-reader-skill/LICENSE'), 'utf8');
+// Escape HTML script delimiters while preserving the original instruction text.
+const paperReaderRules = `/* ===== vendor/paper-reader-skill/SKILL.md ===== */\nwindow.GuanyiPaperReaderSkill = ${JSON.stringify(paperReaderSkill).replace(/</g, '\\u003c')};`;
+const readerScripts = await Promise.all(['pdf-evidence', 'reader-host', 'epub-reader', 'pdf-reader', 'home-workspace', 'paper-reader', 'pdf-study'].map(async (name) =>
+  `/* ===== js/${name}.js ===== */\n${(await readFile(resolve(demoDir, `js/${name}.js`), 'utf8')).trimEnd()}`));
+const readerBundle = `<style id="format-reader-styles">\n${readerStyles.join('\n')}\n</style>
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/epub.min.js"></script>
+<script type="text/plain" id="paper-reader-skill-license">${paperReaderLicense.replace(/</g, '&lt;')}</script>
+<script id="format-readers">\n${paperReaderRules}\n${readerScripts.join('\n')}\n</script>`;
+const readerStart = '<!-- FORMAT READERS START -->';
+const readerEnd = '<!-- FORMAT READERS END -->';
+if (!html.includes(readerStart)) html = html.replace('  <script>\n/* ===== vendor/', `${readerStart}\n${readerEnd}\n  <script>\n/* ===== vendor/`);
+html = replaceSection(html, readerStart, readerEnd, `\n${readerBundle}\n`);
 await writeFile(indexPath, html, 'utf8');

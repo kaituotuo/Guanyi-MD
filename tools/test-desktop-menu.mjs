@@ -13,7 +13,7 @@ const {
 const calls = [];
 const template = buildApplicationMenuTemplate({
   platform: 'darwin',
-  productName: '观绎 MD',
+  productName: '观译阅读器',
   actions: {
     command: (command) => calls.push(command),
     help: (section) => calls.push(`help.${section}`),
@@ -21,7 +21,7 @@ const template = buildApplicationMenuTemplate({
   }
 });
 
-assert.deepEqual(template.map((item) => item.label), ['观绎 MD', '文件', '编辑', '查看', '帮助'], 'macOS must expose exactly five first-level menus');
+assert.deepEqual(template.map((item) => item.label), ['观译阅读器', '文件', '编辑', '查看', '帮助'], 'macOS must expose exactly five first-level menus');
 assert.equal(template.some((item) => item.label === '格式' || item.label === '窗口'), false, 'format and window commands must be nested instead of top-level menus');
 
 function allItems(items) {
@@ -37,7 +37,7 @@ assert.equal(items.find((item) => item.role === 'close'), undefined, 'the native
 assert.equal(items.find((item) => item.id === 'menu-edit-replace')?.accelerator, 'Alt+Command+F', 'replace must not claim the macOS Cmd+H hide shortcut');
 assert.ok(items.some((item) => item.id === 'menu-format' && item.label === 'Markdown 格式'), 'Markdown formatting must live under Edit');
 assert.ok(items.some((item) => item.role === 'zoom' && item.label === '缩放窗口'), 'window zoom must live under View');
-assert.ok(items.some((item) => item.role === 'about' && item.label === '关于观绎 MD'), 'About must stay in the app-name menu');
+assert.ok(items.some((item) => item.role === 'about' && item.label === '关于观译阅读器'), 'About must stay in the app-name menu');
 for (const command of ['document.new', 'document.save', 'document.close-tab', 'edit.undo', 'search.library', 'format.task', 'view.preview']) {
   assert.ok(APPLICATION_MENU_COMMANDS.has(command), `${command} must be in the restricted command whitelist`);
 }

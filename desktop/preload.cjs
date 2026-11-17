@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('guanyiDesktop', Object.freeze({
   files: Object.freeze({
     choose: () => ipcRenderer.invoke('guanyi-files:choose'),
     saveAs: (suggestedName, content) => ipcRenderer.invoke('guanyi-files:save-as', { suggestedName, content }),
+    saveBinaryAs: (suggestedName, bytes) => ipcRenderer.invoke('guanyi-files:save-binary-as', { suggestedName, bytes }),
+    cacheBinary: (id, bytes) => ipcRenderer.invoke('guanyi-files:cache-binary', { id, bytes }),
+    readCachedBinary: (id) => ipcRenderer.invoke('guanyi-files:read-cached-binary', id),
     createManaged: (suggestedName, content) => ipcRenderer.invoke('guanyi-files:create-managed', { suggestedName, content }),
     onOpen: (callback) => {
       openFilesHandler = typeof callback === 'function' ? callback : null;
@@ -45,6 +48,7 @@ contextBridge.exposeInMainWorld('guanyiDesktop', Object.freeze({
     readAsset: (documentPath, source) => ipcRenderer.invoke('guanyi-files:read-asset', { documentPath, source }),
     write: (filePath, content) => ipcRenderer.invoke('guanyi-files:write', { filePath, content }),
     stat: (filePath) => ipcRenderer.invoke('guanyi-files:stat', filePath),
+    transaction: (payload) => ipcRenderer.invoke('guanyi-files:transaction', payload),
     showInFolder: (filePath) => ipcRenderer.invoke('guanyi-files:show-in-folder', filePath),
     rename: (filePath, nextName) => ipcRenderer.invoke('guanyi-files:rename', { filePath, nextName }),
     readSibling: (documentPath, name) => ipcRenderer.invoke('guanyi-files:read-sibling', { documentPath, name }),
@@ -93,6 +97,7 @@ contextBridge.exposeInMainWorld('guanyiDesktop', Object.freeze({
     }
   }),
   ai: Object.freeze({
+    importCcSwitch: (options = {}) => ipcRenderer.invoke('guanyi-ai:import-cc-switch', options),
     chat: (request) => ipcRenderer.invoke('guanyi-ai:chat', request),
     models: (request) => ipcRenderer.invoke('guanyi-ai:models', request),
     cancel: (requestId) => ipcRenderer.invoke('guanyi-ai:cancel', requestId)

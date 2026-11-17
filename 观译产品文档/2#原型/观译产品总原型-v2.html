@@ -1,0 +1,1420 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>观译阅读器 · 交互原型 v2</title>
+<style>
+/* ── 设计 Tokens：完全对齐实际客户端 css/app.css ── */
+:root {
+  --bg:          #f6f4f1;
+  --bg-top:      #ffffff;
+  --bg-cont:     #f4f1ed;
+  --bg-fill:     #eeeae5;
+  --ink:         #2a2520;
+  --ink2:        #6b6358;
+  --ink3:        #736b60;
+  --brand:       #d9431f;
+  --pub:         #df4b25;
+  --pub-h:       #ed5a2f;
+  --pub-p:       #bd3518;
+  --line-l:      rgba(60,40,20,.07);
+  --line:        rgba(60,40,20,.12);
+  --line-s:      rgba(60,40,20,.22);
+  --hover:       rgba(45,42,38,.06);
+  --active:      rgba(45,42,38,.10);
+  --pressed-pub: rgba(223,75,37,.14);
+  --shadow-s:    0 2px 8px rgba(60,40,20,.08),0 1px 2px rgba(60,40,20,.04);
+  --shadow-r:    0 12px 32px rgba(60,40,20,.16),0 2px 6px rgba(60,40,20,.06);
+  --focus:       rgba(223,75,37,.46);
+  --bar:         56px;  /* topbar */
+  --fmt:         49px;  /* formatbar / toolbar */
+  --side:        268px;
+  --study-w:     360px;
+}
+html[data-theme="dark"] {
+  --bg:#1f1d1a; --bg-top:#302c27; --bg-cont:#292621; --bg-fill:#3c3731;
+  --ink:#f4f1ed; --ink2:#c8c0b6; --ink3:#aaa197;
+  --brand:#ff6847; --pub:#ff6847; --pub-h:#ff7d5a; --pub-p:#e55838;
+  --line-l:rgba(255,247,238,.07); --line:rgba(255,247,238,.12); --line-s:rgba(255,247,238,.22);
+  --hover:rgba(255,247,238,.06); --active:rgba(255,247,238,.10);
+  --pressed-pub:rgba(255,104,71,.18);
+  --shadow-s:0 2px 8px rgba(0,0,0,.24),0 1px 2px rgba(0,0,0,.16);
+  --shadow-r:0 12px 32px rgba(0,0,0,.44),0 2px 6px rgba(0,0,0,.24);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font:14px/1.55 Inter,"Noto Sans SC","PingFang SC",system-ui,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:transparent;border-radius:6px}
+button:disabled{cursor:default;opacity:.45}
+svg{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* ── 应用壳层 ── */
+.shell{display:grid;grid-template-rows:var(--bar) 1fr;grid-template-columns:var(--side) 1fr;height:100%}
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:0;background:var(--bg-top);
+  border-bottom:1px solid var(--line);position:relative;z-index:20;padding:0 16px}
+.brand{display:flex;align-items:center;gap:9px;padding:0 10px 0 0;font-weight:650;font-size:15px;white-space:nowrap;flex-shrink:0}
+.brand-mark{width:24px;height:24px;background:var(--ink);color:#fff;border:2px solid var(--pub);border-radius:5px;
+  display:grid;place-items:center;font:17px/1 Georgia,serif}
+.nav-tabs{display:flex;align-items:stretch;height:100%;gap:0;overflow:hidden}
+.nav-tab{display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:3px solid transparent;
+  font-size:14px;white-space:nowrap;cursor:pointer;color:var(--ink2);min-width:0;flex-shrink:0;background:none;border-radius:0}
+.nav-tab:hover{background:var(--hover);color:var(--ink)}
+.nav-tab[aria-current="true"]{border-bottom-color:var(--pub);color:var(--ink);font-weight:600}
+.nav-tab .file-badge{font:700 10px/1 system-ui;padding:1px 4px;border-radius:3px;color:#fff;flex-shrink:0}
+.nav-tab .file-badge.pdf{background:#c7352b}
+.nav-tab .file-badge.md{background:#455164}
+.topbar-gap{flex:1}
+.topbar-btn{width:32px;height:32px;display:grid;place-items:center;border-radius:6px;color:var(--ink2);flex-shrink:0}
+.topbar-btn:hover{background:var(--hover);color:var(--ink)}
+.app-menu{position:absolute;top:calc(100% + 6px);right:12px;width:210px;padding:6px;
+  background:var(--bg-top);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow-r);z-index:50}
+.app-menu button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;text-align:left;
+  font-size:13px;border-radius:5px;color:var(--ink)}
+.app-menu button:hover{background:var(--hover)}
+.app-menu .menu-brand{color:var(--brand)}
+.menu-ver{padding:4px 10px 2px;font-size:11px;color:var(--ink3)}
+
+/* ── 侧栏 ── */
+.sidebar{background:var(--bg-top);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.sidebar[hidden]{display:none!important}
+.sidebar-label{font:650 11px/1 system-ui;letter-spacing:.07em;color:var(--ink3);padding:0 12px 10px}
+.sidebar-section{padding:16px 10px 8px}
+.sidebar-file{display:flex;gap:9px;align-items:center;padding:9px 10px;border-radius:7px;background:var(--pressed-pub);font-size:12px;color:var(--brand);margin:0 2px 16px}
+.sidebar-file strong{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar-file small{font-size:11px;color:var(--ink2)}
+.sidebar-nav button{display:flex;gap:10px;align-items:center;width:100%;padding:7px 10px;text-align:left;
+  font-size:13px;border-radius:6px;color:var(--ink)}
+.sidebar-nav button:hover{background:var(--hover)}
+.sidebar-nav button[aria-current="page"]{background:var(--bg-fill);font-weight:600}
+.sidebar-nav button span:first-child{font:12px/1.8 ui-monospace,monospace;color:var(--ink3);flex-shrink:0}
+.sidebar-note{margin-top:auto;border-top:1px solid var(--line);padding:16px 12px;font-size:12px;color:var(--ink2);line-height:1.75}
+.sidebar-note strong{display:block;font-size:13px;color:var(--ink);margin-bottom:5px}
+
+/* ── 工作区（路由容器）── */
+.workspace{display:flex;flex-direction:column;min-height:0;overflow:hidden;background:var(--bg)}
+
+/* ── 通用按钮 ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:5px 11px;
+  border:1px solid var(--line);border-radius:6px;background:var(--bg-top);font-size:12px;white-space:nowrap;cursor:pointer}
+.btn:hover:not(:disabled){background:var(--hover)}
+.btn-pub{background:var(--pub);border-color:var(--pub);color:#fff}
+.btn-pub:hover:not(:disabled){background:var(--pub-h);border-color:var(--pub-h)}
+.btn-pub:active:not(:disabled){background:var(--pub-p)}
+.fmt-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  min-width:32px;min-height:32px;padding:0 7px;border-radius:6px;font-size:12px;color:var(--ink);flex-shrink:0}
+.fmt-btn:hover:not(:disabled){background:var(--hover)}
+.fmt-btn[aria-pressed="true"],.fmt-btn[aria-expanded="true"]{background:var(--pressed-pub);color:var(--brand)}
+.fmt-btn:disabled{opacity:.35;cursor:default}
+.fmt-sep{width:1px;height:20px;background:var(--line);flex-shrink:0;margin:0 2px}
+.chip-new{font-size:10px;padding:2px 6px;border:1px solid #edc4b7;border-radius:999px;color:var(--brand);background:var(--pressed-pub);white-space:nowrap}
+.chip-have{font-size:10px;padding:2px 6px;border:1px solid #a8d1ca;border-radius:999px;color:#2e716b;background:#edf8f5;white-space:nowrap}
+
+/* ── 主页路由 ── */
+.home-route{flex:1;min-height:0;overflow-y:auto}
+.home-search-row{display:flex;align-items:center;justify-content:space-between;padding:0 24px;
+  min-height:49px;border-bottom:1px solid var(--line-l);background:var(--bg-top);gap:12px}
+.home-search-row h2{font-size:14px;font-weight:600;flex-shrink:0}
+.search-box{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;
+  border:1px solid var(--line);border-radius:7px;background:var(--bg-cont);width:240px;max-width:100%}
+.search-box:focus-within{border-color:var(--pub);background:var(--bg-top);box-shadow:0 0 0 2px var(--pressed-pub)}
+.search-box svg{width:14px;height:14px;color:var(--ink3);flex-shrink:0}
+.search-box input{border:0;outline:0;background:transparent;font-size:12px;min-width:0;width:100%}
+.search-box kbd{font-size:10px;padding:1px 5px;border:1px solid var(--line);border-radius:4px;color:var(--ink3);background:var(--bg-top);flex-shrink:0}
+.home-content{max-width:1120px;padding:36px 48px 48px;margin:0 auto}
+.home-ai{padding:20px 20px 14px;border:1px solid var(--line);border-radius:8px;background:var(--bg-top);box-shadow:var(--shadow-s)}
+.home-ai:focus-within{border-color:var(--pub);box-shadow:0 0 0 2px var(--pressed-pub)}
+.home-ai-heading{display:flex;align-items:center;gap:8px;margin-bottom:0}
+.home-ai-heading svg{color:var(--brand);width:16px;height:16px;flex-shrink:0}
+.home-ai-heading h1{font-size:14px;font-weight:600;flex:1}
+.home-ai-heading span{font-size:11px;color:var(--ink3)}
+.home-ai textarea{display:block;width:100%;min-height:96px;max-height:320px;padding:16px 0 10px;
+  border:0;outline:0;resize:vertical;background:transparent;line-height:1.75;font-size:14px}
+.home-ai textarea::placeholder{color:var(--ink3)}
+.home-ai-bottom{display:flex;align-items:center;gap:10px;min-width:0}
+.source-btn{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:4px 9px;
+  border:1px solid var(--line);border-radius:6px;background:var(--bg-top);font-size:11px;white-space:nowrap;cursor:pointer}
+.source-btn:hover{background:var(--hover)}
+.source-btn svg{width:14px;height:14px}
+.scope-txt{font-size:11px;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.send-btn{margin-left:auto;flex-shrink:0;width:34px;height:34px;border-radius:6px;
+  display:grid;place-items:center;background:var(--pub);color:#fff;border:1px solid transparent}
+.send-btn:hover:not(:disabled){background:var(--pub-h)}
+.send-btn:disabled{background:var(--bg-cont);color:var(--ink3);opacity:1}
+.stop-btn{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:5px 10px;
+  border:1px solid var(--line);border-radius:6px;background:var(--bg-top);font-size:12px;cursor:pointer;flex-shrink:0}
+.stop-btn:hover{background:var(--hover)}
+.home-quick{display:flex;gap:16px;flex-wrap:wrap;margin:16px 0 40px}
+.home-quick button{padding:2px 0;font-size:13px;color:var(--ink2)}
+.home-quick button:hover{background:transparent;color:var(--brand)}
+.home-quick button svg{width:13px;height:13px;stroke-width:2}
+.home-section{margin-top:0}
+.home-section-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.home-section-head h2{font-size:18px}
+.home-section-head span{font-size:12px;color:var(--ink2)}
+.doc-row{display:grid;grid-template-columns:32px 1fr auto 28px;gap:12px;align-items:center;padding:10px 4px;
+  border-bottom:1px solid var(--line-l);cursor:pointer;border-radius:6px;width:100%;text-align:left;background:none}
+.doc-row:hover{background:var(--hover)}
+.doc-badge{width:29px;height:34px;display:grid;place-items:center;border-radius:4px;font:700 10px/1 system-ui;color:#fff;flex-shrink:0}
+.doc-badge.pdf{background:#c7352b}.doc-badge.md{background:#455164}
+.doc-badge.txt{background:#1769aa}.doc-badge.epub{background:#a94f1f}
+.doc-info strong{display:block;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-info small{font-size:11px;color:var(--ink2)}
+.doc-loc{font-size:11px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-arrow{color:var(--ink3);font-size:16px}
+
+/* ── AI 对话路由 ── */
+.chat-route{flex:1;min-height:0;display:none;flex-direction:column}
+.chat-route.active{display:flex}
+.chat-head{display:flex;align-items:center;gap:10px;padding:0 20px;min-height:49px;
+  border-bottom:1px solid var(--line);background:var(--bg-top);flex-shrink:0}
+.chat-head h1{font-size:16px;font-weight:600;flex:1}
+.chat-scope-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border:1px solid var(--line);
+  border-radius:999px;font-size:11px;color:var(--ink2)}
+.chat-scope-chip button{width:14px;height:14px;padding:0;display:grid;place-items:center;border-radius:50%;color:var(--ink3)}
+.chat-scope-chip button:hover{background:var(--hover);color:var(--ink)}
+.chat-messages{flex:1;min-height:0;overflow-y:auto;padding:24px 0 8px}
+.chat-stream{max-width:720px;margin:0 auto;padding:0 24px 100px}
+.chat-empty{text-align:center;padding:72px 0;color:var(--ink2)}
+.chat-empty h2{font:600 22px/1.3 Georgia,serif;color:var(--ink);margin-bottom:8px}
+.chat-empty p{font-size:13px;margin-bottom:20px}
+.chat-empty .btn{margin:3px}
+.msg{display:flex;gap:10px;margin-bottom:24px}
+.msg.user{justify-content:flex-end}
+.msg.user .msg-text{max-width:76%;background:var(--bg-fill);border-radius:12px 12px 3px 12px;padding:10px 13px}
+.msg-avatar{width:28px;height:28px;border-radius:50%;background:var(--pressed-pub);color:var(--brand);
+  display:grid;place-items:center;font-weight:650;font-size:12px;flex-shrink:0}
+.msg .msg-text{line-height:1.8;font-size:14px}
+.msg-thinking{color:var(--ink2);font-size:13px;display:flex;align-items:center;gap:6px}
+.msg-thinking::before{content:"";width:12px;height:12px;border:2px solid var(--line-s);
+  border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.msg-actions{display:flex;gap:4px;margin-top:8px;opacity:0;transition:opacity .15s}
+.msg:hover .msg-actions{opacity:1}
+.msg-actions button{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;font-size:11px;
+  color:var(--ink2);border:1px solid var(--line);border-radius:4px}
+.msg-actions button:hover{background:var(--hover);color:var(--ink)}
+.chat-composer-wrap{flex-shrink:0;padding:0 24px 16px;max-width:720px;width:100%;margin:0 auto}
+/* AI对话输入区：与实际客户端完全对齐 */
+.chat-composer{padding:14px 16px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg-top)}
+.chat-composer:focus-within{border-color:var(--pub);box-shadow:0 0 0 2px var(--pressed-pub)}
+.chat-composer > label{display:block;margin-bottom:8px;color:var(--ink2);font-size:12px}
+.chat-composer textarea{width:100%;min-height:70px;max-height:220px;padding:0 0 10px;
+  border:0;outline:0;resize:vertical;background:transparent;line-height:1.75;font-size:14px}
+.chat-composer textarea::placeholder{color:var(--ink3)}
+.composer-bottom{display:flex;align-items:center;gap:8px;min-width:0}
+.chat-status{font-size:11px;color:var(--ink3);padding:5px 0 0;min-height:18px}
+
+/* ── PDF 路由 ── */
+.pdf-route{flex:1;min-height:0;display:none;flex-direction:column}
+.pdf-route.active{display:flex}
+/* PDF 阅读器工具栏：对齐 .app-reader-toolbar */
+.app-reader-toolbar{display:flex;align-items:center;gap:4px;flex-shrink:0;
+  min-height:var(--fmt);padding:7px 14px;overflow-x:auto;white-space:nowrap;
+  border-bottom:1px solid var(--line);background:var(--bg-top);scrollbar-width:thin}
+.app-reader-toolbar>*{flex-shrink:0}
+/* PDF 控件组：对齐 .guanyi-pdf-control-group */
+.pdf-ctrl-group{display:inline-flex;align-items:center;min-height:34px;border:1px solid var(--line);
+  border-radius:8px;background:var(--bg-top);overflow:hidden}
+.pdf-ctrl-group .fmt-btn{border-radius:0;border:0;min-height:32px}
+.pdf-ctrl-group .fmt-btn+.fmt-btn{border-left:1px solid var(--line)}
+.pdf-ctrl-group select{height:32px;border:0;border-left:1px solid var(--line);border-radius:0;
+  padding:0 20px 0 8px;font-size:13px;background:transparent;cursor:pointer}
+.pdf-ctrl-group input{width:46px;height:30px;border:0;border-left:1px solid var(--line);border-radius:0;
+  padding:0;text-align:center;font-size:13px;background:transparent}
+.pdf-page-sep{padding:0 8px;font-size:13px;color:var(--ink2)}
+/* 翻译功能区分隔线 */
+.trans-sep{width:1px;height:22px;background:var(--line);margin:0 6px;flex-shrink:0}
+/* 划词开关 */
+.sel-toggle{position:relative;display:inline-flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:6px;border:1px solid transparent;flex-shrink:0}
+.sel-toggle input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:1}
+.sel-toggle:hover{background:var(--pressed-pub);color:var(--brand)}
+.sel-toggle:has(input:checked){background:var(--pressed-pub);color:var(--brand);border-color:var(--brand)}
+.sel-toggle .toggle-check{position:absolute;right:1px;bottom:1px;width:10px;height:10px;
+  stroke-width:2;display:none;background:var(--bg-top);border-radius:2px;stroke:var(--brand)}
+.sel-toggle:has(input:checked) .toggle-check{display:block}
+/* 视图切换 */
+.view-sw{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.view-sw .fmt-btn{border-radius:0;border:0;padding:0 8px;min-height:32px}
+.view-sw .fmt-btn+.fmt-btn{border-left:1px solid var(--line)}
+.view-sw .fmt-btn[aria-pressed="true"]{background:var(--pressed-pub);color:var(--brand)}
+.view-sw .fmt-btn:disabled{opacity:.35}
+/* 保存主操作（靠右） */
+.reader-save{margin-left:auto}
+
+/* ── 阅读状态条 ── */
+.reading-strip{display:flex;align-items:center;gap:8px;padding:5px 16px;
+  border-bottom:1px solid var(--line-l);background:var(--bg-top);flex-shrink:0;font-size:12px;min-height:38px}
+.strip-dot{width:6px;height:6px;border-radius:50%;background:var(--pub);flex-shrink:0}
+.strip-progress{width:80px;height:3px;background:var(--line);border-radius:3px;overflow:hidden;flex-shrink:0}
+.strip-bar{height:100%;background:var(--pub);transition:width .2s}
+.strip-gap{flex:1}
+
+/* ── PDF 阅读区（壳） ── */
+.pdf-reading-shell{display:flex;flex:1;min-height:0;overflow:hidden;position:relative}
+.pdf-pane{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0}
+.pdf-pane+.pdf-pane{border-left:1px solid var(--line)}
+.pdf-pane-head{display:flex;align-items:center;gap:8px;padding:7px 20px;min-height:38px;
+  border-bottom:1px solid var(--line-l);font-size:12px;color:var(--ink2);background:var(--bg-top);flex-shrink:0}
+.pdf-pane-head strong{color:var(--ink);font-weight:600}
+.pdf-scroll{flex:1;min-height:0;overflow-y:auto;padding:20px 20px 60px;background:var(--bg)}
+.pdf-paper{background:#fff;color:#252321;max-width:700px;margin:0 auto;padding:48px 48px 36px;
+  box-shadow:0 1px 6px rgba(60,40,20,.12)}
+.pdf-paper h1{font:600 26px/1.2 Georgia,serif;margin-bottom:20px}
+.pdf-paper h2{font:600 17px/1.4 Georgia,serif;margin:22px 0 11px}
+.pdf-paper p{font:15px/1.85 Georgia,serif;margin-bottom:14px;overflow-wrap:anywhere}
+.pdf-paper p[data-seg]{cursor:text}
+.pdf-paper p::selection,.pdf-paper p *::selection{background:#f7d5c5}
+.pdf-trans p{font-family:"PingFang SC","Noto Sans SC",sans-serif;font-size:14px;line-height:2}
+.pdf-trans h1{font:600 23px/1.3 "Songti SC",serif}
+.pdf-trans h2{font:600 16px/1.4 "Songti SC",serif;margin:20px 0 10px}
+.trans-label{font-size:10px;padding:1px 5px;border:1px solid #ecd4c8;border-radius:3px;color:#944126;background:#faece5}
+.pdf-scan{display:grid;place-items:center;min-height:400px;color:var(--ink2);text-align:center;
+  background:repeating-linear-gradient(0deg,var(--bg-cont),var(--bg-cont) 3px,var(--bg) 4px)}
+.empty-pane{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  padding:60px 24px;text-align:center;color:var(--ink2);background:var(--bg-cont)}
+.empty-pane .ei{font-size:28px;width:50px;height:50px;border:1px solid var(--line);border-radius:10px;
+  display:grid;place-items:center;color:var(--brand)}
+
+/* ── 智能研读侧栏：完全对齐实际客户端 css/pdf-study.css ── */
+.study-shell{display:flex;width:100%;height:100%;min-height:0;min-width:0;overflow:hidden;position:relative}
+.study-reading{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;overflow:hidden}
+.study-panel{display:flex;flex:0 0 var(--study-w);flex-direction:column;width:var(--study-w);
+  height:100%;border-left:1px solid var(--line);background:var(--bg-top);font-size:14px}
+.study-panel[hidden]{display:none!important}
+/* 54px 固定头部 */
+.study-heading{display:flex;flex:0 0 54px;align-items:center;justify-content:space-between;
+  min-height:54px;padding:0 12px 0 16px;border-bottom:1px solid var(--line)}
+.study-heading strong{font-size:14px;font-weight:600}
+.study-close{width:32px;height:32px;padding:0;border-radius:7px;color:var(--ink2);display:grid;place-items:center}
+.study-close:hover{background:var(--hover);color:var(--ink)}
+.study-close svg{width:17px;height:17px;stroke-width:2.15}
+/* 标签行 */
+.study-tabs{display:flex;gap:4px;padding:0 12px;border-bottom:1px solid var(--line);flex-shrink:0}
+.study-tabs [role="tab"]{flex:1;position:relative;min-height:42px;padding:7px 4px;border:0;border-radius:0;
+  background:transparent;color:var(--ink2);font-size:12px;white-space:nowrap;cursor:pointer}
+.study-tabs [role="tab"]:hover{color:var(--ink)}
+.study-tabs [aria-selected="true"]{color:var(--brand);font-weight:600}
+.study-tabs [aria-selected="true"]::after{content:"";position:absolute;inset:auto 4px -1px;height:2px;background:var(--pub)}
+/* 内容区 */
+.study-body{flex:1;min-height:0;overflow-y:auto;padding:16px;overscroll-behavior:contain}
+.study-body--ask{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.study-messages{flex:1;min-height:80px;overflow-y:auto;padding:12px 16px}
+.study-chat{margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--line-l)}
+.study-chat h4{padding:8px 10px;border-radius:6px;background:var(--bg-cont);font-size:13px;font-weight:500}
+.study-answer{font-size:13px;line-height:1.75;color:var(--ink)}
+.study-thinking{color:var(--ink2);font-size:12px;display:flex;align-items:center;gap:6px}
+.study-thinking::before{content:"";width:10px;height:10px;border:2px solid var(--line-s);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite}
+.study-empty-chat{text-align:center;padding:36px 0;font-size:12px;color:var(--ink2)}
+/* 问作品输入框：发送按钮框内右下角（position:absolute）*/
+.study-composer{flex-shrink:0;max-height:60%;overflow:auto;padding:10px 12px 12px;
+  border-top:1px solid var(--line);background:var(--bg-top)}
+.study-scope{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px}
+.study-scope select{flex:0 0 auto;min-width:0;max-width:112px;height:30px;padding:4px 6px;
+  font-size:12px;border:1px solid var(--line);border-radius:5px;background:var(--bg-cont)}
+.study-scope-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink2)}
+.study-input-wrap{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--bg-cont)}
+.study-input-wrap:focus-within{border-color:var(--brand)}
+.study-input-wrap textarea{display:block;width:100%;min-height:108px;max-height:180px;
+  padding:10px 12px 44px;border:0;border-radius:inherit;background:transparent;resize:none;outline:none;
+  line-height:1.7;font-size:13px}
+.study-input-wrap textarea::placeholder{color:var(--ink3)}
+/* 发送/停止按钮：框内右下角，position:absolute */
+.study-send{position:absolute;right:8px;bottom:8px;width:30px;height:30px;min-height:30px;
+  padding:6px;border-radius:6px;border:1px solid var(--line);display:grid;place-items:center}
+.study-send:hover:not(:disabled){background:var(--hover)}
+.study-send.is-primary{background:var(--pub);border-color:var(--pub);color:#fff}
+.study-send.is-primary:hover:not(:disabled){background:var(--pub-h)}
+.study-send:disabled{border-color:var(--line);color:var(--ink3)}
+.study-send svg{width:16px;height:16px;stroke-width:1.5}
+.study-hint{margin-top:6px;font-size:10px;color:var(--ink2);line-height:1.5}
+/* 侧栏底部 */
+.study-footer{flex-shrink:0;min-height:46px;padding:7px 12px;border-top:1px solid var(--line)}
+.study-footer>.btn{width:100%;justify-content:center}
+/* 窄屏覆盖 */
+.study-mask{display:none;position:absolute;inset:0;background:rgba(24,21,18,.3);z-index:21;cursor:pointer}
+@media(max-width:1179px){
+  .study-panel{position:absolute;z-index:22;top:0;right:0;bottom:0;width:min(var(--study-w),94vw);box-shadow:var(--shadow-r)}
+  .study-mask{display:block}
+}
+
+/* 导读条目 */
+.study-entry{margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.study-entry h4{font-size:14px;margin-bottom:7px;overflow-wrap:anywhere}
+.study-entry p{font-size:13px;color:var(--ink2);line-height:1.75}
+.study-overview{padding:14px 12px;margin-bottom:16px;border-left:3px solid var(--pub);
+  border-radius:0 8px 8px 0;background:var(--bg-cont)}
+.study-overview h3{font-size:17px;font-weight:600;margin-bottom:8px;overflow-wrap:anywhere}
+.study-overview p{font-size:13px;color:var(--ink);line-height:1.75}
+.study-range{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;margin:12px 0}
+.study-range input{width:60px;height:30px;text-align:center;padding:4px 6px;border:1px solid var(--line);border-radius:5px;background:var(--bg-cont)}
+.study-muted{color:var(--ink2);font-size:12px}
+.study-section-title{font-size:15px;font-weight:600;margin-bottom:12px;color:var(--ink)}
+.study-notice{margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--bg-cont);font-size:12px}
+.study-notice.error{color:var(--brand)}
+/* 批注标签 */
+.study-note-card{margin-bottom:10px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:var(--bg)}
+.study-note-card small{font-size:11px;color:var(--ink2);display:block;margin-bottom:5px}
+.study-note-card p{font-size:13px;line-height:1.65;overflow-wrap:anywhere}
+.study-note-actions{display:flex;gap:6px;margin-top:8px}
+.study-note-actions button{font-size:11px;padding:2px 7px;border:1px solid var(--line);border-radius:4px;color:var(--ink2)}
+.study-note-actions button:hover{background:var(--hover);color:var(--ink)}
+
+/* ── 划词翻译卡片 ── */
+.trans-card{position:fixed;z-index:40;width:360px;max-width:calc(100vw - 24px);
+  background:var(--bg-top);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow-r);
+  display:flex;flex-direction:column;overflow:hidden}
+.card-head{display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-bottom:1px solid var(--line);flex-shrink:0;font-size:12px}
+.card-head strong{font-weight:650;flex:1}
+.card-head .fmt-btn{width:28px;height:28px;min-width:28px}
+.card-body{padding:14px 16px;max-height:min(290px,40vh);overflow-y:auto;font-size:14px;line-height:1.9;overflow-wrap:anywhere;min-height:0}
+.card-body p{margin:0}
+.card-body .c-muted{color:var(--ink2);font-size:12px;margin-top:7px}
+.card-foot{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--bg-cont);
+  border-top:1px solid var(--line);font-size:11px;color:var(--ink2);flex-shrink:0}
+.card-foot .fmt-btn{width:26px;height:26px;min-width:26px}
+kbd{border:1px solid var(--line);border-radius:3px;padding:0 4px;font:10px/1.6 system-ui}
+.spinner{display:inline-block;width:11px;height:11px;border:2px solid var(--line);
+  border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin-right:7px;vertical-align:middle}
+
+/* ── 模态弹窗 ── */
+.modal-backdrop{position:fixed;inset:0;z-index:60;background:rgba(24,21,18,.4);display:grid;place-items:center;padding:20px}
+.modal{width:460px;max-width:100%;max-height:calc(100dvh - 40px);overflow:auto;
+  background:var(--bg-top);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-r);padding:26px}
+.modal h2{font-size:20px;margin-bottom:10px}
+.modal p{font-size:13px;color:var(--ink2);line-height:1.8}
+.modal dl{display:grid;grid-template-columns:80px 1fr;gap:10px 8px;font-size:13px;margin:20px 0}
+.modal dt{color:var(--ink2)}.modal dd{margin:0;overflow-wrap:anywhere}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+/* 保存 PDF 弹窗 */
+.export-modal{width:520px}
+.export-preview{display:flex;gap:16px;padding:16px;background:var(--bg-cont);
+  border:1px solid var(--line);border-radius:8px;align-items:flex-start;margin-bottom:20px}
+.export-thumb{width:88px;height:124px;background:#fff;border:1px solid var(--line);flex-shrink:0;
+  display:grid;place-items:center;font-size:11px;color:var(--ink3)}
+.export-info strong{font-size:14px;display:block;margin-bottom:6px}
+.export-info p{font-size:12px;line-height:1.75;color:var(--ink2);margin-bottom:10px}
+.filename-wrap{display:flex;align-items:center;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--bg-top);margin-bottom:8px}
+.filename-wrap input{flex:1;border:0;padding:8px 10px;font-size:12px;background:transparent;min-width:0;outline:0}
+.filename-wrap span{padding:8px 10px;font-size:12px;color:var(--ink2);border-left:1px solid var(--line)}
+.export-note{font-size:11px;color:var(--ink2);line-height:1.7}
+.export-progress{height:3px;background:var(--line);border-radius:3px;overflow:hidden;margin:12px 0}
+.export-progress-bar{height:100%;background:var(--pub);transition:width .3s}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:48px;left:50%;transform:translateX(-50%);padding:10px 18px;
+  border:1px solid var(--line);background:var(--bg-top);box-shadow:var(--shadow-r);
+  border-radius:7px;z-index:70;font-size:12px;white-space:nowrap}
+
+/* ── 状态栏 ── */
+.statusbar{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:0 16px;
+  min-height:26px;border-top:1px solid var(--line);background:var(--bg-top);font-size:11px;color:var(--ink2)}
+.statusbar span{white-space:nowrap}
+.statusbar .sb-gap{flex:1}
+.statusbar button{font-size:11px;color:var(--brand)}
+
+/* ── 响应式 ── */
+@media(max-width:900px){
+  .shell{grid-template-columns:0 1fr}
+  .sidebar{display:none}
+  .home-content{padding:24px 20px}
+}
+@media(max-width:600px){
+  .home-content{padding:20px 16px}
+  .chat-stream,.chat-composer-wrap{padding-left:16px;padding-right:16px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+
+<!-- SVG 图标库 -->
+<svg hidden xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-spark" viewBox="0 0 16 16"><path stroke-width="1.4" d="M8 2v12M2 8h12M5 5l6 6M11 5 5 11"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4"/></symbol>
+<symbol id="i-stop" viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" rx="1"/></symbol>
+<symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+<symbol id="i-close" viewBox="0 0 16 16"><path d="m4 4 8 8M4 12l8-8"/></symbol>
+<symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></symbol>
+<symbol id="i-left" viewBox="0 0 16 16"><path d="m10 3-5 5 5 5"/></symbol>
+<symbol id="i-right" viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"/></symbol>
+<symbol id="i-minus" viewBox="0 0 16 16"><path d="M3 8h10"/></symbol>
+<symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></symbol>
+<symbol id="i-outline" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5.5 2v12M8 5.5h4M8 8h4M8 10.5h3"/></symbol>
+<symbol id="i-highlight" viewBox="0 0 16 16"><path d="m4 10 5.5-6.5 3.5 3-5.5 6.5H4v-3Zm4-5 3.5 3M2 14h10"/></symbol>
+<symbol id="i-note" viewBox="0 0 16 16"><path d="M9.5 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6.5M6.5 9.5l1-3L13 2l2 2-5.5 5.5-3 1Z"/></symbol>
+<symbol id="i-comment" viewBox="0 0 16 16"><path d="M4 12H2V3h12v9H7L4 14v-2Zm2-5.5h4M6 9h3"/></symbol>
+<symbol id="i-undo" viewBox="0 0 16 16"><path d="m5.5 3-3 3 3 3M2.5 6h6a4 4 0 0 1 0 8"/></symbol>
+<symbol id="i-redo" viewBox="0 0 16 16"><path d="m10.5 3 3 3-3 3M13.5 6h-6a4 4 0 0 0 0 8"/></symbol>
+<symbol id="i-study" viewBox="0 0 16 16"><path d="M8 5C6.4 4 4.3 3.7 2 4.2v8c2.3-.5 4.4-.2 6 1 1.6-1.2 3.7-1.5 6-1v-8C11.7 3.7 9.6 4 8 5Zm0 0v8M5 6.5l1.5.3M5 8.5l1.5.3"/><path stroke-width="1.3" d="m12 1.5.5 1.5 1.5.5-1.5.5L12 5.5l-.5-1.5L10 3.5l1.5-.5Z"/></symbol>
+<symbol id="i-save" viewBox="0 0 16 16"><path d="M3 2h8l3 3v9H2V2h1Zm2 0v4h5V2M5 14v-5h6v5"/></symbol>
+<symbol id="i-copy" viewBox="0 0 16 16"><rect x="6" y="6" width="8" height="9" rx="1.5"/><path d="M10 6V2H2v9h4"/></symbol>
+<symbol id="i-retry" viewBox="0 0 16 16"><path d="M13.5 5.5A6 6 0 1 0 14 8m0-5v3h-3"/></symbol>
+<symbol id="i-history" viewBox="0 0 16 16"><path d="M2.5 5.5A6 6 0 1 1 2 8m0-5v3h3M8 5v4l2.5 1.5"/></symbol>
+<symbol id="i-sel-trans" viewBox="0 0 16 16" stroke-width="1.5"><path d="M4.5 1.75H1.75V4.5m9.75 9.75h2.75V11.5M2.75 11 4.5 5.5 6.25 11M3.35 9.25h2.3"/><path stroke="var(--brand)"><path d="M10.5 3.5v1.75M8 5.5h5.25"/></path><path stroke="var(--brand)" d="M10.5 3.5v1.75M8 5.5h5.25M12 5.75c-.5 2.5-1.8 4.3-4 5.75m1-4.75c.7 2 1.95 3.4 4.25 4.75"/></symbol>
+<symbol id="i-doc-trans" viewBox="0 0 16 16" stroke-width="1.5"><path d="M6.5 14.25H3A1.25 1.25 0 0 1 1.75 13V3A1.25 1.25 0 0 1 3 1.75h6L12.5 5v1.25M9 1.75V5h3.5M4.25 6.75h2.5M4.25 9.25H6"/><path stroke="var(--brand)" d="M11 7.5v1.25M8.5 9h5.75m-1.5.25c-.45 2.3-1.8 3.85-4.25 5m1.1-4c.8 1.9 2.2 3.15 4.65 4"/></symbol>
+<symbol id="i-view-orig" viewBox="0 0 16 16" stroke-width="1.5"><rect x="2.25" y="1.75" width="11.5" height="12.5" rx="1.25"/><path d="M6.75 5.25h4M6.75 8h4M6.75 10.75h2.5"/><path stroke="var(--brand)" d="M4.5 4.5v7"/></symbol>
+<symbol id="i-view-cmp" viewBox="0 0 16 16" stroke-width="1.5"><rect x="1.75" y="2.25" width="12.5" height="11.5" rx="1.25"/><path d="M8 2.75v10.5M4 5.75h1.75M4 8.5h1.75M4 11h1.25"/><path stroke="var(--brand)" d="M10.25 5.75H12M10.25 8.5H12M10.25 11h1.25"/></symbol>
+<symbol id="i-view-trans" viewBox="0 0 16 16" stroke-width="1.5"><rect x="2.25" y="1.75" width="11.5" height="12.5" rx="1.25"/><path stroke="var(--brand)" d="M8 4v1.25M5 5.5h6M9.75 5.75C9.25 8.5 7.5 10 5 11.75m1.25-4.5c.75 2 2.5 3.5 4.75 4.5"/></symbol>
+<symbol id="i-save-trans" viewBox="0 0 16 16" stroke-width="1.5"><path d="M7.75 14.25H3A1.25 1.25 0 0 1 1.75 13V3A1.25 1.25 0 0 1 3 1.75h6L12.25 5v1.25M9 1.75V5h3.25M4.25 7h3M4.25 9.5h2"/><path stroke="var(--brand)" d="M11.5 7.75V12m-2-2 2 2 2-2M9 13.25v1h5v-1"/></symbol>
+<symbol id="i-moon" viewBox="0 0 16 16"><path d="M13.3 10.2A5.5 5.5 0 0 1 6 2.7a5.5 5.5 0 1 0 7.3 7.5Z"/></symbol>
+<symbol id="i-model" viewBox="0 0 16 16"><path d="m8 1.5 5.5 3v5L8 13l-5.5-3.5v-5L8 1.5Zm-5.5 3 5.5 3 5.5-3M8 7.5V13"/></symbol>
+<symbol id="i-settings" viewBox="0 0 16 16"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/><circle cx="5.5" cy="4" r="1.5" fill="var(--bg-top)"/><circle cx="10.5" cy="8" r="1.5" fill="var(--bg-top)"/><circle cx="5.5" cy="12" r="1.5" fill="var(--bg-top)"/></symbol>
+<symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7.5V11M8 5.5v.1"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 16 16"><path d="M12.6 5a4.8 4.8 0 1 0 .2 3M10 2.5h3v3"/></symbol>
+<symbol id="i-markdown" viewBox="0 0 16 16"><rect x="1" y="3" width="14" height="10" rx="1.5"/><path d="M3.5 10.5V5.5M3.5 10.5l2.5-3 2.5 3M3.5 5.5h2m5 5V5.5m0 5-2-2.5m2 2.5 2-2.5"/></symbol>
+<symbol id="i-help" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M6 6.5a2 2 0 0 1 4 1c0 1-.8 1.5-1.5 2M8.5 11v.1"/></symbol>
+<symbol id="i-pause" viewBox="0 0 16 16"><path d="M5.5 3v10M10.5 3v10"/></symbol>
+<symbol id="i-play" viewBox="0 0 16 16"><path d="m5 2.5 8 5.5-8 5.5V2.5Z"/></symbol>
+</svg>
+
+<!-- ═══ 应用壳层 ═══ -->
+<div class="shell" id="shell">
+
+<!-- 顶栏 -->
+<header class="topbar" id="topbar">
+  <span class="brand"><span class="brand-mark">绎</span>观译阅读器</span>
+  <nav class="nav-tabs" aria-label="页面导航">
+    <button class="nav-tab" id="tab-home" data-route="home" aria-current="false">主页</button>
+    <button class="nav-tab" id="tab-pdf"  data-route="pdf"  aria-current="false"><span class="file-badge pdf">PDF</span>Walking and everyday movement.pdf</button>
+    <button class="nav-tab" id="tab-md"   data-route="md"   aria-current="false"><span class="file-badge md">M</span>论文写作背景</button>
+  </nav>
+  <span class="topbar-gap"></span>
+  <span id="topbar-model" style="font-size:11px;color:var(--ink3);padding-right:6px">观译默认模型</span>
+  <button class="topbar-btn" id="btn-theme" title="切换明暗主题" aria-label="切换明暗主题"><svg width="16" height="16"><use href="#i-moon"/></svg></button>
+  <button class="topbar-btn" id="btn-menu" title="观译阅读器菜单" aria-label="观译阅读器菜单" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16"><use href="#i-more"/></svg></button>
+  <div class="app-menu" id="app-menu" role="menu" hidden>
+    <button role="menuitem" data-menu="settings"><svg width="15" height="15" class="menu-brand"><use href="#i-settings"/></svg>设置</button>
+    <button role="menuitem" data-menu="model"><svg width="15" height="15" class="menu-brand"><use href="#i-model"/></svg>模型配置</button>
+    <button role="menuitem" data-menu="updates"><svg width="15" height="15" class="menu-brand"><use href="#i-retry"/></svg>检查更新</button>
+    <button role="menuitem" data-menu="help"><svg width="15" height="15" class="menu-brand"><use href="#i-help"/></svg>帮助</button>
+    <button role="menuitem" data-menu="about"><svg width="15" height="15" class="menu-brand"><use href="#i-info"/></svg>关于观译阅读器</button>
+    <p class="menu-ver">当前版本 1.0.45</p>
+  </div>
+</header>
+
+<!-- ── 侧栏（PDF 模式显示文档目录，主页模式显示文档列表）── -->
+<aside class="sidebar" id="sidebar" aria-label="侧边面板">
+  <!-- 主页侧栏 -->
+  <div id="sidebar-home" style="display:none;flex-direction:column;height:100%;padding:16px 10px 12px">
+    <div class="sidebar-label">文档列表</div>
+    <nav class="sidebar-nav">
+      <button><span>📂</span><span>我的文档 <small style="color:var(--ink3)">(4)</small></span></button>
+      <button><span>📂</span><span>论文写作 <small style="color:var(--ink3)">(190)</small></span></button>
+    </nav>
+    <div class="sidebar-note"><strong>俯仰观物，译述我心。</strong>主页·AI 对话·PDF/MD/EPUB 阅读</div>
+  </div>
+  <!-- PDF 侧栏 -->
+  <div id="sidebar-pdf" style="display:none;flex-direction:column;height:100%;padding:16px 10px 12px">
+    <div class="sidebar-label">阅读文库</div>
+    <div class="sidebar-file"><span style="font:700 10px system-ui;padding:1px 4px;border-radius:3px;background:#c7352b;color:#fff">PDF</span><div><strong>Walking and everyday movement.pdf</strong><small>示例文稿 · 3 页</small></div></div>
+    <nav class="sidebar-nav" aria-label="文档大纲">
+      <div class="sidebar-label" style="padding-top:4px">文档大纲</div>
+      <button data-page="1" aria-current="page"><span>01</span><span>Abstract / 摘要</span></button>
+      <button data-page="2"><span>02</span><span>Methods / 方法</span></button>
+      <button data-page="3"><span>03</span><span>Discussion / 讨论</span></button>
+    </nav>
+    <div class="sidebar-note"><strong>俯仰观物，译述我心。</strong>划词即译，全文对照。</div>
+  </div>
+</aside>
+
+<!-- ═══ 工作区 ═══ -->
+<main class="workspace" id="workspace">
+
+<!-- ── 主页路由 ── -->
+<section id="route-home" class="home-route" aria-label="主页" hidden>
+  <div class="home-search-row">
+    <h2>你想读懂什么，或写点什么？</h2>
+    <label class="search-box"><svg><use href="#i-search"/></svg><input placeholder="搜索文档…" aria-label="搜索文档"><kbd>⌘K</kbd></label>
+  </div>
+  <div class="home-content">
+    <!-- AI 快捷对话卡 -->
+    <section class="home-ai" aria-labelledby="home-ai-title">
+      <div class="home-ai-heading"><svg><use href="#i-spark"/></svg><h1 id="home-ai-title">你想读懂什么，或写点什么？</h1><span>AI 快捷对话</span></div>
+      <textarea id="home-input" data-home-prompt maxlength="12000" aria-label="向 AI 提问" placeholder="问一个问题，或选择文档，让我们一起读懂它…" rows="4"></textarea>
+      <div class="home-ai-bottom">
+        <button class="source-btn" id="home-source-btn"><svg><use href="#i-plus"/></svg><span id="home-source-label">选择文档作为来源</span></button>
+        <span class="scope-txt" id="home-scope">自由对话</span>
+        <button class="send-btn" id="home-send" aria-label="发送问题" disabled><svg width="15" height="15"><use href="#i-arrow"/></svg></button>
+      </div>
+    </section>
+    <!-- 快捷操作 -->
+    <div class="home-quick" aria-label="快速开始">
+      <button data-quick="read">读懂一份文档 <svg><use href="#i-right"/></svg></button>
+      <button data-quick="study">智能研读 <svg><use href="#i-right"/></svg></button>
+      <button data-quick="outline">构思一篇笔记 <svg><use href="#i-right"/></svg></button>
+      <button data-route="md">从 Markdown 开始 <svg><use href="#i-plus"/></svg></button>
+    </div>
+    <!-- 最近打开 -->
+    <section class="home-section" aria-labelledby="recent-title">
+      <div class="home-section-head"><h2 id="recent-title">最近打开</h2><span>按最近打开时间 ↓</span></div>
+      <div style="margin-top:4px">
+        <button class="doc-row" data-route="pdf"><span class="doc-badge pdf">PDF</span><span class="doc-info"><strong>Bakker2024_平衡技能学习的神经相关_Meta分析</strong><small>PDF · 上次读到第 1 页 · 论文写作</small></span><span class="doc-loc">论文写作</span><span class="doc-arrow">›</span></button>
+        <button class="doc-row" data-route="md"><span class="doc-badge md">M</span><span class="doc-info"><strong>论文写作背景</strong><small>Markdown · 01-写作要求/论文写作背景.md</small></span><span class="doc-loc">01-写作要求</span><span class="doc-arrow">›</span></button>
+        <button class="doc-row"><span class="doc-badge txt">TXT</span><span class="doc-info"><strong>实验记录</strong><small>TXT · 研究笔记/实验记录.txt</small></span><span class="doc-loc">研究笔记</span><span class="doc-arrow">›</span></button>
+        <button class="doc-row"><span class="doc-badge epub">EPUB</span><span class="doc-info"><strong>阅读与写作方法</strong><small>EPUB · 书库/阅读与写作方法.epub</small></span><span class="doc-loc">书库</span><span class="doc-arrow">›</span></button>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- ── AI 对话路由 ── -->
+<section id="route-chat" class="chat-route" aria-label="AI 对话" hidden>
+  <header class="chat-head">
+    <button class="btn" id="chat-back" aria-label="返回主页" style="font-size:12px;padding:4px 8px">← 主页</button>
+    <h1>AI 对话</h1>
+    <span id="chat-scope-chip" class="chat-scope-chip" hidden><svg width="12" height="12"><use href="#i-outline"/></svg><span id="chat-scope-name">论文写作背景</span><button aria-label="移除文档来源"><svg width="10" height="10"><use href="#i-close"/></svg></button></span>
+    <span style="flex:1"></span>
+    <button class="btn" id="chat-new">新对话</button>
+    <select id="chat-history" aria-label="选择历史对话" style="font-size:12px;border:1px solid var(--line);border-radius:5px;padding:3px 7px;background:var(--bg-top);height:30px"></select>
+    <button class="btn" id="chat-export"><svg width="14" height="14"><use href="#i-markdown"/></svg>整理为 Markdown</button>
+  </header>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-stream" id="chat-stream">
+      <div class="chat-empty" id="chat-empty">
+        <h2>从一个问题开始</h2>
+        <p>可以自由对话，也可以选择文档后继续。</p>
+        <button class="btn" data-prompt="帮我总结这份文档">总结一份文档</button>
+        <button class="btn" data-prompt="帮我解释这段内容">解释一段内容</button>
+        <button class="btn" data-prompt="这篇论文的核心方法是什么？">分析方法论</button>
+      </div>
+    </div>
+  </div>
+  <!-- AI 对话输入区：完全对齐实际客户端结构 -->
+  <div class="chat-composer-wrap">
+    <form class="chat-composer" id="chat-form">
+      <label for="chat-input">继续这次思考</label>
+      <textarea id="chat-input" maxlength="12000" placeholder="继续追问…" rows="3"></textarea>
+      <!-- 底行：来源按钮 ｜ scope 文字 ｜ 停止（hidden 切换）｜ 发送 -->
+      <div class="composer-bottom">
+        <button type="button" class="source-btn" id="chat-source-btn"><svg><use href="#i-plus"/></svg><span id="chat-source-label">选择文档作为来源</span></button>
+        <span class="scope-txt" id="chat-footer-scope">自由对话</span>
+        <button type="button" class="stop-btn" id="chat-stop" hidden><svg width="13" height="13"><use href="#i-stop"/></svg>停止</button>
+        <button type="submit" class="send-btn" id="chat-send" aria-label="发送问题" disabled><svg width="15" height="15"><use href="#i-arrow"/></svg></button>
+      </div>
+    </form>
+    <div class="chat-status" id="chat-status" role="status"></div>
+  </div>
+</section>
+
+<!-- ── PDF 路由（工具栏 + 阅读区 + 研读侧栏）── -->
+<section id="route-pdf" class="pdf-route" aria-label="PDF 阅读" hidden>
+
+  <!-- PDF 工具栏 -->
+  <div class="app-reader-toolbar" role="toolbar" aria-label="PDF 阅读与翻译工具栏">
+    <div class="pdf-ctrl-group">
+      <button class="fmt-btn" id="pdf-outline" title="目录与页面缩略图" aria-label="目录与页面缩略图"><svg width="15" height="15"><use href="#i-outline"/></svg></button>
+      <button class="fmt-btn" id="pdf-find"    title="在 PDF 中查找"    aria-label="在 PDF 中查找"><svg width="15" height="15"><use href="#i-search"/></svg></button>
+    </div>
+    <div class="pdf-ctrl-group" style="margin-left:4px">
+      <button class="fmt-btn" id="pdf-zoom-out" title="缩小" aria-label="缩小"><svg width="15" height="15"><use href="#i-minus"/></svg></button>
+      <select id="pdf-zoom" aria-label="缩放比例" style="height:32px;border:0;border-left:1px solid var(--line);border-right:1px solid var(--line);padding:0 18px 0 8px;font-size:13px;background:transparent;cursor:pointer">
+        <option>75%</option><option selected>100%</option><option>125%</option><option>150%</option>
+      </select>
+      <button class="fmt-btn" id="pdf-zoom-in"  title="放大" aria-label="放大"><svg width="15" height="15"><use href="#i-plus"/></svg></button>
+    </div>
+    <div class="pdf-ctrl-group" style="margin-left:4px">
+      <button class="fmt-btn" id="pdf-prev" title="上一页" aria-label="上一页"><svg width="15" height="15" style="transform:rotate(180deg)"><use href="#i-right"/></svg></button>
+      <input type="number" id="pdf-page-num" value="1" min="1" max="3" aria-label="当前页码" style="width:38px;height:32px;text-align:center;border:0;border-left:1px solid var(--line);border-right:1px solid var(--line);background:transparent;font-size:13px;padding:0">
+      <span style="padding:0 8px;font-size:13px;color:var(--ink2)">/ 3</span>
+      <button class="fmt-btn" id="pdf-next" title="下一页" aria-label="下一页"><svg width="15" height="15"><use href="#i-right"/></svg></button>
+    </div>
+    <span class="fmt-sep"></span>
+    <button class="fmt-btn" id="pdf-highlight" aria-pressed="false" title="高亮批注"  aria-label="高亮批注"><svg width="15" height="15"><use href="#i-highlight"/></svg></button>
+    <button class="fmt-btn" id="pdf-textnote"  aria-pressed="false" title="文字笔记"  aria-label="文字笔记"><svg width="15" height="15"><use href="#i-note"/></svg></button>
+    <button class="fmt-btn" id="pdf-comment"   aria-pressed="false" title="评论笔记"  aria-label="评论笔记"><svg width="15" height="15"><use href="#i-comment"/></svg></button>
+    <button class="fmt-btn" id="pdf-undo"      disabled title="撤销批注" aria-label="撤销批注"><svg width="15" height="15"><use href="#i-undo"/></svg></button>
+    <button class="fmt-btn" id="pdf-redo"      disabled title="恢复批注" aria-label="恢复批注"><svg width="15" height="15"><use href="#i-redo"/></svg></button>
+    <button class="fmt-btn" id="study-toggle"  aria-expanded="false" aria-controls="study-panel" title="智能研读" aria-label="智能研读"><svg width="16" height="16"><use href="#i-study"/></svg></button>
+    <!-- ── 翻译功能区（拟新增）── -->
+    <span class="trans-sep"></span>
+    <span class="chip-new" style="font-size:10px">拟新增</span>
+    <div class="pdf-ctrl-group" style="margin-left:4px" role="group" aria-label="翻译语言">
+      <select id="src-lang" aria-label="源语言" style="height:32px;border:0;padding:0 18px 0 8px;font-size:12px;background:transparent;cursor:pointer">
+        <option value="auto">自动识别</option><option value="en">English</option><option value="ja">日本語</option>
+      </select>
+      <span style="padding:0 5px;color:var(--brand);border-left:1px solid var(--line);display:flex;align-items:center"><svg width="12" height="12"><use href="#i-right"/></svg></span>
+      <select id="tgt-lang" aria-label="目标语言" style="height:32px;border:0;border-left:1px solid var(--line);padding:0 18px 0 8px;font-size:12px;background:transparent;cursor:pointer">
+        <option value="zh-CN">简体中文</option><option value="en">English</option><option value="ja">日本語</option>
+      </select>
+    </div>
+    <label class="sel-toggle" title="开启划词翻译" style="margin-left:4px">
+      <input type="checkbox" id="sel-enabled" aria-label="划词翻译">
+      <svg width="16" height="16"><use href="#i-sel-trans"/></svg>
+      <svg class="toggle-check" width="10" height="10"><path d="m2 5 2 2 4-4"/></svg>
+    </label>
+    <button class="fmt-btn btn-pub" id="full-trans-btn" title="全文翻译" aria-label="全文翻译" style="padding:0 10px;border-radius:6px;border:1px solid transparent">
+      <svg width="15" height="15"><use href="#i-doc-trans"/></svg>
+    </button>
+    <div class="view-sw" role="group" aria-label="阅读视图" style="margin-left:4px">
+      <button class="fmt-btn" data-view="source"  aria-pressed="true"  title="仅原文"  aria-label="仅原文"><svg width="15" height="15"><use href="#i-view-orig"/></svg></button>
+      <button class="fmt-btn" data-view="compare" aria-pressed="false" disabled title="原文对照" aria-label="原文对照"><svg width="15" height="15"><use href="#i-view-cmp"/></svg></button>
+      <button class="fmt-btn" data-view="trans"   aria-pressed="false" disabled title="仅译文"  aria-label="仅译文"><svg width="15" height="15"><use href="#i-view-trans"/></svg></button>
+    </div>
+    <button class="fmt-btn" id="trans-history" title="翻译历史" aria-label="翻译历史"><svg width="15" height="15"><use href="#i-history"/></svg></button>
+    <button class="fmt-btn" id="save-trans-btn" disabled aria-label="保存译文 PDF" title="保存译文 PDF（全文翻译完成后可用）" style="margin-left:auto">
+      <svg width="16" height="16"><use href="#i-save-trans"/></svg>
+    </button>
+    <span class="fmt-sep" style="margin:0 2px"></span>
+    <button class="fmt-btn" id="pdf-save" title="另存含批注的 PDF（⌘S）" aria-label="另存含批注的 PDF" style="padding:0 10px;gap:5px">
+      <svg width="14" height="14"><use href="#i-save"/></svg><span style="font-size:12px">另存为</span>
+    </button>
+  </div>
+
+  <!-- 阅读状态条 -->
+  <div class="reading-strip" id="reading-strip">
+    <span class="chip-have">1.0.45 已有：PDF 阅读 · 批注 · 智能研读</span>
+    <span class="chip-new">拟新增：划词翻译 · 全文翻译 · 保存译文 PDF</span>
+    <span class="strip-dot" id="strip-dot" hidden></span>
+    <span id="strip-msg" style="color:var(--ink2)">勾选"划词翻译"后选中文字即可查看译文。</span>
+    <div class="strip-progress" id="strip-progress" hidden><div class="strip-bar" id="strip-bar" style="width:0%"></div></div>
+    <span class="strip-gap"></span>
+    <span id="strip-task-btns" hidden style="display:flex;gap:4px;align-items:center">
+      <button class="fmt-btn" id="strip-pause"  title="暂停全文翻译" aria-label="暂停"><svg width="14" height="14"><use href="#i-pause"/></svg></button>
+      <button class="fmt-btn" id="strip-cancel" title="取消全文翻译" aria-label="取消"><svg width="14" height="14"><use href="#i-close"/></svg></button>
+    </span>
+    <button class="fmt-btn" id="strip-resume" hidden title="继续全文翻译" style="gap:4px"><svg width="14" height="14"><use href="#i-play"/></svg>继续</button>
+    <button class="fmt-btn" id="strip-retry"  hidden style="gap:4px"><svg width="14" height="14"><use href="#i-retry"/></svg>重试失败页</button>
+    <button class="fmt-btn" id="strip-sample" title="选中示例句" aria-label="选中示例句"><svg width="14" height="14"><use href="#i-highlight"/></svg></button>
+  </div>
+
+  <!-- 研读壳层（阅读区 + 侧栏）-->
+  <div class="pdf-reading-shell">
+    <div class="study-mask" id="study-mask" aria-hidden="true" hidden></div>
+
+    <!-- 阅读区 -->
+    <div class="study-reading" id="pdf-reading">
+      <div style="display:flex;height:100%;min-height:0">
+        <div class="pdf-pane" id="pane-source">
+          <div class="pdf-pane-head"><strong>原始 PDF</strong><span style="color:var(--ink3);margin-left:auto;font-size:11px">英语 · 只读</span></div>
+          <div class="pdf-scroll" id="source-scroll" tabindex="0" aria-label="PDF 原文阅读区">
+            <article class="pdf-paper" id="source-paper"></article>
+          </div>
+        </div>
+        <div class="pdf-pane" id="pane-trans" hidden>
+          <div class="pdf-pane-head"><strong>文本译文</strong><span id="trans-lang-label" style="color:var(--brand);margin-left:6px">简体中文</span><label style="margin-left:auto;display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer"><input type="checkbox" id="sync-scroll" checked style="accent-color:var(--pub)">同步</label></div>
+          <div class="pdf-scroll" id="trans-scroll" tabindex="0" aria-label="译文阅读区">
+            <article class="pdf-paper pdf-trans" id="trans-paper"></article>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 智能研读侧栏：完全对齐实际客户端（360px，54px 头部，4 标签，底部整理 Markdown）-->
+    <aside class="study-panel" id="study-panel" role="complementary" aria-label="智能研读" hidden>
+      <div class="study-heading">
+        <strong>智能研读</strong>
+        <button class="study-close" id="study-close" aria-label="关闭智能研读，Esc"><svg><use href="#i-close"/></svg></button>
+      </div>
+      <div class="study-tabs" role="tablist" aria-label="智能研读功能">
+        <button role="tab" id="tab-guide" aria-selected="true"  aria-controls="panel-guide">导读</button>
+        <button role="tab" id="tab-ask"   aria-selected="false" aria-controls="panel-ask">文档对话</button>
+        <button role="tab" id="tab-cards" aria-selected="false" aria-controls="panel-cards">学习卡 <span id="cards-count" style="color:var(--ink3)">0</span></button>
+        <button role="tab" id="tab-notes" aria-selected="false" aria-controls="panel-notes">批注</button>
+      </div>
+
+      <!-- 导读 -->
+      <div class="study-body" id="panel-guide" role="tabpanel" aria-labelledby="tab-guide">
+        <div id="guide-start-area">
+          <p class="study-section-title">准备一段研读</p>
+          <div class="study-range">
+            <span>从第</span><input type="number" id="guide-from" value="1" min="1" max="3" aria-label="起始页">
+            <span>页到第</span><input type="number" id="guide-to"   value="3" min="1" max="3" aria-label="结束页">
+            <span>页</span><span class="study-muted">（最多 50 页）</span>
+          </div>
+          <button class="btn btn-pub" id="guide-start-btn" style="min-width:112px">准备这段研读</button>
+        </div>
+        <div id="guide-loading" hidden><div class="study-thinking">正在准备研读…</div><p class="study-muted" style="margin-top:8px;font-size:11px">第 1–3 页 · 使用观译默认模型</p></div>
+        <div id="guide-result" hidden>
+          <div class="study-overview"><h3>从日常步行理解运动</h3><p>本文探讨了如何通过重复观察来理解运动模式，核心主张是：情境与重复性是解读运动数据的关键，单次测量不足以揭示规律。</p></div>
+          <div class="study-entry"><h4>1 · 运动的情境依赖性</h4><p>步行速度（示例 1.2 m/s）的解读需结合任务条件；脱离情境的数字容易产生误导。</p></div>
+          <div class="study-entry"><h4>2 · 重复观察的价值</h4><p>多次测量有助于区分稳定模式与偶发波动，试验间休息时间保证可比性。</p></div>
+          <div class="study-entry"><h4>3 · 审慎解读原则</h4><p>翻译与研读共同服务于理解，原文用于核对术语；结论不替代专业评估。</p></div>
+          <div style="margin-top:12px"><button class="btn" id="guide-cards-btn"><svg width="13" height="13"><use href="#i-plus"/></svg>生成学习卡（3）</button></div>
+        </div>
+        <div id="guide-error" hidden class="study-notice error"></div>
+      </div>
+
+      <!-- 文档对话：发送按钮框内右下角（position:absolute）-->
+      <div class="study-body--ask" id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden>
+        <div class="study-messages" id="ask-messages">
+          <div class="study-empty-chat" id="ask-empty">选择范围后向当前文档提问。</div>
+        </div>
+        <div class="study-composer">
+          <div class="study-scope">
+            <select id="ask-scope" aria-label="对话范围">
+              <option value="page">当前页</option><option value="range">页范围</option><option value="full">全文</option>
+            </select>
+            <span class="study-scope-label" id="ask-scope-label">文件第 1 页 · 已锁定</span>
+            <button class="study-send" id="ask-refresh-btn" title="更新范围" aria-label="更新范围" style="position:static;width:26px;height:26px"><svg><use href="#i-refresh"/></svg></button>
+          </div>
+          <div class="study-input-wrap">
+            <textarea id="ask-input" placeholder="向文档提问…" aria-label="提问"></textarea>
+            <button class="study-send is-primary" id="ask-send" aria-label="发送" disabled><svg><use href="#i-arrow"/></svg></button>
+          </div>
+          <p class="study-hint">Enter 发送，Shift+Enter 换行</p>
+        </div>
+      </div>
+
+      <!-- 学习卡 -->
+      <div class="study-body" id="panel-cards" role="tabpanel" aria-labelledby="tab-cards" hidden>
+        <p class="study-muted" id="cards-empty">完成一段研读后自动生成学习卡。</p>
+        <div id="cards-list"></div>
+      </div>
+
+      <!-- 批注 -->
+      <div class="study-body" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
+        <p class="study-muted" style="margin-bottom:12px">在 PDF 中选中文字后可添加批注。</p>
+        <div class="study-note-card"><small>第 1 页 · 高亮 · 示例</small><p>Walking is a familiar activity, yet it involves a complex interaction…</p><div class="study-note-actions"><button>编辑</button><button style="color:var(--brand)">删除</button></div></div>
+      </div>
+
+      <div class="study-footer">
+        <button class="btn" id="study-export"><svg width="14" height="14"><use href="#i-markdown"/></svg>整理为 Markdown</button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+</main>
+
+<footer class="statusbar">
+  <span id="sb-route">主页 · 最近打开</span>
+  <span class="sb-gap"></span>
+  <span id="sb-info">原型演示 · 未连接翻译服务</span>
+  <button id="sb-lab">原型说明</button>
+</footer>
+</div><!-- end shell -->
+
+<!-- 划词翻译卡片（非模态）-->
+<div class="trans-card" id="trans-card" role="dialog" aria-modal="false" aria-labelledby="card-title" hidden>
+  <div class="card-head"><svg width="15" height="15"><use href="#i-sel-trans"/></svg><strong id="card-title">英语 → 简体中文</strong><span style="flex:1"></span><button class="fmt-btn" id="card-retry" hidden title="重试" aria-label="重试"><svg width="14" height="14"><use href="#i-retry"/></svg></button><button class="fmt-btn" id="card-copy" hidden title="复制译文" aria-label="复制译文"><svg width="14" height="14"><use href="#i-copy"/></svg></button><button class="fmt-btn" id="card-close" title="关闭，Esc" aria-label="关闭译文"><svg width="14" height="14"><use href="#i-close"/></svg></button></div>
+  <div class="card-body" id="card-body" aria-live="polite" tabindex="0"></div>
+  <div class="card-foot"><span id="card-state">示例译文</span><span style="flex:1"></span><kbd>Esc</kbd> 关闭</div>
+</div>
+
+<!-- 全文翻译确认弹窗 -->
+<div class="modal-backdrop" id="modal-confirm" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <h2 id="confirm-title">翻译整份 PDF</h2>
+    <p>原文保留在左侧，按页显示文本译文。可随时暂停或取消。</p>
+    <dl>
+      <dt>文档</dt><dd>Walking and everyday movement.pdf</dd>
+      <dt>翻译范围</dt><dd>全部 3 页 · 当前页优先</dd>
+      <dt>目标语言</dt><dd id="confirm-lang">简体中文</dd>
+      <dt>使用模型</dt><dd>原型演示 · 使用预置译文</dd>
+    </dl>
+    <p>正式版将把可提取文字按块发送到你配置的模型服务。本原型不发送任何内容。</p>
+    <div class="modal-actions"><button class="btn" id="confirm-cancel">取消</button><button class="btn btn-pub" id="confirm-start">开始翻译</button></div>
+  </div>
+</div>
+
+<!-- 保存译文 PDF 弹窗 -->
+<div class="modal-backdrop" id="modal-export" hidden>
+  <div class="modal export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title">
+    <h2 id="export-title">保存译文 PDF</h2>
+    <p style="margin-bottom:16px;font-size:13px;color:var(--ink2)">将当前完整译文另存为一份新 PDF。</p>
+    <div class="export-preview">
+      <div class="export-thumb">预览</div>
+      <div class="export-info">
+        <strong id="export-lang-label">简体中文译文</strong>
+        <p>全部 3 页原文 → 3 页文字 PDF<br>A4 · 可选择、可搜索文字<br>保留示意图与源页码</p>
+        <span class="chip-new">文字重排版</span>
+      </div>
+    </div>
+    <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px">文件名</label>
+    <div class="filename-wrap"><input id="export-filename" type="text" value="Walking and everyday movement-简体中文-译文"><span>.pdf</span></div>
+    <p class="export-note" style="margin:8px 0 16px">本原型下载预置示例 PDF；正式版将打开系统另存对话框，选择位置并保存新文件。</p>
+    <div class="export-progress" id="export-progress" hidden><div class="export-progress-bar" id="export-bar" style="width:0%"></div></div>
+    <div id="export-feedback" hidden style="padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg-cont);font-size:13px;margin-bottom:14px"></div>
+    <div class="modal-actions">
+      <button class="btn" id="export-cancel">取消</button>
+      <button class="btn btn-pub" id="export-prepare"><svg width="14" height="14"><use href="#i-save-trans"/></svg><span id="export-label">准备 PDF</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+/* ═══ 工具 ═══ */
+const $ = id => document.getElementById(id);
+const langNames = {'zh-CN':'简体中文', en:'English', ja:'日本語'};
+let toastTimer;
+function toast(msg, dur=2600) {
+  clearTimeout(toastTimer);
+  $('toast').textContent = msg; $('toast').hidden = false;
+  toastTimer = setTimeout(() => $('toast').hidden = true, dur);
+}
+
+/* ═══ 页面内容数据（原型演示用）═══ */
+const pages = [
+  { title: 'Understanding motion through everyday walking',
+    zh:'从日常步行中理解运动', h2:'Abstract', zh2:'摘要',
+    segs:[
+      {id:'p1a', en:'Walking is a familiar activity, yet it involves a complex interaction between balance, muscle strength, and the environment.',
+       zh:'步行是一项熟悉的活动，但它涉及平衡能力、肌肉力量与周围环境之间的复杂相互作用。'},
+      {id:'p1b', en:'Small changes in movement can reveal how people adapt to different conditions. Looking at the complete pattern is often more useful than focusing on a single measurement.',
+       zh:'运动中的细微变化可以揭示人们如何适应不同条件。观察完整的运动模式，往往比只关注某一个测量值更有帮助。'},
+      {id:'p1c', en:'This demonstration describes a simple approach to reading movement data. It introduces the role of context, the importance of repeated observations, and the limits of drawing conclusions from a small sample.',
+       zh:'本示例介绍了一种理解运动数据的简单方法，说明情境的作用、重复观察的重要性，以及依据小样本得出结论的局限。'},
+    ]},
+  { title: 'A closer look at repeated observations',
+    zh:'进一步观察重复测量', h2:'1. Methods', zh2:'1. 方法',
+    segs:[
+      {id:'p2a', en:'Repeated observations help distinguish a stable pattern from a temporary variation. Measurements are collected under comparable conditions.',
+       zh:'重复观察有助于区分稳定模式与暂时波动。测量应在可比条件下进行，并在各次试验之间留出休息时间。'},
+      {id:'p2b', en:'The walking speed was 1.2 m/s in this illustrative example. Values are shown only to demonstrate how numbers and units remain together during translation.',
+       zh:'在这个演示示例中，步行速度为 1.2 m/s。这里的数值仅用于展示翻译时如何保留数字与单位的对应关系。'},
+      {id:'p2c', en:'A clear record of each trial makes the results easier to interpret.',
+       zh:'清晰记录每次试验，有助于解读结果。在将异常观察纳入总结之前，应结合具体情境进行复核。'},
+    ]},
+  { title: 'Reading results with appropriate context',
+    zh:'结合恰当情境解读结果', h2:'2. Discussion', zh2:'2. 讨论',
+    segs:[
+      {id:'p3a', en:'Context is essential when interpreting movement. A difference between two observations does not, by itself, explain the reason for that difference.',
+       zh:'解读运动表现时，情境至关重要。两次观察之间存在差异，本身并不能解释差异产生的原因。'},
+      {id:'p3b', en:'The environment, a person\'s experience, and the instructions given during a task can all influence the outcome.',
+       zh:'环境、个人经验和任务过程中的指示，都可能影响结果。这些因素应被记录下来，并与测量数据一同考虑。'},
+      {id:'p3c', en:'Careful reading connects individual findings to a broader understanding.',
+       zh:'审慎阅读能够将个别发现与更全面的理解联系起来。翻译可以帮助读者理解文本，同时保留原文便于核对术语与含义。'},
+    ]},
+];
+
+function paperHtml(pg, translated=false, lang='zh-CN') {
+  const p = pages[pg-1];
+  const title = translated ? p.zh : p.title;
+  const h2 = translated ? p.zh2 : p.h2;
+  const segs = p.segs.map(s =>
+    `<p data-seg="${s.id}">${translated ? s[lang==='en'?'en':'zh'] : s.en}</p>`).join('');
+  const transBadge = translated ? '<span class="trans-label">预置示例译文</span> ' : '';
+  return `<h1>${title}</h1><h2>${transBadge}${h2}</h2>${segs}`;
+}
+
+/* ═══ 路由 ═══ */
+const st = {
+  route: 'home',
+  pdfPage: 1,
+  view: 'source',          // source / compare / trans
+  selEnabled: false,
+  task: null,              // null | {status,completed,failed,target,timer,gen}
+  tasks: new Map(),        // target → task
+  studyOpen: false,
+  studyTab: 'guide',
+  generating: false,       // chat
+  askGenerating: false,    // study ask
+  activeCard: null,
+  cardVersion: 0,
+  dismissed: null,
+  dragging: false,
+  exportErr: false,
+};
+
+function setRoute(r) {
+  st.route = r;
+  ['home','chat','pdf'].forEach(id => {
+    $(`route-${id}`).hidden = id !== r;
+  });
+  ['tab-home','tab-pdf','tab-md'].forEach(t => $(t).setAttribute('aria-current','false'));
+  if (r === 'home' || r === 'chat') { $('tab-home').setAttribute('aria-current','true'); }
+  else if (r === 'pdf') { $('tab-pdf').setAttribute('aria-current','true'); }
+  else if (r === 'md')  { $('tab-md').setAttribute('aria-current','true'); }
+  // 侧栏
+  $('sidebar-home').style.display = (r==='home'||r==='chat') ? 'flex' : 'none';
+  $('sidebar-pdf').style.display  = r === 'pdf' ? 'flex' : 'none';
+  // 状态栏
+  $('sb-route').textContent = r==='home'?'主页 · 最近打开':r==='chat'?'AI 对话 · 当前会话':r==='pdf'?'PDF · 第 1 页':'文档阅读';
+  if (r === 'pdf') { renderPdfPage(); renderView(); renderStrip(); }
+  if (r === 'chat') setTimeout(() => $('chat-input').focus(), 0);
+}
+
+/* ═══ 顶栏 & 应用菜单 ═══ */
+document.querySelectorAll('[data-route]').forEach(el => {
+  el.addEventListener('click', () => setRoute(el.dataset.route));
+});
+$('btn-theme').addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  positionCard();
+});
+$('btn-menu').addEventListener('click', () => {
+  const open = !$('app-menu').hidden;
+  $('app-menu').hidden = open;
+  $('btn-menu').setAttribute('aria-expanded', String(!open));
+});
+document.addEventListener('pointerdown', e => {
+  if (!$('app-menu').hidden && !e.target.closest('#app-menu') && !e.target.closest('#btn-menu')) {
+    $('app-menu').hidden = true; $('btn-menu').setAttribute('aria-expanded','false');
+  }
+});
+$('app-menu').addEventListener('click', e => {
+  const item = e.target.closest('[data-menu]');
+  if (!item) return;
+  $('app-menu').hidden = true; $('btn-menu').setAttribute('aria-expanded','false');
+  const msgs = { settings:'打开设置面板', model:'打开模型配置', updates:'检查更新', help:'打开帮助', about:'关于观译阅读器 · 1.0.45' };
+  toast(msgs[item.dataset.menu] || '');
+});
+
+/* ═══ 主页 ═══ */
+$('home-input').addEventListener('input', () => {
+  $('home-send').disabled = !$('home-input').value.trim();
+});
+$('home-send').addEventListener('click', () => {
+  const q = $('home-input').value.trim();
+  if (!q) return;
+  setRoute('chat');
+  addMsg('user', q);
+  startGenerate($('chat-send'), q);
+  $('home-input').value = '';
+  $('home-send').disabled = true;
+});
+document.querySelectorAll('[data-quick]').forEach(btn => {
+  btn.addEventListener('click', () => toast(`"${btn.dataset.quick}" 快捷入口原型演示`));
+});
+document.querySelectorAll('[data-prompt]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    setRoute('chat');
+    addMsg('user', btn.dataset.prompt);
+    startGenerate($('chat-send'), btn.dataset.prompt);
+  });
+});
+
+/* ═══ AI 对话 ═══ */
+let genTimer;
+function setSendState(sendBtn, stopping) {
+  const svg = stopping
+    ? '<svg width="15" height="15"><use href="#i-stop"/></svg>'
+    : '<svg width="15" height="15"><use href="#i-arrow"/></svg>';
+  sendBtn.innerHTML = svg;
+  sendBtn.setAttribute('aria-label', stopping ? '停止生成' : '发送问题');
+  sendBtn.title = stopping ? '停止生成' : '发送问题';
+}
+function addMsg(role, text) {
+  const empty = $('chat-empty'); if (empty) empty.remove();
+  const art = document.createElement('article');
+  art.className = `msg ${role}`;
+  if (role === 'assistant') {
+    art.innerHTML = `<div class="msg-avatar" aria-hidden="true">绎</div><div><div class="msg-text"></div></div>`;
+  } else {
+    art.innerHTML = `<div class="msg-text"></div>`;
+  }
+  art.querySelector('.msg-text').textContent = text;
+  $('chat-stream').append(art);
+  $('chat-messages').scrollTop = $('chat-messages').scrollHeight;
+  return art;
+}
+function startGenerate(sendBtn, prompt) {
+  st.generating = true;
+  $('chat-stop').hidden = false;
+  setSendState(sendBtn, true);
+  sendBtn.disabled = true;
+  $('chat-export').disabled = true;
+  const art = addMsg('assistant', '');
+  const box = art.querySelector('.msg-text');
+  box.innerHTML = '<span class="msg-thinking">正在思考…</span>';
+  genTimer = setTimeout(() => {
+    st.generating = false;
+    $('chat-stop').hidden = true;
+    setSendState(sendBtn, false);
+    sendBtn.disabled = !$('chat-input').value.trim();
+    $('chat-export').disabled = false;
+    box.textContent = `这是关于"${prompt}"的示例回答。正式版会依据已选文档生成回答，并在回答中提供可展开的原文、文件、页码与版本信息。`;
+    $('chat-messages').scrollTop = $('chat-messages').scrollHeight;
+  }, 1200);
+}
+$('chat-input').addEventListener('input', () => {
+  $('chat-send').disabled = !$('chat-input').value.trim() || st.generating;
+});
+$('chat-form').addEventListener('submit', e => {
+  e.preventDefault();
+  if (st.generating) { clearTimeout(genTimer); st.generating=false; $('chat-stop').hidden=true; setSendState($('chat-send'),false); return; }
+  const q = $('chat-input').value.trim(); if (!q) return;
+  addMsg('user', q); $('chat-input').value=''; $('chat-send').disabled=true;
+  startGenerate($('chat-send'), q);
+});
+$('chat-stop').addEventListener('click', () => {
+  clearTimeout(genTimer); st.generating=false; $('chat-stop').hidden=true;
+  setSendState($('chat-send'),false);
+  const last = $('chat-stream').querySelector('.msg.assistant:last-child .msg-text');
+  if (last && last.querySelector('.msg-thinking')) last.textContent='已停止生成，问题和来源仍保留。';
+  $('chat-send').disabled = !$('chat-input').value.trim();
+});
+$('chat-back').addEventListener('click', () => setRoute('home'));
+$('chat-new').addEventListener('click', () => {
+  $('chat-stream').innerHTML = `<div class="chat-empty" id="chat-empty-reset"><h2>从一个问题开始</h2><p>可以自由对话，也可以选择文档后继续。</p><button class="btn" data-prompt="帮我总结这份文档">总结一份文档</button><button class="btn" data-prompt="帮我解释这段内容">解释一段内容</button></div>`;
+  document.querySelectorAll('[data-prompt]').forEach(b => b.addEventListener('click', () => { setRoute('chat'); addMsg('user',b.dataset.prompt); startGenerate($('chat-send'),b.dataset.prompt); }));
+  setRoute('home'); toast('新对话，旧会话已存入历史。');
+});
+$('chat-source-btn').addEventListener('click', () => toast('选择文档来源（原型演示）'));
+$('chat-export').addEventListener('click', () => toast('整理为 Markdown（原型演示）'));
+
+/* ═══ PDF 阅读 ═══ */
+function renderPdfPage() {
+  $('source-paper').innerHTML = paperHtml(st.pdfPage);
+  if (st.task && st.task.completed.has(st.pdfPage)) {
+    $('trans-paper').innerHTML = paperHtml(st.pdfPage, true, st.task.target);
+  } else {
+    $('trans-paper').innerHTML = `<div class="empty-pane"><div class="ei">译</div><p>${st.task ? '此页翻译中…' : '全文翻译完成后此处显示译文'}</p></div>`;
+  }
+  document.querySelectorAll('[data-page]').forEach(b => b.setAttribute('aria-current', +b.dataset.page===st.pdfPage ? 'page' : 'false'));
+  $('pdf-page-num').value = st.pdfPage;
+}
+function setPage(n) {
+  if (n<1||n>3) return;
+  st.pdfPage = n;
+  closeCard();
+  renderPdfPage();
+  $('source-scroll').scrollTop = 0; $('trans-scroll').scrollTop = 0;
+  $('sb-route').textContent = `PDF · 第 ${n} 页`;
+}
+$('pdf-prev').addEventListener('click', () => setPage(st.pdfPage-1));
+$('pdf-next').addEventListener('click', () => setPage(st.pdfPage+1));
+$('pdf-page-num').addEventListener('change', () => setPage(+$('pdf-page-num').value));
+document.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => setPage(+b.dataset.page)));
+['pdf-highlight','pdf-textnote','pdf-comment'].forEach(id => {
+  $(id).addEventListener('click', () => {
+    const on = $(id).getAttribute('aria-pressed')==='true';
+    $(id).setAttribute('aria-pressed', String(!on));
+    toast((on?'已关闭':'已开启') + $(id).title);
+  });
+});
+['pdf-outline','pdf-find','pdf-undo','pdf-redo','pdf-save','trans-history'].forEach(id => {
+  if ($(id)) $(id).addEventListener('click', () => toast($(id).title));
+});
+
+/* ═══ 视图切换 ═══ */
+function renderView() {
+  const v = st.view;
+  $('pane-source').hidden = v==='trans';
+  $('pane-trans').hidden  = v==='source';
+  if (v==='compare') { $('pane-source').style.flex='1'; $('pane-trans').style.flex='1'; }
+  document.querySelectorAll('[data-view]').forEach(b => {
+    const isThis = b.dataset.view===v;
+    b.setAttribute('aria-pressed', String(isThis));
+    b.disabled = !st.task && b.dataset.view!=='source';
+  });
+}
+document.querySelectorAll('[data-view]').forEach(b => {
+  b.addEventListener('click', () => {
+    if (b.disabled) return;
+    st.view = b.dataset.view; closeCard(); renderView();
+  });
+});
+
+/* ═══ 阅读状态条 ═══ */
+function renderStrip() {
+  const task = st.task;
+  $('strip-dot').hidden = !task;
+  $('strip-task-btns').hidden = !task || task.status!=='running';
+  $('strip-resume').hidden = !task || !['paused','cancelled'].includes(task.status);
+  $('strip-retry').hidden  = !task || task.status!=='partial';
+  if (!task) {
+    $('strip-msg').textContent = st.selEnabled ? '在原文中选中文字，译文将在附近显示。' : '勾选"划词翻译"后选中文字即可查看译文。';
+    $('strip-progress').hidden = true;
+    return;
+  }
+  const done = task.completed.size, total = 3;
+  const msgs = { running:`翻译中 · 已完成 ${done}/${total} 页`, paused:`已暂停 · 已完成 ${done}/${total} 页`,
+    cancelled:`已取消 · 保留 ${done} 页译文`, complete:`全文翻译完成 · 可切换对照或译文`,
+    partial:`部分失败 · ${task.failed.size} 页需重试` };
+  $('strip-msg').textContent = msgs[task.status] || '';
+  $('strip-progress').hidden = false;
+  $('strip-bar').style.width = (done/total*100)+'%';
+  $('save-trans-btn').disabled = task.status!=='complete' || task.failed.size>0;
+}
+
+/* ═══ 全文翻译任务 ═══ */
+$('full-trans-btn').addEventListener('click', () => {
+  const tgt = $('tgt-lang').value;
+  if (st.tasks.has(tgt) && st.task?.target===tgt) {
+    st.view='compare'; closeCard(); renderView(); renderStrip(); renderPdfPage();
+    return;
+  }
+  $('confirm-lang').textContent = langNames[tgt];
+  $('modal-confirm').hidden = false;
+  $('confirm-cancel').focus();
+});
+$('confirm-cancel').addEventListener('click', () => $('modal-confirm').hidden=true);
+$('confirm-start').addEventListener('click', () => {
+  $('modal-confirm').hidden = true;
+  const tgt = $('tgt-lang').value;
+  if (st.task?.status==='running') { st.task.status='paused'; clearTimeout(st.task.timer); }
+  const task = { target:tgt, status:'running', completed:new Set(), failed:new Set(),
+    order:[st.pdfPage,...[1,2,3].filter(p=>p!==st.pdfPage)], gen:0, timer:null };
+  st.task = task; st.tasks.set(tgt, task);
+  st.view='compare'; closeCard(); renderView(); renderStrip(); renderPdfPage();
+  taskTick();
+});
+function taskTick() {
+  if (!st.task||st.task.status!=='running') return;
+  const task = st.task, gen = ++task.gen;
+  const next = task.order.find(p => !task.completed.has(p) && !task.failed.has(p));
+  if (!next) {
+    task.status = task.failed.size ? 'partial' : 'complete';
+    renderStrip(); renderView(); renderPdfPage(); return;
+  }
+  task.timer = setTimeout(() => {
+    if (st.task!==task||task.gen!==gen||task.status!=='running') return;
+    task.completed.add(next);
+    renderStrip(); renderPdfPage(); taskTick();
+  }, 1300);
+}
+$('strip-pause').addEventListener('click', () => {
+  if (!st.task||st.task.status!=='running') return;
+  clearTimeout(st.task.timer); st.task.status='paused'; renderStrip();
+});
+$('strip-cancel').addEventListener('click', () => {
+  if (!st.task||st.task.status!=='running') return;
+  clearTimeout(st.task.timer); st.task.status='cancelled'; renderStrip();
+});
+$('strip-resume').addEventListener('click', () => {
+  if (!st.task||!['paused','cancelled'].includes(st.task.status)) return;
+  st.task.status='running'; taskTick(); renderStrip();
+});
+$('strip-retry').addEventListener('click', () => {
+  if (!st.task) return;
+  st.task.failed.clear(); st.task.status='running'; taskTick(); renderStrip();
+});
+
+/* ═══ 保存译文 PDF ═══ */
+$('save-trans-btn').addEventListener('click', () => {
+  if (!st.task||st.task.status!=='complete') return;
+  $('export-lang-label').textContent = langNames[st.task.target]+'译文';
+  $('export-filename').value = `Walking and everyday movement-${langNames[st.task.target]}-译文`;
+  $('export-feedback').hidden=true; $('export-progress').hidden=true;
+  $('export-prepare').disabled=false; $('export-label').textContent='准备 PDF';
+  st.exportErr=false; $('modal-export').hidden=false; $('export-filename').focus();
+});
+$('export-cancel').addEventListener('click', () => $('modal-export').hidden=true);
+let exportTimer;
+$('export-prepare').addEventListener('click', () => {
+  const name=$('export-filename').value.trim(); if(!name){$('export-filename').focus();return;}
+  $('export-prepare').disabled=true; $('export-label').textContent='准备中…';
+  $('export-progress').hidden=false; $('export-bar').style.width='0%';
+  $('export-feedback').hidden=true;
+  let prog=0;
+  function tick(){ exportTimer=setTimeout(()=>{
+    prog++; $('export-bar').style.width=(prog/3*100)+'%';
+    if(prog<3){tick();return;}
+    $('export-progress').hidden=true;
+    $('export-feedback').hidden=false;
+    $('export-feedback').textContent=`示例 PDF 已准备好 · ${name}.pdf · ${langNames[st.task.target]} · 3 页`;
+    $('export-label').textContent='下载示例 PDF';
+    $('export-prepare').disabled=false;
+    $('export-prepare').onclick=()=>{ toast('已发起示例 PDF 下载，请在浏览器下载列表中查看。'); $('modal-export').hidden=true; };
+  },500);}
+  tick();
+});
+
+/* ═══ 划词翻译 ═══ */
+$('sel-enabled').addEventListener('change', e => {
+  st.selEnabled = e.target.checked;
+  closeCard(); renderStrip();
+  toast(st.selEnabled ? '划词翻译已开启，选中文字即可翻译。' : '划词翻译已关闭。');
+});
+
+function selSnap() {
+  const sel = getSelection();
+  if (!sel||sel.isCollapsed||!sel.rangeCount) return null;
+  const range = sel.getRangeAt(0);
+  const root = $('source-paper');
+  if (!root.contains(range.startContainer)) return null;
+  const text = sel.toString().trim();
+  if (!text || !/[\p{L}\p{N}]/u.test(text)) return null;
+  const seg = range.startContainer.parentElement?.closest('[data-seg]')?.dataset.seg || '';
+  return { text, range: range.cloneRange(), seg, key: `${st.pdfPage}|${$('tgt-lang').value}|${seg}|${text}` };
+}
+function demoTrans(text) {
+  const tgt = $('tgt-lang').value;
+  if (tgt==='en') return {t:'所选文字已是英语，无需翻译。', copy:false, label:'同语言'};
+  const all = pages.flatMap(p=>p.segs);
+  const hit = all.find(s=>s.en===text.trim());
+  if (hit) return {t: hit.zh, copy:true, label:'预置示例译文'};
+  const words = {walking:'步行',balance:'平衡',movement:'运动',context:'情境',observations:'观察',environment:'环境'};
+  const w = words[text.toLowerCase().replace(/[.,;:]$/,'')];
+  if (w) return {t:w, copy:true, label:'预置词义示例'};
+  return {t:'已捕获选中文字。正式版将翻译实际选区。可点击"选中示例句"体验完整结果。', copy:false, label:'交互演示'};
+}
+function openCard(snap, force=false) {
+  closeCard({preserve:false}); st.dismissed=null; st.activeCard=snap;
+  const ver = ++st.cardVersion;
+  $('card-title').textContent = `${$('src-lang').value==='auto'?'英语':'英语'} → ${langNames[$('tgt-lang').value]}`;
+  $('card-body').innerHTML='<p><span class="spinner"></span>正在翻译…</p>';
+  $('card-state').textContent='加载中'; $('card-copy').hidden=true; $('card-retry').hidden=true;
+  $('trans-card').hidden=false; positionCard();
+  setTimeout(() => {
+    if (st.cardVersion!==ver||!st.activeCard) return;
+    const r = demoTrans(snap.text);
+    $('card-body').innerHTML=`<p>${r.t}</p>`; $('card-state').textContent=r.label;
+    $('card-copy').hidden=!r.copy; snap.trans=r.t;
+    positionCard();
+  }, force?200:650);
+}
+function closeCard({preserve=true}={}) {
+  clearTimeout(st.selTimer); st.selTimer=0; st.cardVersion++;
+  if (preserve && st.activeCard) st.dismissed = st.activeCard.key;
+  st.activeCard=null; $('trans-card').hidden=true;
+  if ($('trans-card').contains(document.activeElement)) $('source-scroll').focus({preventScroll:true});
+}
+function positionCard() {
+  if (!st.activeCard||$('trans-card').hidden) return;
+  const rects=[...st.activeCard.range.getClientRects()].filter(r=>r.width>0&&r.height>0);
+  if (!rects.length){closeCard();return;}
+  const vp=$('source-scroll').getBoundingClientRect();
+  const vis=rects.filter(r=>r.bottom>vp.top&&r.top<vp.bottom);
+  if (!vis.length){closeCard();return;}
+  const anchor=vis[vis.length-1];
+  const card=$('trans-card');
+  const cw=Math.min(360,innerWidth-24), ch=card.offsetHeight;
+  let left=Math.max(12,Math.min(anchor.left, innerWidth-cw-12));
+  let top=anchor.bottom+10;
+  if (top+ch>vp.bottom-12) top=anchor.top-ch-10;
+  top=Math.max(vp.top+8, Math.min(top,innerHeight-ch-42));
+  card.style.width=cw+'px'; card.style.left=left+'px'; card.style.top=top+'px';
+}
+function selInput() {
+  if (!st.selEnabled||st.dragging||st.route!=='pdf') return;
+  const snap=selSnap();
+  if (!snap){closeCard({preserve:false});st.dismissed=null;return;}
+  if (snap.key===st.dismissed||snap.key===st.activeCard?.key) return;
+  closeCard({preserve:false});
+  clearTimeout(st.selTimer);
+  st.selTimer=setTimeout(()=>{
+    const cur=selSnap();
+    if (cur&&cur.key===snap.key) openCard(cur);
+  },300);
+}
+$('card-close').addEventListener('click',()=>closeCard());
+$('card-retry').addEventListener('click',()=>{ if(st.activeCard) openCard(st.activeCard,true); });
+$('card-copy').addEventListener('click',async()=>{
+  const v=st.activeCard?.trans; if(!v)return;
+  try{await navigator.clipboard.writeText(v);toast('译文已复制。')}catch{toast('复制不可用，请手动复制。')}
+});
+document.addEventListener('pointerdown',e=>{
+  if(e.target.closest('#source-paper')){
+    st.dragging=true; if(!$('trans-card').hidden)closeCard(); st.dismissed=null;
+  } else if(!$('trans-card').hidden&&!e.target.closest('#trans-card')) closeCard();
+});
+document.addEventListener('pointerup',()=>{ st.dragging=false; selInput(); });
+document.addEventListener('selectionchange',()=>{ if(!st.dragging) selInput(); });
+$('source-scroll').addEventListener('scroll',()=>{ positionCard(); if($('sync-scroll')?.checked) syncScroll($('source-scroll'),$('trans-scroll')); },{passive:true});
+$('trans-scroll')?.addEventListener('scroll',()=>{ if($('sync-scroll')?.checked) syncScroll($('trans-scroll'),$('source-scroll')); },{passive:true});
+let syncing=false;
+function syncScroll(from,to){
+  if(syncing||st.view!=='compare')return; syncing=true;
+  const ftop=from.getBoundingClientRect().top;
+  const nodes=[...from.querySelectorAll('[data-seg]')];
+  const cur=nodes.find(n=>n.getBoundingClientRect().bottom>ftop+10);
+  if(cur){const m=to.querySelector(`[data-seg="${cur.dataset.seg}"]`);if(m){const off=cur.getBoundingClientRect().top-ftop;to.scrollTop+=m.getBoundingClientRect().top-to.getBoundingClientRect().top-off;}}
+  requestAnimationFrame(()=>syncing=false);
+}
+window.addEventListener('resize',positionCard);
+
+/* 选中示例句 */
+$('strip-sample').addEventListener('click',()=>{
+  if(!st.selEnabled){toast('请先勾选"划词翻译"，再选中示例句。');$('sel-enabled').focus();return;}
+  if(st.view==='trans'){st.view='compare';renderView();}
+  const node=$('source-paper').querySelector('[data-seg]');
+  if(!node)return;
+  node.scrollIntoView({block:'center',behavior:'instant'});
+  const range=document.createRange(); range.selectNodeContents(node);
+  getSelection().removeAllRanges(); getSelection().addRange(range);
+  st.dismissed=null; selInput();
+});
+
+/* ═══ 智能研读侧栏 ═══ */
+function showStudy(tab) {
+  st.studyOpen=true; st.studyTab=tab||st.studyTab;
+  $('study-panel').hidden=false; $('study-mask').hidden=innerWidth>=1180;
+  $('study-toggle').setAttribute('aria-expanded','true');
+  selectStudyTab(st.studyTab);
+  $('study-close').focus();
+}
+function hideStudy() {
+  st.studyOpen=false; $('study-panel').hidden=true; $('study-mask').hidden=true;
+  $('study-toggle').setAttribute('aria-expanded','false');
+  $('study-toggle').focus({preventScroll:true}); // 焦点归还触发按钮
+}
+function selectStudyTab(tab) {
+  st.studyTab=tab;
+  ['guide','ask','cards','notes'].forEach(t=>{
+    $(`tab-${t}`).setAttribute('aria-selected',String(t===tab));
+    $(`panel-${t}`).hidden=t!==tab;
+  });
+}
+$('study-toggle').addEventListener('click',()=> st.studyOpen ? hideStudy() : showStudy());
+$('study-close').addEventListener('click',hideStudy);
+$('study-mask').addEventListener('click',hideStudy);
+['guide','ask','cards','notes'].forEach(t=>$(`tab-${t}`).addEventListener('click',()=>selectStudyTab(t)));
+$('study-panel').addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&!e.defaultPrevented){e.preventDefault();e.stopPropagation();hideStudy();}
+});
+$('study-export').addEventListener('click',()=>toast('整理为 Markdown（原型演示）'));
+
+/* 导读准备 */
+let guideTimer;
+$('guide-start-btn').addEventListener('click',()=>{
+  $('guide-start-area').hidden=true; $('guide-loading').hidden=false; $('guide-result').hidden=true; $('guide-error').hidden=true;
+  guideTimer=setTimeout(()=>{
+    $('guide-loading').hidden=true; $('guide-result').hidden=false;
+  },1600);
+});
+$('guide-cards-btn')?.addEventListener('click',()=>{
+  selectStudyTab('cards');
+  const list=$('cards-list'); $('cards-empty').hidden=true;
+  list.innerHTML=`
+    <div class="study-entry"><h4>学习卡 1 · 核心概念</h4><p>情境是解读运动数据的关键。同样的测量值在不同任务和环境下可能代表完全不同的含义。</p></div>
+    <div class="study-entry"><h4>学习卡 2 · 方法论</h4><p>重复观察的价值：多次测量有助于区分稳定模式（真实信号）与偶发波动（噪声）。</p></div>
+    <div class="study-entry"><h4>学习卡 3 · 应用原则</h4><p>审慎解读：研读结论辅助理解，不替代专业评估；数字、单位、引用须核对原文。</p></div>`;
+  $('cards-count').textContent='3';
+  toast('已生成 3 张学习卡');
+});
+
+/* 文档对话（问作品）*/
+$('ask-input').addEventListener('input',()=>{
+  $('ask-send').disabled=!$('ask-input').value.trim()||st.askGenerating;
+  $('ask-send').className='study-send is-primary';
+});
+let askTimer;
+$('ask-send').addEventListener('click',()=>{
+  if(st.askGenerating){ clearTimeout(askTimer);st.askGenerating=false;$('ask-send').className='study-send is-primary';$('ask-send').innerHTML='<svg><use href="#i-arrow"/></svg>';$('ask-send').disabled=!$('ask-input').value.trim();return;}
+  const q=$('ask-input').value.trim(); if(!q)return;
+  $('ask-empty').remove();
+  const qEl=document.createElement('div'); qEl.className='study-chat';
+  qEl.innerHTML=`<h4>${q}</h4>`;
+  $('ask-messages').append(qEl); $('ask-input').value=''; $('ask-send').disabled=true;
+  st.askGenerating=true; $('ask-send').innerHTML='<svg><use href="#i-stop"/></svg>';
+  const aEl=document.createElement('div'); aEl.className='study-chat';
+  aEl.innerHTML='<div class="study-thinking">正在思考…</div>'; $('ask-messages').append(aEl);
+  $('ask-messages').scrollTop=$('ask-messages').scrollHeight;
+  askTimer=setTimeout(()=>{
+    st.askGenerating=false; $('ask-send').className='study-send is-primary';
+    $('ask-send').innerHTML='<svg><use href="#i-arrow"/></svg>';
+    aEl.innerHTML=`<div class="study-answer">这是关于"${q}"的示例回答。正式版基于所选页范围内的真实文档内容生成回答，来源定位到原文段落。</div>`;
+    $('ask-messages').scrollTop=$('ask-messages').scrollHeight;
+  },1200);
+});
+$('ask-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('ask-send').click();}
+});
+
+/* ═══ 全局 Esc ═══ */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape'||e.defaultPrevented) return;
+  if(!$('modal-export').hidden){$('modal-export').hidden=true;e.preventDefault();return;}
+  if(!$('modal-confirm').hidden){$('modal-confirm').hidden=true;e.preventDefault();return;}
+  if(st.studyOpen&&$('study-panel').contains(document.activeElement)){return;} // 侧栏内部的 Esc 由侧栏自己处理
+  if(!$('trans-card').hidden||st.selTimer){closeCard();e.preventDefault();return;}
+  if(st.studyOpen){hideStudy();e.preventDefault();}
+});
+
+/* ═══ 初始化 ═══ */
+setRoute('home');
+</script>
+</head>
+</html>
+</script>
+</script>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" color="#2a2520" role="img" aria-labelledby="view-original-title">
+<title id="view-original-title">原文视图</title>
+<style>.gicon__ink,.gicon__accent{fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.gicon__ink{stroke:currentColor}.gicon__accent{stroke:var(--gicon-accent,#bd391b)}</style>
+<rect class="gicon__ink" x="2.25" y="1.75" width="11.5" height="12.5" rx="1.25"/>
+<path class="gicon__ink" d="M6.75 5.25h4M6.75 8h4M6.75 10.75h2.5"/>
+<path class="gicon__accent" d="M4.5 4.5v7"/>
+</svg>

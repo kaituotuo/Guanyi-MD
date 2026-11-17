@@ -2,11 +2,19 @@ const EXTERNAL_URL_PROTOCOLS = new Set(['http:', 'https:']);
 const MAX_URL_SIZE = 2048;
 const MAX_KEY_SIZE = 16 * 1024;
 const MAX_BODY_SIZE = 1024 * 1024;
+const MAX_MULTIMODAL_BODY_SIZE = 12 * 1024 * 1024;
 const MAX_RESPONSE_SIZE = 2 * 1024 * 1024;
 const MIN_TIMEOUT = 1000;
-const MAX_TIMEOUT = 120000;
+const MAX_TIMEOUT = 300000;
 
 const activeRequests = new Map();
+
+function hasImagePayload(payload) {
+  const messages = payload?.messages || payload?.input;
+  return Array.isArray(messages) && messages.some(message => Array.isArray(message?.content) && message.content.some(part =>
+    ((part?.type === 'image_url' || part?.type === 'input_image') && /^data:image\/(?:jpeg|png|webp);base64,/.test(typeof part.image_url === 'string' ? part.image_url : part.image_url?.url || ''))
+    || (part?.type === 'image' && part.source?.type === 'base64' && /^image\/(?:jpeg|png|webp)$/.test(part.source.media_type || '') && typeof part.source.data === 'string')));
+}
 
 function normalizedDesktopAiRequest(rawRequest, method = 'POST') {
   const request = rawRequest && typeof rawRequest === 'object' ? rawRequest : {};
@@ -23,13 +31,17 @@ function normalizedDesktopAiRequest(rawRequest, method = 'POST') {
   const apiKey = String(request.apiKey || '');
   if (!apiKey || apiKey.length > MAX_KEY_SIZE || /[\r\n]/.test(apiKey)) throw new Error('API Key 无效');
   const timeoutMs = Math.max(MIN_TIMEOUT, Math.min(MAX_TIMEOUT, Number(request.timeoutMs) || 30000));
+  const wireApi = ['chat', 'responses', 'anthropic'].includes(request.wireApi) ? request.wireApi : 'chat';
+  const authType = ['bearer', 'api-key'].includes(request.authType)
+    ? request.authType : (wireApi === 'anthropic' ? 'api-key' : 'bearer');
   let body = null;
   if (method === 'POST') {
     try { body = JSON.stringify(request.payload); }
     catch (_error) { throw new Error('模型请求内容无法序列化'); }
-    if (!body || Buffer.byteLength(body, 'utf8') > MAX_BODY_SIZE) throw new Error('模型请求内容超过 1 MB');
+    const multimodal = hasImagePayload(request.payload);
+    if (!body || Buffer.byteLength(body, 'utf8') > (multimodal ? MAX_MULTIMODAL_BODY_SIZE : MAX_BODY_SIZE)) throw new Error(multimodal ? '图文模型请求内容超过 12 MB' : '模型请求内容超过 1 MB');
   }
-  return { requestId, targetUrl: targetUrl.href, apiKey, timeoutMs, body, method };
+  return { requestId, targetUrl: targetUrl.href, apiKey, timeoutMs, body, method, wireApi, authType };
 }
 
 async function readDesktopAiResponse(response) {
@@ -66,7 +78,14 @@ async function executeDesktopAiRequest(rawRequest, method = 'POST', fetchImpl = 
       method,
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${request.apiKey}`,
+        ...(request.wireApi === 'anthropic'
+          ? {
+            'anthropic-version': '2023-06-01',
+            ...(request.authType === 'bearer'
+              ? { Authorization: `Bearer ${request.apiKey}` }
+              : { 'x-api-key': request.apiKey })
+          }
+          : { Authorization: `Bearer ${request.apiKey}` }),
         ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {})
       },
       ...(method === 'POST' ? { body: request.body } : {}),
@@ -122,6 +141,7 @@ function installDesktopAiHandlers(ipcMain, trustedRenderer) {
 }
 
 module.exports = {
+  hasImagePayload,
   cancelDesktopAiRequest,
   disposeDesktopAiRequests,
   executeDesktopAiRequest,

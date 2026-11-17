@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-design-system="guanyi-v1.0" class="is-desktop-client">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>观译 · 主页与智能研读原型</title>
+  <link rel="stylesheet" href="../../../css/app.css">
+  <link rel="stylesheet" href="home.css">
+</head>
+<body class="home-prototype">
+  <svg class="symbols" aria-hidden="true"><defs>
+    <symbol id="home" viewBox="0 0 16 16"><path d="m1.8 7 6.2-5 6.2 5M3.5 6v8h9V6M6.5 14V9.5h3V14"/></symbol>
+    <symbol id="plus" viewBox="0 0 16 16"><path d="M8 2.5v11M2.5 8h11"/></symbol>
+    <symbol id="folder" viewBox="0 0 16 16"><path d="M1.8 6V3h4.4l1.6 1.8h6.4V14H1.8V6Z"/><path class="accent" d="M2 6h12"/></symbol>
+    <symbol id="spark" viewBox="0 0 16 16"><path d="m7 1.5 1.7 4.8 4.8 1.7-4.8 1.7L7 14.5 5.3 9.7.5 8l4.8-1.7L7 1.5Z"/><path class="accent" d="M13.5 1v3M12 2.5h3"/></symbol>
+    <symbol id="search" viewBox="0 0 16 16"><circle cx="6.8" cy="6.8" r="4.6"/><path class="accent" d="m10.2 10.2 3.8 3.8"/></symbol>
+    <symbol id="arrow" viewBox="0 0 16 16"><path d="M2.5 8h11M8.5 3l5 5-5 5"/></symbol>
+    <symbol id="close" viewBox="0 0 16 16"><path d="m4 4 8 8m0-8-8 8"/></symbol>
+    <symbol id="moon" viewBox="0 0 16 16"><path d="M12.8 10.2A5.5 5.5 0 0 1 5.8 3a5.7 5.7 0 1 0 7 7.2Z"/></symbol>
+    <symbol id="menu" viewBox="0 0 16 16"><path d="M2.5 4h11M2.5 8h11m-11 4h11"/></symbol>
+    <symbol id="chevron" viewBox="0 0 16 16"><path d="m6 4 4 4-4 4"/></symbol>
+    <symbol id="file" viewBox="0 0 16 16"><path d="M3 1.8h6l3.5 3.4V14H3V1.8ZM9 2v3.5h3.2M5.2 8h5.1m-5.1 2.7h4.1"/></symbol>
+    <symbol id="check" viewBox="0 0 16 16"><path d="m2.5 8 3.5 3.5 7.5-8"/></symbol>
+    <symbol id="edit" viewBox="0 0 16 16"><path d="m3 10 8-8 3 3-8 8-4 1 1-4Zm6-6 3 3"/></symbol>
+  </defs></svg>
+  <div class="review-strip"><span>交互原型 · 主页 × 智能研读</span><span>依据：观译阅读器设计系统 V1.0 · 产品基线 1.0.40 <i>/</i> 演示数据 · AI 为预设回答</span><button id="review-button">方案说明</button></div>
+  <div class="workbench">
+    <header class="topbar">
+      <div class="brand"><span class="traffic" aria-hidden="true"><i></i><i></i><i></i></span><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="6"/><path d="M5 14c7-9 15-9 22 0-7 9-15 9-22 0Z"/><circle cx="16" cy="14" r="3"/><path d="M16 17v6c0 3-6 2-4 5m4-3c3-3 5-1 7 1"/></svg><strong>观译</strong><span>阅读 · 思考 · 写作</span></div>
+      <div id="tabs" class="work-tabs" role="tablist" aria-label="工作区页签"></div>
+      <button class="icon-button new-tab" data-action="new-md" title="新建 Markdown" aria-label="新建 Markdown"><svg><use href="#plus"/></svg></button>
+      <button class="icon-button" id="theme-toggle" aria-label="切换深色主题" aria-pressed="false"><svg><use href="#moon"/></svg></button>
+    </header>
+    <div class="body-grid">
+      <button class="sidebar-scrim" id="sidebar-scrim" hidden aria-label="关闭文档夹"></button>
+      <aside class="sidebar" id="sidebar" aria-label="文档夹与文档">
+        <div class="side-actions"><button class="button secondary" data-action="new-md"><svg><use href="#plus"/></svg>新建 Markdown</button><button class="button primary" data-action="open"><svg><use href="#folder"/></svg>打开文档</button></div>
+        <div class="side-section"><strong>文档列表</strong><button class="icon-button small" data-action="search" aria-label="搜索文档"><svg><use href="#search"/></svg></button><button class="text-button" data-action="add-folder">＋ 添加目录</button></div>
+        <div id="folder-tree" class="folder-tree"></div>
+        <div class="side-bottom"><svg><use href="#check"/></svg><span>本地文档，自由阅读与写作</span></div>
+      </aside>
+      <main class="main-view" id="main-view">
+        <div class="workspace-toolbar"><button class="icon-button" id="sidebar-toggle" aria-label="展开文档夹" aria-expanded="false"><svg><use href="#menu"/></svg></button><button class="icon-button" id="text-outline-toggle" aria-label="收起文档目录" aria-expanded="true" hidden><svg><use href="#menu"/></svg></button><span id="view-caption" hidden></span><span class="toolbar-spacer"></span><button class="button secondary" id="edit-reading-doc" hidden><svg><use href="#edit"/></svg>编辑 Markdown</button><button class="button secondary" id="ask-reading-doc" hidden><svg><use href="#spark"/></svg>围绕本文提问</button><label class="search-bar" id="global-search" aria-label="搜索文档"><svg><use href="#search"/></svg><input id="global-search-input" type="search" placeholder="搜索文档…" autocomplete="off"><kbd>⌘ K</kbd></label></div>
+        <section id="home-view" class="home-view" aria-label="主页">
+          <div class="home-content">
+            <section class="ai-entry" aria-labelledby="ai-entry-title"><div class="ai-entry-title"><svg><use href="#spark"/></svg><h2 id="ai-entry-title">你想读懂什么，或写点什么？</h2><span>AI 快捷对话</span></div>
+              <textarea id="home-prompt" maxlength="4000" aria-label="向 AI 提问" placeholder="问一个问题，或选择文档，让我们一起读懂它…"></textarea>
+              <div class="entry-bottom"><button class="context-button" id="context-button"><svg><use href="#plus"/></svg><span id="context-label">选择文档作为来源</span></button><span class="scope-note" id="home-scope">当前：自由对话 · 未关联文档</span><button class="send-button" id="home-send" aria-label="发送问题" disabled><svg><use href="#arrow"/></svg></button></div>
+            </section>
+            <div class="quick-prompts" aria-label="快速开始"><button data-prompt="帮我为选定文档梳理关键问题" data-need-source="true">读懂一份文档 <svg><use href="#arrow"/></svg></button><button data-action="open-smart-study">体验智能研读 <svg><use href="#arrow"/></svg></button><button data-prompt="帮我搭建一份阅读笔记的大纲">构思一篇笔记 <svg><use href="#arrow"/></svg></button><button data-action="new-md">从空白 Markdown 开始 <svg><use href="#plus"/></svg></button></div>
+            <section class="recent-section" aria-labelledby="recent-title"><div class="section-heading"><div><h2 id="recent-title">最近打开</h2><span id="recent-count"></span></div><span class="sort-caption">按最近打开时间 ↓</span></div><div class="recent-filters" role="tablist" aria-label="按文件格式筛选"><button role="tab" aria-selected="true" data-filter="all">全部</button><button role="tab" aria-selected="false" data-filter="pdf">PDF</button><button role="tab" aria-selected="false" data-filter="md">Markdown</button><button role="tab" aria-selected="false" data-filter="txt">TXT</button><button role="tab" aria-selected="false" data-filter="epub">EPUB</button><label class="recent-search"><svg><use href="#search"/></svg><input id="recent-query" placeholder="查找最近文档" aria-label="查找最近文档"></label></div><div class="list-header"><span>文档</span><span>所在位置</span><span>最近打开</span><span></span></div><div id="recent-list" class="recent-list"></div></section>
+          </div>
+        </section>
+        <section id="chat-view" class="chat-view" aria-label="AI 对话" hidden><div class="chat-heading"><div><svg><use href="#spark"/></svg><h1>AI 对话</h1></div><button class="button secondary" id="save-chat"><svg><use href="#file"/></svg>整理为 Markdown</button></div><div id="chat-scope" class="chat-scope"></div><div id="chat-messages" class="chat-messages" aria-live="polite"></div><form id="chat-form" class="chat-composer"><label for="chat-input">继续这次思考</label><textarea id="chat-input" maxlength="4000" placeholder="继续追问…"></textarea><div><span id="chat-footer-scope"></span><button class="button primary" id="chat-send" type="submit">发送 <svg><use href="#arrow"/></svg></button></div></form></section>
+        <section id="md-view" class="md-view" aria-label="Markdown 工作区" hidden><div class="md-toolbar"><div class="format-actions"><button data-format="heading" aria-label="插入标题">H₁</button><button data-format="bold" aria-label="插入粗体"><b>B</b></button><button data-format="list" aria-label="插入列表">☷</button><button data-format="quote" aria-label="插入引用">“</button></div><span class="toolbar-spacer"></span><div class="view-segment" role="tablist" aria-label="编辑视图"><button role="tab" data-mode="source" aria-selected="false">源码</button><button role="tab" data-mode="preview" aria-selected="false">预览</button><button role="tab" data-mode="split" aria-selected="true">分栏</button></div><button class="button secondary" id="md-save">保存</button><button class="icon-button" id="md-export" aria-label="导出 Markdown"><svg><use href="#arrow"/></svg></button></div><div class="md-title"><input id="md-name" aria-label="文档名称"><span id="md-save-state">已保存</span></div><div class="editor-columns" id="editor-columns" data-mode="split"><label class="source-pane"><span class="pane-label">Markdown 源码</span><textarea id="md-source" spellcheck="false" aria-label="Markdown 源码"></textarea></label><article id="md-preview" class="md-preview"></article></div></section>
+        <section id="pdf-view" class="pdf-view" aria-label="PDF 智能研读工作区" hidden><iframe id="pdf-frame" title="PDF 原文与智能研读" src="../../pdf-study/workspace.html"></iframe></section>
+        <section id="text-view" class="text-view" aria-label="文档阅读" hidden></section>
+      </main>
+    </div>
+    <footer class="statusbar"><span id="status-message">主页 · 本地工作台</span><span>原型内容保存在当前浏览器</span><label>预览状态 <select id="preview-state"><option value="normal">常规资料</option><option value="empty">首次使用</option><option value="missing">文件已失效</option><option value="model-error">AI 请求失败</option><option value="model-unconfigured">未配置模型</option></select></label></footer>
+  </div>
+  <dialog id="source-dialog"><div class="dialog-heading"><div><h2>选择对话的文档来源</h2><p>只使用你选定的资料。发送前可以修改范围。</p></div><button class="icon-button" data-close-dialog aria-label="关闭来源选择"><svg><use href="#close"/></svg></button></div><div id="source-options"></div><div class="dialog-actions"><button class="button secondary" id="clear-context">自由对话</button><button class="button primary" id="confirm-context">使用选定文档</button></div></dialog>
+  <dialog id="action-dialog"><div class="dialog-heading"><h2 id="action-title"></h2><button class="icon-button" data-close-dialog aria-label="关闭对话框"><svg><use href="#close"/></svg></button></div><div id="action-content"></div></dialog>
+  <div id="toast" role="status" hidden></div>
+  <script src="../../../vendor/marked.min.js"></script>
+  <script src="home.js"></script>
+</body>
+</html>

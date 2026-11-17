@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>观绎 MD 帮助</title>
+  <title>观译阅读器帮助</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -84,9 +84,10 @@
 <body>
   <div class="layout">
     <aside>
-      <div class="brand"><strong>观绎 MD</strong><span>俯仰观物，绎述我心。</span></div>
+      <div class="brand"><strong>观译阅读器</strong><span>让阅读、摘录与思考留在本地。</span></div>
       <nav aria-label="帮助目录">
         <a href="#guide">使用指南</a>
+        <a href="#readers">PDF 与 EPUB 阅读</a>
         <a href="#markdown">Markdown</a>
         <a href="#shortcuts">快捷键</a>
         <a href="#search">搜索与索引</a>
@@ -95,15 +96,25 @@
     </aside>
     <main>
       <section id="guide">
-        <h1>观绎 MD 使用指南</h1>
-        <p class="lede">编辑、阅读与检索都围绕本机文档进行，登录不是打开和编辑本地文档的前提。</p>
+        <h1>观译阅读器使用指南</h1>
+        <p class="lede">支持 Markdown、TXT、PDF 和 EPUB 的本地阅读与批注工具。打开本地文档无需登录。</p>
         <h3>开始一份文档</h3>
         <ol>
-          <li>使用“文件 > 新建文档”创建本地文档，或“打开文档”载入 Markdown / TXT。</li>
-          <li>使用“添加目录”将常用文库加入左侧文档列表；手动刷新会同步磁盘新增、修改、移动和删除。</li>
-          <li>在源码、预览和分栏视图间切换。TXT 会使用文学阅读排版，源文字与换行保持不变。</li>
+          <li>使用“文件 > 新建文档”创建 Markdown 文档，或“打开文档”载入 Markdown、TXT、PDF 和 EPUB。</li>
+          <li>使用“添加目录”将 Markdown / TXT 文库加入左侧文档列表；手动刷新会同步磁盘新增、修改、移动和删除。</li>
+          <li>Markdown 可在源码、预览和分栏视图间阅读、编辑。TXT 保留原文和换行；PDF 与 EPUB 会显示各自的阅读、批注工具栏。</li>
         </ol>
-        <div class="notice">移除文档或目录只会移出观绎 MD 的列表，不会删除磁盘上的真实文件。</div>
+        <div class="notice">移除文档或目录只会移出观译阅读器的列表，不会删除磁盘上的真实文件。</div>
+      </section>
+
+      <section id="readers">
+        <h2>PDF 与 EPUB 阅读</h2>
+        <p>打开 PDF 或 EPUB 后，顶部工具栏会切换为对应的阅读工具，图标风格与 Markdown 保持一致。</p>
+        <ul>
+          <li><strong>PDF：</strong>翻页、缩放、查找，选择原文添加高亮、批注和笔记。批注草稿保存在本机，“另存为”可导出含批注的 PDF。</li>
+          <li><strong>EPUB：</strong>使用章节目录、翻页和字号设置阅读；选择原文添加高亮与笔记。阅读位置和标注保存在本机，“导出笔记”可生成 Markdown 摘录与笔记文件。</li>
+          <li>Markdown 与 TXT 可编辑正文。PDF 与 EPUB 的编辑范围为高亮、批注和笔记。</li>
+        </ul>
       </section>
 
       <section id="markdown">
@@ -138,7 +149,7 @@
 
       <section id="search">
         <h2>本地搜索与索引</h2>
-        <p>统一搜索同时进行文件名、目录名、正文关键词与本地语义召回，结果可定位到当前打开文档中的原文位置。默认范围是当前编辑器已经添加的全部文档，也可切换为当前文档。</p>
+        <p>文档库搜索针对已添加的 Markdown 与 TXT 文档，同时进行文件名、目录名、正文关键词与本地语义召回，结果可定位到原文位置。默认范围是已添加的文本文档，也可切换为当前文档。</p>
         <h3>索引更新</h3>
         <p>添加目录、打开文档、文档保存或手动刷新目录后，变更内容会进入增量索引。语义服务暂不可用时，关键词搜索仍可继续使用。</p>
         <h3>原文回答与问作品</h3>

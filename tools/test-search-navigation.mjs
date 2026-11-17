@@ -7,7 +7,7 @@ const scopeStart = appSource.indexOf('function searchScopeDocumentIds(');
 const scopeEnd = appSource.indexOf('\n  function documentsInSearchScope', scopeStart);
 assert.notEqual(scopeStart, -1, 'search scope helper should exist');
 assert.notEqual(scopeEnd, -1, 'search scope helper should have a stable boundary');
-const searchScopeDocumentIds = vm.runInNewContext(`(${appSource.slice(scopeStart, scopeEnd)})`);
+const searchScopeDocumentIds = vm.runInNewContext(`(() => { ${appSource.match(/function isReaderDocument[^\n]+/)[0]}; return (${appSource.slice(scopeStart, scopeEnd)}); })()`);
 const scopedDocs = [
   { id: 'mine-a', sourceKind: 'browser' },
   { id: 'mine-b', sourceKind: 'browser', directoryId: null },
@@ -221,3 +221,5 @@ assert.match(indexSource, /gicon-collapse-all[^\n]+M1\.5 3\.25h6\.75/, 'collapse
 assert.match(indexSource, /gicon-expand-all[^\n]+M12 2\.5V13/, 'expand icon should use the list-and-arrow design');
 
 console.log('search navigation tests passed: source anchors, evidence terms, find/replace matching, icon states and article highlights verified');
+
+assert.deepEqual([...searchScopeDocumentIds([{id:'pdf',readerFormat:'pdf'}], 'pdf', 'list')], [], 'annotation metadata must not be indexed as book text');

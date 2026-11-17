@@ -37,14 +37,30 @@ function assertClose(actual, expected, label, tolerance = 1) {
 }
 
 async function inspectTabArc(window, index) {
-  await window.webContents.executeJavaScript(`(() => {
+  const targetId = await window.webContents.executeJavaScript(`(() => {
     const tabs = [...document.querySelectorAll('#document-tabs .app-document-tab')];
-    tabs[${index}]?.querySelector('.app-document-tab__activate')?.click();
+    const tab = tabs[${index}];
+    const targetId = tab?.dataset.docId || tab?.dataset.workspaceTab;
+    if (tab?.dataset.workspaceTab) tab.click();
+    else tab?.querySelector('.app-document-tab__activate')?.click();
+    return targetId;
   })()`);
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  if (!targetId) throw new Error(`missing tab ${index}`);
+  // Tab activation schedules scrollIntoView in rAF. A hidden Electron window
+  // does not guarantee that frame has run after a fixed 100 ms delay.
+  await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
+    const deadline = setTimeout(() => reject(new Error('tab activation layout timed out')), 2000);
+    const check = () => {
+      const selected = document.querySelector('#document-tabs .app-document-tab[aria-selected="true"]');
+      if ((selected?.dataset.docId || selected?.dataset.workspaceTab) !== ${JSON.stringify(targetId)}) { setTimeout(check, 25); return; }
+      requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(deadline); resolve(); }));
+    };
+    check();
+  })`);
   return window.webContents.executeJavaScript(`(() => {
     const container = document.getElementById('document-tabs');
     const selected = container.querySelector('.app-document-tab[aria-selected="true"]');
+    if ((selected?.dataset.docId || selected?.dataset.workspaceTab) !== ${JSON.stringify(targetId)}) throw new Error('active tab changed before inspection');
     const containerRect = container.getBoundingClientRect();
     const selectedRect = selected.getBoundingClientRect();
     const before = getComputedStyle(selected, '::before');
@@ -60,15 +76,14 @@ async function inspectTabArc(window, index) {
 }
 
 async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
+  process.stdout.write(`Checking ${name}\n`);
   window.setContentSize(dimensions.width, dimensions.height);
   await new Promise((resolve) => setTimeout(resolve, 120));
-  await window.webContents.executeJavaScript(`(() => {
+  await window.webContents.executeJavaScript(`(async () => {
     document.documentElement.dataset.theme = ${JSON.stringify(theme)};
-    while (document.querySelectorAll('#document-tabs .app-document-tab').length < ${minimumTabs}) {
-      document.getElementById('btn-new-tab').click();
-    }
-    if (!document.getElementById('collab-drawer').classList.contains('is-open')) {
-      document.getElementById('btn-comments').click();
+    for (let attempt = 0; document.querySelectorAll('#document-tabs .app-document-tab').length < ${minimumTabs}; attempt += 1) {
+      if (attempt >= ${minimumTabs} + 1) throw new Error('new document tabs did not appear');
+      await window.__MD_EDITOR_TEST__.createDoc();
     }
   })()`);
   await new Promise((resolve) => setTimeout(resolve, 220));
@@ -79,13 +94,28 @@ async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
     tabArcStates.push(await inspectTabArc(window, index));
   }
 
+  // Arc inspection activates Home as well as documents. Restore the editor
+  // explicitly before checking its toolbar and collaboration drawer bounds.
+  await window.webContents.executeJavaScript(`(async () => {
+    const api = window.__MD_EDITOR_TEST__;
+    const documentId = api.getState().docs.find((doc) => !['pdf', 'epub'].includes(doc.readerFormat))?.id;
+    if (!documentId) throw new Error('missing Markdown document');
+    await api.switchDoc(documentId, { mode: 'editing' });
+    api.enterEditing();
+    if (!document.getElementById('collab-drawer').classList.contains('is-open')) {
+      document.getElementById('btn-comments').click();
+    }
+  })()`);
+  await new Promise((resolve) => setTimeout(resolve, 220));
+
   const layout = await window.webContents.executeJavaScript(`(() => {
-    const rect = (selector) => {
-      const value = document.querySelector(selector).getBoundingClientRect();
+    const rectOf = (element) => {
+      const value = element.getBoundingClientRect();
       return { left: value.left, top: value.top, right: value.right, bottom: value.bottom, width: value.width, height: value.height };
     };
+    const rect = (selector) => rectOf(document.querySelector(selector));
     const tabs = [...document.querySelectorAll('#document-tabs .app-document-tab')].map((tab) => ({
-      ...rect('#document-tabs .app-document-tab[data-doc-id="' + CSS.escape(tab.dataset.docId) + '"]'),
+      ...rectOf(tab),
       selected: tab.getAttribute('aria-selected') === 'true'
     }));
     const selected = document.querySelector('#document-tabs .app-document-tab[aria-selected="true"]');
@@ -95,7 +125,12 @@ async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
       identity: rect('.app-topbar__identity'),
       sidebar: rect('.app-sidebar'),
       tabsBar: rect('.app-document-tabs-bar'),
+      tabsViewport: rect('.app-document-tabs'),
       formatbar: rect('.app-fmtbar'),
+      readingToolbarVisible: Boolean(document.getElementById('document-reading-toolbar').getClientRects().length),
+      sidebarVisible: Boolean(document.querySelector('.app-sidebar').getClientRects().length),
+      workspaceView: document.body.dataset.workspaceView,
+      documentMode: document.body.dataset.documentMode,
       drawer: rect('.app-collab-drawer'),
       statusbar: rect('.app-statusbar'),
       newTab: rect('#btn-new-tab'),
@@ -103,6 +138,10 @@ async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
       tabs,
       selectedRadius: selected ? getComputedStyle(selected).borderRadius : '',
       brandVisible: Boolean(document.querySelector('.app-topbar__brand')?.getClientRects().length),
+      brandText: (() => {
+        const element = document.querySelector('.app-topbar__brand > span:last-child');
+        return element ? { text: element.textContent.trim(), clientWidth: element.clientWidth, scrollWidth: element.scrollWidth } : null;
+      })(),
       sloganVisible: Boolean(document.querySelector('.app-topbar__tagline')?.getClientRects().length),
       drawerOpen: document.getElementById('collab-drawer').classList.contains('is-open'),
       tabArcSize: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--guanyi-tab-arc-size'))
@@ -111,12 +150,17 @@ async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
 
   if (layout.theme !== theme) throw new Error(`${name}: theme did not apply`);
   if (!layout.brandVisible || !layout.sloganVisible) throw new Error(`${name}: desktop brand or slogan is hidden`);
+  if (!layout.brandText || layout.brandText.scrollWidth > layout.brandText.clientWidth + 1) {
+    throw new Error(`${name}: app name is clipped: ${JSON.stringify(layout.brandText)}`);
+  }
   if (!layout.drawerOpen) throw new Error(`${name}: collaboration drawer did not open`);
+  if (layout.workspaceView !== 'document' || layout.documentMode !== 'editing') throw new Error(`${name}: expected the editing workspace`);
+  if (layout.sidebarVisible || layout.readingToolbarVisible) throw new Error(`${name}: reading toolbar or folders leaked into the editor`);
   if (layout.tabs.length < minimumTabs) throw new Error(`${name}: expected at least ${minimumTabs} tabs`);
+  assertClose(layout.formatbar.height, 49, `${name}: editing formatbar height`);
   assertClose(layout.topbar.bottom, layout.formatbar.top, `${name}: formatbar must follow topbar`);
   assertClose(layout.formatbar.bottom, layout.drawer.top, `${name}: drawer must start below formatbar`);
   assertClose(layout.drawer.bottom, layout.statusbar.top, `${name}: drawer must stop above statusbar`);
-  assertClose(layout.identity.right, layout.sidebar.right, `${name}: brand boundary must align with sidebar`);
   assertClose(layout.tabsBar.left, layout.identity.right, `${name}: tabs must start after brand region`);
   if (layout.selectedRadius !== '10px 10px 0px 0px') throw new Error(`${name}: selected tab radius is ${layout.selectedRadius}`);
   for (const arc of tabArcStates) {
@@ -134,8 +178,9 @@ async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
       throw new Error(`${name}: document tabs overlap at index ${index}`);
     }
   }
-  const lastTab = layout.tabs.at(-1);
-  if (layout.newTab.left + 1 < lastTab.right) throw new Error(`${name}: new-tab button overlaps the final tab`);
+  // Overflowing tabs intentionally scroll behind the viewport boundary. The
+  // new-document button must stay outside that visible scrolling surface.
+  if (layout.newTab.left + 1 < layout.tabsViewport.right) throw new Error(`${name}: new-tab button overlaps the visible tab viewport`);
   if (layout.newTab.right > layout.menu.left + 1) throw new Error(`${name}: new-tab button exceeds the available titlebar space`);
 
   const image = await window.webContents.capturePage();
@@ -147,8 +192,82 @@ async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
   return screenshot;
 }
 
+async function inspectWorkspace(window, name, dimensions, theme, view) {
+  process.stdout.write(`Checking ${name}\n`);
+  window.setContentSize(dimensions.width, dimensions.height);
+  await window.webContents.executeJavaScript(`(async () => {
+    document.documentElement.dataset.theme = ${JSON.stringify(theme)};
+    const api = window.__MD_EDITOR_TEST__;
+    if (${JSON.stringify(view)} === 'home') await api.showHome();
+    else {
+      const doc = api.getState().docs.find((item) => !['pdf', 'epub'].includes(item.readerFormat));
+      if (!doc) throw new Error('missing Markdown document');
+      await api.switchDoc(doc.id, { mode: 'reading' });
+    }
+  })()`);
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  const layout = await window.webContents.executeJavaScript(`(() => {
+    const rect = (selector) => {
+      const value = document.querySelector(selector).getBoundingClientRect();
+      return { left: value.left, top: value.top, right: value.right, bottom: value.bottom, width: value.width, height: value.height };
+    };
+    const visible = (selector) => Boolean(document.querySelector(selector)?.getClientRects().length);
+    return {
+      view: document.body.dataset.workspaceView,
+      mode: document.body.dataset.documentMode,
+      theme: document.documentElement.dataset.theme,
+      topbar: rect('.app-topbar'),
+      identity: rect('.app-topbar__identity'),
+      sidebar: rect('.app-sidebar'),
+      tabsBar: rect('.app-document-tabs-bar'),
+      toolbar: rect('#document-reading-toolbar'),
+      editor: rect('#editor-container'),
+      home: rect('#home-workspace'),
+      statusbar: rect('.app-statusbar'),
+      formatVisible: visible('#fmtbar'),
+      toolbarVisible: visible('#document-reading-toolbar'),
+      sidebarVisible: visible('.app-sidebar'),
+      homeVisible: visible('#home-workspace'),
+      editorVisible: visible('#editor-container'),
+      sourceReadOnly: document.getElementById('source-editor').readOnly,
+      previewEditable: document.getElementById('preview-editor').isContentEditable,
+      nestedEditable: [...document.querySelectorAll('#preview-editor [contenteditable="true"]')].length,
+      drawerOpen: document.getElementById('collab-drawer').classList.contains('is-open')
+    };
+  })()`);
+  if (layout.view !== view || layout.theme !== theme) throw new Error(`${name}: workspace or theme did not apply`);
+  if (layout.formatVisible) throw new Error(`${name}: editor formatbar leaked into ${view}`);
+  assertClose(layout.tabsBar.left, layout.identity.right, `${name}: tabs must start after brand region`);
+  if (view === 'home') {
+    if (!layout.homeVisible || !layout.sidebarVisible || layout.toolbarVisible || layout.editorVisible || layout.drawerOpen) {
+      throw new Error(`${name}: Home must show folders and content without document tools: ${JSON.stringify(layout)}`);
+    }
+    assertClose(layout.identity.right, layout.sidebar.right, `${name}: brand boundary must align with folders`);
+    assertClose(layout.topbar.bottom, layout.home.top, `${name}: Home must follow topbar`);
+    assertClose(layout.home.bottom, layout.statusbar.top, `${name}: Home must stop above statusbar`);
+  } else {
+    if (layout.mode !== 'reading' || !layout.toolbarVisible || !layout.editorVisible || layout.homeVisible || layout.sidebarVisible) {
+      throw new Error(`${name}: reading must show focused document and reading tools: ${JSON.stringify(layout)}`);
+    }
+    if (!layout.sourceReadOnly || layout.previewEditable || layout.nestedEditable) throw new Error(`${name}: reading surface is editable`);
+    assertClose(layout.toolbar.height, 49, `${name}: reading toolbar height`);
+    assertClose(layout.topbar.bottom, layout.toolbar.top, `${name}: reading toolbar must follow topbar`);
+    assertClose(layout.toolbar.bottom, layout.editor.top, `${name}: document must follow reading toolbar`);
+    assertClose(layout.editor.bottom, layout.statusbar.top, `${name}: document must stop above statusbar`);
+  }
+  const image = await window.webContents.capturePage();
+  if (image.isEmpty()) throw new Error(`${name}: captured screenshot is empty`);
+  const screenshot = path.join(outputDirectory, `${name}.png`);
+  await fs.promises.writeFile(screenshot, image.toPNG());
+  return screenshot;
+}
+
 async function main() {
   await app.whenReady();
+  if (process.env.GUANYI_TEST_FOREGROUND !== '1' && process.platform === 'darwin') {
+    app.setActivationPolicy('accessory');
+    app.dock?.hide();
+  }
   const consoleErrors = [];
   const window = new BrowserWindow({
     width: 1440,
@@ -171,11 +290,16 @@ async function main() {
   window.webContents.on('did-fail-load', (_event, code, description) => {
     consoleErrors.push(`load ${code}: ${description}`);
   });
+  process.stdout.write('Loading desktop renderer\n');
   await window.loadFile(path.join(projectRoot, 'index.html'), { query: { client: 'desktop' } });
   await waitForRenderer(window);
   const screenshots = [];
   screenshots.push(await inspectLayout(window, 'desktop-light-two-tabs-1440x920', { width: 1440, height: 920 }, 'light', 2));
   screenshots.push(await inspectLayout(window, 'desktop-dark-six-tabs-920x640', { width: 920, height: 640 }, 'dark', 6));
+  for (const [theme, dimensions] of [['light', { width: 1440, height: 920 }], ['dark', { width: 920, height: 640 }]]) {
+    screenshots.push(await inspectWorkspace(window, `desktop-${theme}-home-${dimensions.width}x${dimensions.height}`, dimensions, theme, 'home'));
+    screenshots.push(await inspectWorkspace(window, `desktop-${theme}-reading-${dimensions.width}x${dimensions.height}`, dimensions, theme, 'document'));
+  }
   if (consoleErrors.length) throw new Error(`renderer console errors: ${consoleErrors.join(' | ')}`);
   window.destroy();
   process.stdout.write(`Electron layout smoke passed: ${screenshots.join(', ')}\n`);

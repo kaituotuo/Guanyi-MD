@@ -1,0 +1,13 @@
+{
+  "name": "paper-reader-skill",
+  "repository": "https://github.com/freestylefly/paper-reader-skill",
+  "commit": "3fb7d74aae85444a61f8a27ddf1f3cb2f0ed2ce2",
+  "license": "MIT",
+  "retrieved": "2026-11-15",
+  "files": {
+    "SKILL.md": "e6cf2b0e631ac270d1a2e889a4ee2e9dc05134be5e9f9b6852042f8269fd306b",
+    "README.md": "afbdb4b3ecee76c13eac9439ee461908147ab56da8a322b22e50d1f0084a6d42",
+    "LICENSE": "08d72712a4a2c3dcc30403f85da64fdfee5fb4e0f147a15509a3c68f9ff0a1e6"
+  },
+  "integration": "Original files retained verbatim. The product adapter uses structured output, verified local source IDs, complete native-text coverage and distinguishes source facts, author interpretation and reading explanations. It does not generate external citations or infer unread figures."
+}

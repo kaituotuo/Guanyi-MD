@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relativePath) => fs.readFileSync(path.join(projectRoot, relativePath), 'utf8');
@@ -47,8 +48,60 @@ const valid = normalizeDesktopAiRequest({
   payload: { model: 'qa', messages: [{ role: 'user', content: '只回复 OK' }] }
 });
 assert.equal(valid.targetUrl, 'https://model.example/v1/chat/completions');
-assert.equal(valid.timeoutMs, 120000, 'desktop model timeout should be capped');
+assert.equal(valid.timeoutMs, 300000, 'desktop model timeout should be capped at five minutes');
 assert.equal(JSON.parse(valid.body).model, 'qa');
+const requestWithBudget = (timeoutMs) => ({
+  requestId: 'qa-budget', targetUrl: 'https://model.example/v1/chat/completions',
+  apiKey: 'qa-key', payload: { model: 'qa', messages: [] }, timeoutMs
+});
+assert.equal(normalizeDesktopAiRequest(requestWithBudget(undefined)).timeoutMs, 30000,
+  'ordinary desktop requests must retain their existing default');
+assert.equal(normalizeDesktopAiRequest(requestWithBudget(90000)).timeoutMs, 90000,
+  'ordinary Web requests must retain their existing budget');
+assert.equal(normalizeDesktopAiRequest(requestWithBudget(300000)).timeoutMs, 300000,
+  'paper reading must retain its full five-minute budget');
+assert.equal(normalizeDesktopAiRequest(requestWithBudget(1)).timeoutMs, 1000,
+  'short requests must retain the existing lower bound');
+
+// Advance only this isolated transport's timers; no real model or five-minute wait.
+let elapsedMs = 0;
+let nextTimer = 0;
+const scheduled = new Map();
+const isolatedModule = { exports: {} };
+vm.runInNewContext(transportSource, {
+  module: isolatedModule, URL, Buffer, AbortController,
+  setTimeout(callback, delay) {
+    const id = ++nextTimer;
+    scheduled.set(id, { at: elapsedMs + delay, callback });
+    return id;
+  },
+  clearTimeout(id) { scheduled.delete(id); }
+});
+const isolatedTransport = isolatedModule.exports;
+const advance = (milliseconds) => {
+  elapsedMs += milliseconds;
+  for (const [id, timer] of scheduled) {
+    if (timer.at <= elapsedMs) { scheduled.delete(id); timer.callback(); }
+  }
+};
+let budgetSignal;
+const budgetRequest = isolatedTransport.executeDesktopAiRequest(requestWithBudget(300000), 'POST', (_url, options) => {
+  budgetSignal = options.signal;
+  return new Promise((_resolve, reject) => {
+    options.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true });
+  });
+});
+const budgetRejection = assert.rejects(budgetRequest, error => error.code === 'MODEL_ABORTED');
+advance(120001);
+assert.equal(budgetSignal.aborted, false, 'paper reading must survive the previous two-minute cutoff');
+advance(179998);
+assert.equal(budgetSignal.aborted, false, 'the full five-minute budget remains available');
+advance(1);
+await budgetRejection;
+assert.equal(budgetSignal.aborted, true, 'the extended request still expires at five minutes');
+assert.equal(scheduled.size, 0, 'timeout cleanup must release the transport timer');
+assert.equal(isolatedTransport.cancelDesktopAiRequest('qa-budget'), false,
+  'finished requests must be removed from the cancellation registry');
 assert.throws(() => normalizeDesktopAiRequest({
   requestId: 'qa', targetUrl: 'file:///tmp/model', apiKey: 'key', payload: {}
 }), /http:\/\/ 或 https:\/\//);
@@ -120,11 +173,14 @@ try {
   }), /2 MB/);
 
   const slow = executeDesktopAiRequest({
-    requestId: 'live-cancel', targetUrl: `${baseUrl}/slow`, apiKey: 'live-key', payload: {}, timeoutMs: 5000
+    requestId: 'live-cancel', targetUrl: `${baseUrl}/slow`, apiKey: 'live-key', payload: {}, timeoutMs: 300000
   });
   await new Promise((resolve) => setTimeout(resolve, 40));
+  const cancelledAt = performance.now();
   assert.equal(cancelDesktopAiRequest('live-cancel'), true);
   await assert.rejects(slow, /取消或超时/);
+  assert.ok(performance.now() - cancelledAt < 1000, 'manual cancellation must stay prompt with a five-minute budget');
+  assert.equal(cancelDesktopAiRequest('live-cancel'), false, 'cancelled requests must be removed');
 } finally {
   await new Promise((resolve) => server.close(resolve));
 }
@@ -140,4 +196,4 @@ assert.match(app, /signal\?\.addEventListener\?\.\('abort', abort, \{ once: true
 assert.match(app, /requestModelWithRetry[\s\S]+attempts[\s\S]+isRetryableModelError/,
   'model availability should retain one bounded retry for transient failures');
 
-console.log('desktop AI bridge tests passed: trusted IPC, bounded input/output, cancellation and web fallback contracts verified');
+console.log('desktop AI bridge tests passed: five-minute paper budget, unchanged ordinary defaults, trusted IPC, bounded input/output, prompt cancellation and web fallback contracts verified');

@@ -1,9 +1,9 @@
 {
   "name": "guanyi-md",
-  "version": "1.0.34",
-  "description": "观绎 MD｜俯仰观物，绎述我心。",
+  "version": "1.0.45",
+  "description": "观译阅读器｜Markdown、TXT、PDF、EPUB 本地阅读与批注。",
   "main": "desktop/main.cjs",
-  "author": "Guanyi MD",
+  "author": "Guanyi Reader",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -20,8 +20,11 @@
     "test:desktop-layout": "node tools/test-desktop-layout-contract.mjs",
     "test:desktop-layout-electron": "node tools/test-electron-layout.mjs",
     "test:directory-refresh": "node tools/test-directory-refresh.mjs",
+    "test:directory-binary-electron": "node tools/run-electron-smoke.mjs tools/electron-directory-binary-smoke.cjs",
+    "test:directory-removal-race-electron": "node tools/run-electron-smoke.mjs tools/electron-directory-removal-race-smoke.cjs",
     "test:search-navigation": "node tools/test-search-navigation.mjs",
     "test:desktop-file-open": "node tools/test-desktop-file-open.mjs",
+    "test:desktop-file-actions": "node tools/test-electron-file-actions.mjs",
     "test:document-rename": "node tools/test-document-rename.mjs",
     "test:tabs-file-actions": "node tools/test-tabs-and-file-actions.mjs",
     "test:single-file-sync": "node tools/test-single-file-sync.mjs",
@@ -29,6 +32,8 @@
     "test:original-answer": "node tools/test-original-answer.mjs",
     "test:work-question": "node tools/test-work-question.mjs",
     "test:desktop-ai-bridge": "node tools/test-desktop-ai-bridge.mjs",
+    "test:model-connection": "node tools/test-model-connection.mjs",
+    "test:model-connection-browser": "node tools/test-model-connection-browser.cjs",
     "test:semantic-search": "node tools/test-semantic-search.mjs",
     "test:semantic-search-worker": "node tools/test-semantic-search-worker.mjs",
     "test:semantic-search-electron": "node tools/test-electron-semantic-search.mjs",
@@ -44,15 +49,49 @@
     "build:mac": "node tools/build-desktop.mjs --mac",
     "build:win": "node tools/build-desktop.mjs --win",
     "build:desktop": "node tools/build-desktop.mjs --all",
-    "release:patch": "npm version patch --no-git-tag-version && npm run build:desktop"
+    "release:patch": "npm version patch --no-git-tag-version && npm run build:desktop",
+    "test:desktop-binary-documents": "node tools/test-desktop-binary-documents.mjs",
+    "test:desktop-binary-electron": "node tools/test-electron-binary-documents.mjs",
+    "test:source-scroll": "node tools/run-electron-smoke.mjs tools/electron-source-scroll-smoke.cjs",
+    "test:epub-reader": "node tools/run-electron-smoke.mjs tools/electron-epub-reader-smoke.cjs",
+    "test:epub-review-integration": "node tools/test-epub-review-integration.cjs",
+    "test:pdf-reader": "node tools/test-pdf-reader.mjs",
+    "test:reader-integration": "node tools/run-electron-smoke.mjs tools/electron-reader-integration-smoke.cjs",
+    "test:regression:readers": "node tools/run-regression-matrix.mjs readers",
+    "test:reader-host": "node tools/test-reader-host.mjs",
+    "test:pdf-evidence": "node --test tools/test-pdf-evidence.mjs",
+    "test:pdf-study": "node tools/test-pdf-study.mjs",
+    "test:paper-reader": "node tools/test-paper-reader.mjs",
+    "test:paper-reader-session": "node tools/test-paper-reader-session.mjs",
+    "test:paper-reader-browser": "node tools/test-paper-reader-browser.cjs",
+    "test:paper-vision-browser": "node tools/test-paper-vision-browser.cjs",
+    "test:model-vision": "node tools/test-model-vision.mjs",
+    "test:pdf-evidence-electron": "node tools/run-electron-smoke.mjs tools/electron-pdf-evidence.cjs",
+    "test:pdf-evidence-browser": "node tools/browser-pdf-evidence.cjs",
+    "test:home-workspace": "node tools/test-home-workspace.mjs",
+    "test:pdf-study-browser": "node tools/test-pdf-study-browser.cjs",
+    "test:home-study-integration": "node tools/test-home-study-integration.cjs",
+    "test:regression:workspace": "node tools/run-regression-matrix.mjs workspace",
+    "test:workspace-edit-boundaries": "node --test tools/test-workspace-edit-boundaries.mjs",
+    "test:workspace-navigation": "node --test tools/test-workspace-navigation.mjs",
+    "test:packaged-home-study": "node tools/electron-packaged-home-study-smoke.cjs",
+    "web": "node tools/start-web.mjs",
+    "test:model-settings": "node tools/test-model-settings.mjs",
+    "test:cc-switch": "node tools/test-cc-switch.mjs",
+    "test:web-local-bridge": "node tools/test-web-local-bridge.mjs",
+    "test:web-client-parity": "node tools/test-web-client-parity.cjs",
+    "test:regression:web": "node tools/run-regression-matrix.mjs web"
   },
   "devDependencies": {
     "electron": "43.4.0",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "epubjs": "0.3.93",
+    "jszip": "3.10.2",
+    "pdfjs-dist": "6.5.438"
   },
   "build": {
     "appId": "com.guanyi.md",
-    "productName": "观绎 MD",
+    "productName": "观译阅读器",
     "asar": true,
     "electronDownload": {
       "force": false,
@@ -99,6 +138,22 @@
         "name": "Markdown 文档",
         "description": "Markdown 文档",
         "role": "Editor"
+      },
+      {
+        "ext": [
+          "pdf"
+        ],
+        "name": "PDF 文档",
+        "description": "PDF 阅读与批注",
+        "role": "Editor"
+      },
+      {
+        "ext": [
+          "epub"
+        ],
+        "name": "EPUB 电子书",
+        "description": "EPUB 阅读与笔记",
+        "role": "Viewer"
       }
     ],
     "mac": {
@@ -126,8 +181,8 @@
       ]
     },
     "dmg": {
-      "title": "观绎 MD",
-      "artifactName": "Guanyi-MD-${version}-mac-arm64.${ext}",
+      "title": "观译阅读器",
+      "artifactName": "Guanyi-Reader-${version}-mac-arm64.${ext}",
       "backgroundColor": "#f6f4f1",
       "window": {
         "width": 560,
@@ -170,12 +225,12 @@
       ]
     },
     "nsis": {
-      "artifactName": "Guanyi-MD-Setup-${version}-win-x64.${ext}",
+      "artifactName": "Guanyi-Reader-Setup-${version}-win-x64.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "观绎 MD",
+      "shortcutName": "观译阅读器",
       "deleteAppDataOnUninstall": false
     }
   },

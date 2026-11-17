@@ -29,6 +29,34 @@ assert.equal(tabHelpers.normalizeSettings({ historyLimit: 100, theme: 'dark' }).
 assert.equal(tabHelpers.normalizeSettings({ historyLimit: 500 }).historyLimit, 50,
   'unsupported undo limits should fall back to the established 50-step default');
 
+const typeStart = appSource.indexOf('  function documentTabType(');
+const typeEnd = appSource.indexOf('\n\n  function plainTextReadingLineKind', typeStart);
+assert.ok(typeStart >= 0 && typeEnd > typeStart, 'document tab type helpers should be extractable');
+const typeHelpers = vm.runInNewContext(`(() => {
+  const documentSourceName = (doc) => doc?.localFileName || doc?.relativePath || doc?.desktopPath || doc?.name || '';
+  ${appSource.slice(typeStart, typeEnd)}
+  return { documentTabType, documentTabTypeLabel, documentTabTypeIconMarkup };
+})()`);
+assert.equal(typeHelpers.documentTabType({ localFileName: '计划.md' }), 'md');
+assert.equal(typeHelpers.documentTabType({ relativePath: '资料/摘录.TXT' }), 'txt');
+assert.equal(typeHelpers.documentTabType({ readerFormat: 'pdf', name: '无扩展名' }), 'pdf');
+assert.equal(typeHelpers.documentTabType({ desktopPath: '/Users/test/书籍.epub?revision=2' }), 'epub');
+assert.equal(typeHelpers.documentTabTypeLabel('epub'), 'EPUB');
+const tabIconMarkups = ['md', 'txt', 'pdf', 'epub'].map((type) => {
+  const markup = typeHelpers.documentTabTypeIconMarkup(type);
+  assert.match(markup, /^<svg\b[^>]*class="app-document-tab__type-glyph"/,
+    `${type} tab icon should be an inline SVG`);
+  assert.match(markup, /\bviewBox="0 0 16 16"/,
+    `${type} tab icon should use the shared 16px canvas`);
+  assert.match(markup, new RegExp(`\\bdata-icon-glyph="${type}"`),
+    `${type} tab icon should identify its distinct glyph`);
+  return markup;
+});
+assert.equal(new Set(tabIconMarkups).size, 4,
+  'MD, TXT, PDF and EPUB must use four different SVG glyphs');
+assert.equal(typeHelpers.documentTabTypeIconMarkup('unknown'), tabIconMarkups[0],
+  'unknown document formats should retain the Markdown icon fallback');
+
 const rewriteStart = appSource.indexOf('  function escapeRegularExpression(');
 const rewriteEnd = appSource.indexOf('\n\n  function fileNameWithOriginalExtension', rewriteStart);
 assert.ok(rewriteStart >= 0 && rewriteEnd > rewriteStart, 'managed image rewriting helpers should be extractable');
@@ -38,8 +66,18 @@ const rewriteHelpers = vm.runInNewContext(`(() => {
 })()`);
 assert.equal(
   rewriteHelpers.rewriteManagedImageSources('![a](assets/旧文档/a.png)\n![b](/external/b.png)', '旧文档', '新文档'),
-  '![a](assets/新文档/a.png)\n![b](/external/b.png)',
+  `![a](assets/${encodeURIComponent('新文档')}/a.png)\n![b](/external/b.png)`,
   'save-as should rewrite only Guanyi-managed image paths'
+);
+assert.equal(
+  rewriteHelpers.rewriteManagedImageSources(`![a](assets/${encodeURIComponent('旧文档')}/a.png)`, '旧文档', '新文档 2'),
+  `![a](assets/${encodeURIComponent('新文档 2')}/a.png)`,
+  'encoded managed paths must follow the new file name, including spaces'
+);
+assert.equal(
+  rewriteHelpers.rewriteManagedImageSources('![a](assets/book/a.png) ![b](https://example.com/assets/book/a.png)', 'book', '$& 2'),
+  '![a](assets/%24%26%202/a.png) ![b](https://example.com/assets/book/a.png)',
+  'replacement characters must stay literal and external image paths must remain intact'
 );
 
 const nameStart = appSource.indexOf('  function fileNameWithOriginalExtension(');
@@ -55,6 +93,91 @@ const nameHelper = vm.runInNewContext(`(() => {
 assert.equal(nameHelper('新书', {}), '新书.txt', 'missing extensions should inherit the source format');
 assert.throws(() => nameHelper('新书.md', {}), /请保留原文档格式 \.txt/,
   'save-as and move must not silently convert TXT to Markdown');
+
+const desktopPathStart = appSource.indexOf('  function normalizedDesktopPath(');
+const desktopPathEnd = appSource.indexOf('\n\n  function newDirectoryRecord', desktopPathStart);
+assert.ok(desktopPathStart >= 0 && desktopPathEnd > desktopPathStart, 'desktop path helpers should be extractable');
+const desktopPathHelpers = vm.runInNewContext(`(() => {
+  const normalizeRelativePath = (value) => String(value || '').replace(/\\\\/g, '/').replace(/^\\/+|\\/+$/g, '');
+  ${appSource.slice(desktopPathStart, desktopPathEnd)}
+  return { normalizedDesktopPath, desktopParentPath, desktopPathBaseName, desktopTargetPathKey };
+})()`);
+assert.equal(desktopPathHelpers.desktopParentPath('/Users/test/Documents/文档.md'), '/Users/test/Documents');
+assert.equal(desktopPathHelpers.desktopParentPath('C:\\Users\\test\\Documents\\文档.md'), 'C:/Users/test/Documents');
+assert.equal(desktopPathHelpers.desktopParentPath('C:\\文档.md'), 'C:/');
+assert.equal(desktopPathHelpers.desktopParentPath('\\\\server\\share\\文档.md'), '//server/share');
+assert.equal(desktopPathHelpers.desktopPathBaseName('C:\\Users\\test\\Documents'), 'Documents');
+assert.equal(
+  desktopPathHelpers.desktopTargetPathKey({ rootPath: 'C:\\Users\\test\\Documents\\', relativePrefix: '书稿\\长篇' }),
+  'C:/Users/test/Documents/书稿/长篇'
+);
+
+const chooseDirectoryStart = appSource.indexOf('  async function chooseOtherFileActionDirectory(');
+const chooseDirectoryEnd = appSource.indexOf('\n\n  async function submitFileAction', chooseDirectoryStart);
+assert.ok(chooseDirectoryStart >= 0 && chooseDirectoryEnd > chooseDirectoryStart,
+  'file-action directory chooser should be extractable');
+
+function createChooserHarness({ desktopChoose = null, webChoose = null } = {}) {
+  const targets = [];
+  const classNames = new Set();
+  const fileActionState = { mode: 'save-as', docId: 'doc-1', target: null, busy: false, pickerBusy: false };
+  const els = {
+    btnFileActionOther: { disabled: false },
+    fileActionStatus: {
+      textContent: '',
+      classList: {
+        add: (value) => classNames.add(value),
+        remove: (value) => classNames.delete(value)
+      }
+    }
+  };
+  const harness = vm.runInNewContext(`(() => {
+    ${appSource.slice(desktopPathStart, desktopPathEnd)}
+    ${appSource.slice(chooseDirectoryStart, chooseDirectoryEnd)}
+    return { chooseOtherFileActionDirectory };
+  })()`, {
+    Date,
+    fileActionState,
+    els,
+    normalizeRelativePath: (value) => String(value || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''),
+    desktopDirectoryApi: () => desktopChoose ? { choose: desktopChoose } : null,
+    ensureReadWritePermission: async () => true,
+    setFileActionTarget: (target) => { fileActionState.target = target; targets.push(target); },
+    window: { showDirectoryPicker: webChoose }
+  });
+  return { ...harness, fileActionState, els, targets, classNames };
+}
+
+let releaseDesktopPicker;
+let desktopPickerCalls = 0;
+const chooser = createChooserHarness({
+  desktopChoose: async () => {
+    desktopPickerCalls += 1;
+    if (desktopPickerCalls === 1) return new Promise((resolve) => { releaseDesktopPicker = resolve; });
+    return { path: '/Users/test/文稿', name: '文稿' };
+  },
+  webChoose: async () => { throw new Error('desktop must not call showDirectoryPicker'); }
+});
+const firstPicker = chooser.chooseOtherFileActionDirectory();
+await Promise.resolve();
+await chooser.chooseOtherFileActionDirectory();
+assert.equal(desktopPickerCalls, 1, 'repeated clicks while the native picker is open must be ignored');
+assert.equal(chooser.els.btnFileActionOther.disabled, true, 'the chooser button must be disabled while selecting');
+releaseDesktopPicker(null);
+await firstPicker;
+assert.equal(chooser.fileActionState.pickerBusy, false, 'canceling must release picker state');
+assert.equal(chooser.els.btnFileActionOther.disabled, false, 'canceling must re-enable the chooser');
+assert.equal(chooser.els.fileActionStatus.textContent, '', 'canceling must clear the selecting status');
+await chooser.chooseOtherFileActionDirectory();
+assert.equal(desktopPickerCalls, 2, 'the chooser must be reusable after cancellation');
+assert.equal(chooser.targets[0].rootPath, '/Users/test/文稿');
+
+let webPickerCalls = 0;
+const webHandle = { name: '网页目录' };
+const webChooser = createChooserHarness({ webChoose: async () => { webPickerCalls += 1; return webHandle; } });
+await webChooser.chooseOtherFileActionDirectory();
+assert.equal(webPickerCalls, 1, 'the browser build must retain the File System Access picker');
+assert.equal(webChooser.targets[0].handle, webHandle);
 
 assert.match(indexSource, /id="document-tabs"[^>]+role="tablist"/);
 assert.match(indexSource, /id="btn-save-more"[^>]+aria-controls="save-menu"/);
@@ -83,10 +206,26 @@ assert.match(appSource, /rollbackFileTransaction\(context\)[\s\S]+原位置没�
   'failed transactions should roll back and explicitly preserve the original location');
 assert.match(appSource, /sourceDirectoryPromise = selectParentDirectory\(doc\)[\s\S]+sourceDirectoryPromise \? await sourceDirectoryPromise[\s\S]+executeWebFileTransaction/,
   'moving a directly opened web file should request its parent directory inside the submit gesture');
+assert.match(appSource, /const fileActionState = \{[^}]*pickerBusy:\s*false[^}]*\}/,
+  'file actions must keep a dedicated directory-picker lock');
+assert.match(appSource, /async function chooseOtherFileActionDirectory[\s\S]+desktopApi\.choose\([\s\S]+window\.showDirectoryPicker/,
+  'desktop file actions must prefer the native directory picker while preserving the web fallback');
+assert.match(appSource, /async function renderFileActionDestinations[\s\S]+directoryItem\.rootPath[\s\S]+desktopTargetPathKey/,
+  'desktop current and added directories must render from native root paths');
+assert.match(appSource, /const label = document\.createElement\('span'\);[\s\S]+label\.textContent = target\.name;[\s\S]+button\.append\(icon, label\);/,
+  'directory labels must render through DOM text rather than an undefined or unsafe HTML escape helper');
+assert.match(appSource, /const executeTransaction = useDesktopTransaction \? executeDesktopFileTransaction : executeWebFileTransaction;/,
+  'desktop targets must route to the native file transaction');
+assert.equal((appSource.match(/async function sameDirectoryHandle\(/g) || []).length, 1,
+  'web directory identity comparison must not be overridden by a duplicate function declaration');
 assert.match(appSource, /if \(k === 's' && !e\.altKey && e\.shiftKey\)[\s\S]+openFileActionModal\('save-as'\)/,
   'Shift+Command/Ctrl+S should open save-as');
 assert.match(appSource, /captureActiveTabSession\(\)[\s\S]+state\.currentDocId = id[\s\S]+restoreActiveTabSession\(doc\)/,
   'tab switching should capture and restore independent editing sessions');
+assert.match(appSource, /tab\.setAttribute\('aria-label', `\$\{documentTypeLabel\} 文档：\$\{doc\.name\}[\s\S]+typeIcon\.className = 'app-document-tab__type'[\s\S]+typeIcon\.setAttribute\('aria-hidden', 'true'\)[\s\S]+tab\.appendChild\(typeIcon\)/,
+  'each open tab should expose a visible type icon and announce its format without duplicate screen-reader text');
+assert.match(appSource, /activate\.setAttribute\('aria-label', `\$\{documentTypeLabel\} 文档：\$\{doc\.name\}`\)/,
+  'tab activation controls should announce both the document format and title');
 
 assert.match(cssSource, /\.app-document-tab \{[\s\S]*?border-radius: 10px 10px 0 0;/,
   'tabs should use a restrained Chrome-like curved surface');
@@ -98,6 +237,25 @@ assert.match(cssSource, /\.app-document-tabs \{[\s\S]*?padding-inline: var\(--gu
   'the scroll container must reserve equal clearance for both outward tab arcs');
 assert.match(cssSource, /\.app-document-tab \{[\s\S]*?scroll-margin-inline: var\(--guanyi-tab-arc-size\);/,
   'scrolling a tab into view must preserve both outward arcs');
+assert.match(cssSource, /\.app-document-tab \{[\s\S]*?--app-tab-font-size:\s*var\(--ui-font-size-base,\s*14px\);[\s\S]*?--app-tab-icon-size:\s*calc\(var\(--app-tab-font-size\) \+ 2px\);[\s\S]*?font-size:\s*var\(--app-tab-font-size\);/,
+  'tab text and icons should share the explicit 14px/16px sizing contract');
+assert.match(cssSource, /\.app-document-tab__activate \{[\s\S]*?font:\s*inherit;/,
+  'tab titles must inherit the explicit 14px tab font instead of a browser button default');
+assert.match(cssSource, /\.app-document-tab__type \{[\s\S]*?inline-size:\s*var\(--app-tab-icon-size\);[\s\S]*?block-size:\s*var\(--app-tab-icon-size\);[\s\S]*?place-items:\s*center;[\s\S]*?flex:\s*0 0 var\(--app-tab-icon-size\);/,
+  'document type icons should be square 16px centered flex items');
+assert.match(cssSource, /\.app-document-tab__type-glyph \{[\s\S]*?inline-size:\s*100%;[\s\S]*?block-size:\s*100%;[\s\S]*?display:\s*block;/,
+  'each inline SVG should fill and center within the 16px icon tile');
+const tabTypeColors = [
+  cssSource.match(/\.app-document-tab__type \{[\s\S]*?background:\s*(#[\da-f]{6});/i)?.[1],
+  cssSource.match(/\.app-document-tab__type\[data-document-type="txt"\]\s*\{[^}]*background:\s*(#[\da-f]{6});/i)?.[1],
+  cssSource.match(/\.app-document-tab__type\[data-document-type="pdf"\]\s*\{[^}]*background:\s*(#[\da-f]{6});/i)?.[1],
+  cssSource.match(/\.app-document-tab__type\[data-document-type="epub"\]\s*\{[^}]*background:\s*(#[\da-f]{6});/i)?.[1]
+];
+assert.ok(tabTypeColors.every(Boolean), 'all four document types should define a solid color tile');
+assert.equal(new Set(tabTypeColors.map((color) => color.toLowerCase())).size, 4,
+  'MD, TXT, PDF and EPUB tile colors should all be different');
+assert.doesNotMatch(`${appSource}\n${cssSource}`, /app-document-tab__type-(?:page|mark)/,
+  'the oversized folded-page and micro-label icon implementation must not return');
 assert.match(cssSource, /html\.is-desktop-client \.app-topbar \{[\s\S]*?background: var\(--ui-color-fill-light\);/,
   'desktop titlebar must retain the light tab-strip contrast surface');
 assert.match(cssSource, /\.app-topbar__identity \{[\s\S]*?flex: 0 0 var\(--guanyi-sidebar-width\);/,

@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<!-- saved from url=(0046)http://127.0.0.1:8765/talko-color-preview.html -->
+<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Talko · 设计系统 V1.2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+<link href="./Talko · 设计系统 V1.1_files/css2" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#F6F4F1;--bg2:#FFFFFF;--bg3:#EEEAE5;
+  --card:#FFFFFF;--card2:#F4F1ED;--card3:#E8E4DD;
+  --line:rgba(60,40,20,0.07);--line2:rgba(60,40,20,0.12);
+  --txt:#2A2520;--txt2:#6B6358;--txt3:#736B60;
+  --ink:#2D2A26;--ink-light:#5A554F;--ink-bg:rgba(45,42,38,0.10);--ink-deep:#1A1815;--ink-hover:#3C3831;
+  --amber:#DE7D38;--amber-light:#F5E6D8;--amber-bg:rgba(222,125,56,0.12);--amber-deep:#C77024;--amber-hover:#E88C48;
+  --gold:#F0B842;--gold-light:#FBE5A6;--gold-bg:rgba(240,184,66,0.15);--gold-deep:#8A6410;
+  --success:#3D9970;--success-bg:rgba(61,153,112,0.12);
+  --warning:#E08A1F;--warning-bg:rgba(224,138,31,0.14);--warning-deep:#9A6206;
+  --danger:#D32F2F;--danger-bg:rgba(211,47,47,0.12);
+  --grad-brand:linear-gradient(135deg,#2D2A26 0%,#C77024 68%,#DE7D38 100%);
+  --grad-brand-soft:linear-gradient(135deg,#5A554F,#DE7D38);
+  --grad-card:linear-gradient(135deg,#F4F1ED,#E8E4DD);
+  --grad-voice:linear-gradient(135deg,rgba(222,125,56,0.10),rgba(240,184,66,0.06));
+  --grad-ink:linear-gradient(135deg,#2D2A26,#5A554F);
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+  /* --ease / --accent：兼容旧组件里的历史引用，分别等于 ease-out 与 amber，避免变量未定义导致缓动失效、暖橙点缀不渲染 */
+  --ease:cubic-bezier(0.16,1,0.3,1);--accent:#DE7D38;
+  /* --ring：键盘焦点环（暖橙半透明）；--voice-*：语音「正在说话/聆听」live 状态母题 */
+  --ring:rgba(222,125,56,0.45);--voice-live:#DE7D38;--voice-bg:rgba(222,125,56,0.10);
+  --r-sm:6px;--r-md:10px;--r-lg:16px;--r-xl:24px;--r-full:9999px;
+  --sh-0:0 1px 2px rgba(60,40,20,0.04);
+  --sh-1:0 2px 8px rgba(60,40,20,0.08),0 1px 2px rgba(60,40,20,0.04);
+  --sh-2:0 8px 24px rgba(60,40,20,0.16),0 2px 4px rgba(60,40,20,0.06);
+  --sh-xl:0 16px 48px rgba(60,40,20,0.16);
+  --font-serif:'Noto Serif SC','Songti SC',serif;
+  --font-sans:Inter,'Noto Sans SC','PingFang SC',system-ui,sans-serif;
+  --fs-huge:clamp(46px,6.4vw,74px);
+  --fs-h1:clamp(28px,4vw,46px);
+  --fs-h2:clamp(22px,3vw,34px);
+  --fs-h3:18px;--fs-body:16px;--fs-sm:14px;--fs-xs:12px;
+}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--txt);line-height:1.5;font-size:15px;padding:0}
+
+/* === 侧边导航 === */
+.sidebar{position:fixed;left:0;top:0;width:220px;height:100vh;background:var(--bg2);border-right:1px solid var(--line);overflow-y:auto;z-index:100}
+.sidebar .logo{font-family:var(--font-serif);font-size:20px;font-weight:600;padding:24px 24px 16px;background:var(--grad-brand);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar .logo-sub{font-size:10px;color:var(--txt3);padding:0 24px 20px;font-weight:400}
+.sidebar .nav-section{padding:12px 16px}
+.sidebar .nav-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--txt3);padding:8px 8px 4px}
+.sidebar .nav-link{display:block;padding:8px 12px;border-radius:var(--r-sm);font-size:13px;color:var(--txt2);cursor:pointer;transition:all .15s;text-decoration:none}
+.sidebar .nav-link:hover{background:var(--card2);color:var(--txt)}
+.sidebar .nav-link.active{background:var(--ink-bg);color:var(--ink);font-weight:500}
+
+/* === 主内容区 === */
+.main{margin-left:220px;padding:48px 56px;max-width:960px}
+.section{margin-bottom:64px;scroll-margin-top:24px}
+.section-title{font-family:var(--font-serif);font-size:24px;font-weight:600;color:var(--txt);margin-bottom:8px}
+.section-desc{font-size:14px;color:var(--txt2);margin-bottom:28px;line-height:1.6}
+.subsection-title{font-size:16px;font-weight:600;color:var(--txt);margin-bottom:16px;margin-top:32px}
+
+/* === 通用展示组件 === */
+.demo-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:20px}
+.note{font-size:12px;color:var(--txt3);margin-top:6px;line-height:1.5}
+.swatch{width:80px;text-align:center}
+.swatch-color{width:80px;height:80px;border-radius:14px;margin-bottom:6px;box-shadow:var(--sh-0)}
+.swatch-label{font-size:11px;color:var(--txt2);line-height:1.3;font-weight:500}
+.swatch-hex{font-size:10px;color:var(--txt3);font-family:'JetBrains Mono',monospace}
+.token-name{font-size:10px;color:var(--ink);font-family:'JetBrains Mono',monospace;margin-top:2px}
+
+/* === 色板展示 === */
+.color-group{margin-bottom:24px}
+.color-group-title{font-size:13px;font-weight:600;color:var(--txt);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+
+/* === 字体展示 === */
+.font-demo{padding:24px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-0);margin-bottom:12px}
+.font-demo .font-name{font-size:11px;color:var(--txt3);font-family:'JetBrains Mono',monospace;margin-bottom:8px}
+.font-demo .font-sample{margin-bottom:4px}
+.font-demo .font-meta{font-size:12px;color:var(--txt2);margin-top:8px}
+
+/* === 间距展示 === */
+.spacing-bar{height:32px;border-radius:var(--r-sm);background:var(--ink);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace}
+
+/* === 圆角展示 === */
+.radius-box{width:80px;height:80px;background:var(--card);border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink);font-weight:600;font-family:'JetBrains Mono',monospace}
+
+/* === 阴影展示 === */
+.shadow-box{width:120px;height:80px;background:var(--card);border-radius:var(--r-lg);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--txt2);font-weight:500}
+
+/* === 按钮展示 === */
+.btn{padding:12px 24px;border-radius:var(--r-md);font-size:15px;font-weight:650;border:none;cursor:pointer;transition:all .15s var(--ease-out);display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--amber);color:#fff}
+.btn-primary:hover{background:var(--amber-hover)}
+.btn-primary:active{background:var(--amber-deep)}
+.btn-secondary{background:var(--ink);color:#fff}
+.btn-secondary:hover{background:var(--ink-hover)}
+.btn-secondary:active{background:var(--ink-deep)}
+.btn-ghost{background:transparent;color:var(--txt);border:1px solid var(--line2)}
+.btn-ghost:hover{background:var(--card2)}
+.btn-ghost:active{background:var(--card3);border-color:var(--ink)}
+.btn-outline{background:#fff;color:var(--ink);border:1px solid var(--ink)}
+.btn-outline:hover{background:var(--ink-bg)}
+.btn-outline:active{background:rgba(45,42,38,.16);border-color:var(--ink-deep)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{filter:brightness(1.08)}
+.btn-danger:active{filter:brightness(0.9)}
+.btn-sm{padding:8px 16px;font-size:14px}
+.btn-lg{padding:14px 32px;font-size:16px}
+.btn:active{transform:scale(0.97)}
+/* 三态：hover 变亮（迎上来）→ active 变深（被按下）；焦点环与禁用态统一 */
+.btn:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+.btn:disabled,.btn[disabled]{opacity:.45;cursor:not-allowed;pointer-events:none}
+
+/* === 标签 === */
+.tag{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--r-full);font-size:11px;font-weight:600}
+.tag-scene{background:var(--ink-bg);color:var(--ink)}
+.tag-talker{background:var(--gold-bg);color:var(--gold-deep)}
+.tag-identity{background:var(--ink-bg);color:var(--ink)}
+.tag-recommend{background:var(--amber);color:#fff}
+.tag-warning{background:var(--warning-bg);color:var(--warning-deep)}
+.tag-success{background:var(--success-bg);color:var(--success)}
+
+/* === 输入框 === */
+.input-field{padding:14px 16px;border-radius:var(--r-md);font-size:15px;border:1px solid var(--line2);background:var(--card);color:var(--txt);width:100%;outline:none;transition:border .15s}
+.input-field:focus{border-color:var(--ink)}
+.input-field.error{border-color:var(--danger)}
+.input-field::placeholder{color:var(--txt3)}
+
+/* === 头像 === */
+.avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;color:#fff;flex-shrink:0}
+.avatar-28{width:28px;height:28px;font-size:12px}
+.avatar-40{width:40px;height:40px;font-size:16px}
+.avatar-56{width:56px;height:56px;font-size:20px}
+.avatar-64{width:64px;height:64px;font-size:24px}
+.avatar-ink{background:var(--grad-ink)}
+.avatar-warm{background:var(--grad-brand)}
+
+/* === 卡片 === */
+.demo-card{background:var(--card);border-radius:var(--r-lg);padding:24px;box-shadow:var(--sh-0);transition:all .2s var(--ease-out)}
+.demo-card:hover{box-shadow:var(--sh-1);transform:translateY(-4px)}
+
+/* === 弹窗 === */
+.demo-modal{background:var(--card);border-radius:var(--r-xl);box-shadow:var(--sh-2);padding:32px;max-width:420px}
+.demo-modal-overlay{background:rgba(60,40,20,0.3);backdrop-filter:blur(4px);padding:40px;border-radius:var(--r-lg)}
+
+/* === Toast === */
+.demo-toast{background:var(--card);border:1px solid var(--line2);border-radius:var(--r-md);padding:12px 24px;font-size:13px;color:var(--txt);box-shadow:var(--sh-1);display:inline-block}
+
+/* === 导航栏 === */
+.demo-topnav{background:var(--bg2);border-bottom:1px solid var(--line);height:60px;display:flex;align-items:center;padding:0 32px;gap:32px;border-radius:var(--r-lg)}
+.demo-topnav .logo{font-family:var(--font-serif);font-size:20px;font-weight:600;background:var(--grad-brand);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.demo-topnav .nav-item{font-size:14px;font-weight:500;color:var(--txt2);cursor:pointer;padding:8px 16px;border-radius:var(--r-md);transition:all .15s}
+.demo-topnav .nav-item:hover{color:var(--txt);background:var(--card2)}
+.demo-topnav .nav-item.active{color:var(--ink);background:var(--ink-bg)}
+.demo-topnav .nav-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.demo-topnav .nav-time{font-size:14px;font-weight:600;color:var(--gold-deep);background:var(--card);padding:6px 14px;border-radius:20px}
+
+/* === 底部导航 === */
+.demo-bottomnav{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r-lg);display:flex;gap:8px;padding:10px}
+.demo-bottomnav .bn-item{flex:1;text-align:center;padding:10px 8px;border-radius:var(--r-sm);font-size:12px;font-weight:500;color:var(--txt2);cursor:pointer;transition:all .15s}
+.demo-bottomnav .bn-item.active{background:var(--ink-bg);color:var(--ink);font-weight:600}
+
+/* === 反例 === */
+.anti-item{background:#FFF;border:1px solid var(--danger);border-radius:var(--r-md);padding:12px 16px;font-size:13px;color:var(--danger);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.anti-item::before{content:'✗';font-weight:700;font-size:16px}
+
+/* === 文案表 === */
+.copy-table{width:100%;border-collapse:collapse;font-size:13px}
+.copy-table th{text-align:left;padding:12px 16px;background:var(--card2);color:var(--txt2);font-weight:600;font-size:12px;border-bottom:1px solid var(--line2)}
+.copy-table td{padding:12px 16px;border-bottom:1px solid var(--line);color:var(--txt)}
+.copy-table .copy-bad{color:var(--danger);text-decoration:line-through;opacity:0.7}
+.copy-table .copy-good{color:var(--ink);font-weight:500}
+
+/* === Talk 场景组件 === */
+.talker-card{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-1);padding:24px;transition:all .3s var(--ease);cursor:pointer;max-width:340px}
+.talker-card:hover{transform:translateY(-4px);box-shadow:var(--sh-2)}
+.talker-card .tc-header{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.talker-card .tc-name{font-size:17px;font-weight:600;color:var(--txt)}
+.talker-card .tc-role{font-size:13px;color:var(--txt2);margin-top:2px}
+.talker-card .tc-quote{font-family:var(--font-serif);font-size:18px;color:var(--txt);font-style:italic;line-height:1.7;margin-bottom:14px;padding-left:14px;border-left:3px solid var(--accent)}
+.talker-card .tc-tags{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.talker-card .tc-footer{display:flex;align-items:center;justify-content:space-between}
+.talker-card .tc-stat{font-size:12px;color:var(--txt3);display:flex;gap:12px}
+.talker-card .tc-stat span{display:flex;align-items:center;gap:3px}
+
+/* 对话气泡 */
+.chat-area{display:flex;flex-direction:column;gap:16px;padding:20px;background:var(--bg);border-radius:var(--r-lg);max-width:520px}
+.chat-msg{display:flex;gap:10px;align-items:flex-start;max-width:85%}
+.chat-msg.user{align-self:flex-end;flex-direction:row-reverse}
+.chat-msg .msg-avatar{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#fff}
+.chat-msg .msg-avatar.ai{background:var(--ink)}
+.chat-msg .msg-avatar.user{background:var(--accent)}
+.chat-msg .msg-body{display:flex;flex-direction:column;gap:4px}
+.chat-msg .msg-name{font-size:12px;color:var(--txt3);font-weight:500}
+.chat-msg.user .msg-name{text-align:right}
+.chat-msg .msg-bubble{padding:10px 16px;border-radius:14px;font-size:14px;line-height:1.6;word-break:break-word}
+.chat-msg .msg-bubble.ai{background:var(--card);color:var(--txt);border-bottom-left-radius:4px;box-shadow:var(--sh-1)}
+.chat-msg .msg-bubble.user{background:var(--ink);color:#F6F4F1;border-bottom-right-radius:4px}
+.chat-msg .msg-time{font-size:11px;color:var(--txt3)}
+
+/* 语音波形 */
+.waveform-box{background:var(--card);border-radius:var(--r-lg);padding:20px 24px;box-shadow:var(--sh-1);max-width:480px}
+.waveform-bar{display:flex;align-items:center;gap:2px;height:48px;margin-bottom:12px}
+.waveform-bar .wbar{flex:1;background:var(--ink);border-radius:2px;min-width:2px;opacity:0.3;transition:opacity .2s}
+.waveform-bar .wbar.active{opacity:1;background:var(--accent)}
+.waveform-bar .wbar.played{opacity:0.7}
+.waveform-info{display:flex;align-items:center;justify-content:space-between}
+.waveform-play{width:40px;height:40px;border-radius:50%;background:var(--ink);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0}
+.waveform-time{font-size:13px;color:var(--txt2);font-family:'JetBrains Mono',monospace}
+.waveform-duration{font-size:12px;color:var(--txt3);font-family:'JetBrains Mono',monospace}
+
+/* 对话实录 */
+.transcript-box{background:var(--card);border-radius:var(--r-lg);padding:20px 24px;box-shadow:var(--sh-1);max-width:560px;max-height:320px;overflow-y:auto}
+.transcript-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(45,42,38,0.06)}
+.transcript-item:last-child{border-bottom:none}
+.transcript-item .ts-speaker{font-size:12px;font-weight:600;color:var(--ink);min-width:48px;flex-shrink:0}
+.transcript-item .ts-speaker.user{color:var(--accent)}
+.transcript-item .ts-time{font-size:11px;color:var(--txt3);font-family:'JetBrains Mono',monospace;min-width:44px;flex-shrink:0;margin-top:2px}
+.transcript-item .ts-text{font-size:14px;color:var(--txt);line-height:1.6}
+
+/* 时长面板 */
+.timer-panel{background:var(--card);border-radius:var(--r-lg);padding:24px;box-shadow:var(--sh-1);max-width:400px;text-align:center}
+.timer-circle{width:120px;height:120px;border-radius:50%;border:4px solid var(--ink-bg);margin:0 auto 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.timer-circle.warn{border-color:var(--warning-bg)}
+.timer-circle.danger{border-color:var(--danger-bg)}
+.timer-circle .tc-val{font-size:28px;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--ink)}
+.timer-circle .tc-label{font-size:11px;color:var(--txt3);margin-top:2px}
+.timer-status{font-size:13px;color:var(--txt2);margin-bottom:16px}
+.timer-deduct{font-size:12px;color:var(--txt3);font-family:'JetBrains Mono',monospace}
+
+/* Talk 控制条 */
+.talk-control{display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--card);border-radius:var(--r-xl);box-shadow:var(--sh-2);max-width:480px}
+.tc-btn{width:44px;height:44px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;transition:all .2s var(--ease)}
+.tc-btn.mute{background:var(--ink-bg);color:var(--ink)}
+.tc-btn.mute:hover{background:rgba(45,42,38,0.15)}
+.tc-btn.end{background:var(--danger);color:#fff}
+.tc-btn.end:hover{filter:brightness(1.08)}
+.tc-btn.end:active{filter:brightness(0.9)}
+.tc-btn.pause{background:var(--ink);color:#fff;width:52px;height:52px;font-size:20px}
+.tc-btn.pause:hover{filter:brightness(1.08)}
+.tc-btn.pause:active{filter:brightness(0.9)}
+.tc-info{flex:1;text-align:center}
+.tc-info .tc-time{font-size:18px;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--ink)}
+.tc-info .tc-cost{font-size:12px;color:var(--txt3);margin-top:2px}
+
+/* 记录卡片 */
+.record-card{background:var(--card);border-radius:var(--r-md);box-shadow:var(--sh-1);padding:16px 20px;cursor:pointer;transition:all .2s var(--ease);max-width:480px}
+.record-card:hover{background:var(--card2);box-shadow:var(--sh-2)}
+.record-card .rc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.record-card .rc-tags{display:flex;gap:4px}
+.record-card .rc-date{font-size:11px;color:var(--txt3);font-family:'JetBrains Mono',monospace}
+.record-card .rc-title{font-size:15px;font-weight:600;color:var(--txt);margin-bottom:6px}
+.record-card .rc-summary{font-size:13px;color:var(--txt2);line-height:1.5;margin-bottom:8px}
+.record-card .rc-meta{display:flex;gap:16px;font-size:12px;color:var(--txt3)}
+.record-card .rc-meta .rc-hl{color:var(--gold-deep);font-weight:500}
+
+/* === 社区场景组件 === */
+.feed-card{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-1);overflow:hidden;cursor:pointer;transition:all .3s var(--ease);max-width:420px}
+.feed-card:hover{transform:translateY(-2px);box-shadow:var(--sh-2)}
+.feed-card .fc-media{height:160px;background:var(--ink-bg);display:flex;align-items:center;justify-content:center;position:relative}
+.feed-card .fc-media .fc-wave{display:flex;align-items:center;gap:2px;height:40px}
+.feed-card .fc-media .fc-wave span{width:3px;background:var(--ink);border-radius:2px;opacity:0.2}
+.feed-card .fc-media .fc-wave span.active{background:var(--accent);opacity:1}
+.feed-card .fc-badge{position:absolute;top:12px;left:12px;background:rgba(255,255,255,0.9);backdrop-filter:blur(4px);border-radius:var(--r-sm);padding:4px 10px;font-size:11px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:4px}
+.feed-card .fc-body{padding:16px 20px}
+.feed-card .fc-title{font-size:16px;font-weight:600;color:var(--txt);margin-bottom:8px;line-height:1.4}
+.feed-card .fc-desc{font-size:13px;color:var(--txt2);line-height:1.5;margin-bottom:12px}
+.feed-card .fc-footer{display:flex;align-items:center;justify-content:space-between}
+.feed-card .fc-author{display:flex;align-items:center;gap:8px}
+.feed-card .fc-author-name{font-size:13px;color:var(--txt2)}
+.feed-card .fc-stats{display:flex;gap:12px;font-size:12px;color:var(--txt3)}
+.feed-card .fc-stats span{display:flex;align-items:center;gap:3px}
+
+/* 对话片段（社区内嵌） */
+.snippet-box{background:var(--bg);border-radius:var(--r-md);padding:16px 20px;max-width:480px;border-left:3px solid var(--accent)}
+.snippet-box .sn-speaker{font-size:12px;font-weight:600;margin-bottom:4px}
+.snippet-box .sn-speaker.ai{color:var(--ink)}
+.snippet-box .sn-speaker.user{color:var(--accent)}
+.snippet-box .sn-text{font-size:14px;color:var(--txt);line-height:1.6;margin-bottom:8px}
+.snippet-box .sn-text.ai{font-family:var(--font-serif);font-style:italic}
+.snippet-box .sn-actions{display:flex;gap:12px;font-size:12px;color:var(--txt3)}
+.snippet-box .sn-actions span{cursor:pointer;transition:color .2s}
+.snippet-box .sn-actions span:hover{color:var(--accent)}
+
+/* 评论组件 */
+.comment-item{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid rgba(45,42,38,0.06);max-width:480px}
+.comment-item:last-child{border-bottom:none}
+.comment-item .cm-avatar{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff}
+.comment-item .cm-body{flex:1}
+.comment-item .cm-header{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.comment-item .cm-name{font-size:13px;font-weight:600;color:var(--txt)}
+.comment-item .cm-time{font-size:11px;color:var(--txt3)}
+.comment-item .cm-text{font-size:14px;color:var(--txt);line-height:1.5;margin-bottom:6px}
+.comment-item .cm-actions{display:flex;gap:16px;font-size:12px;color:var(--txt3)}
+.comment-item .cm-actions span{cursor:pointer;transition:color .2s}
+.comment-item .cm-actions span:hover{color:var(--accent)}
+.comment-item .cm-actions .liked{color:var(--accent)}
+
+/* 发布流程 */
+.publish-step{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);border-radius:var(--r-md);box-shadow:var(--sh-1);max-width:480px;margin-bottom:8px}
+.publish-step .ps-num{width:28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.publish-step .ps-num.done{background:var(--success)}
+.publish-step .ps-title{font-size:14px;font-weight:500;color:var(--txt)}
+.publish-step .ps-desc{font-size:12px;color:var(--txt3)}
+.publish-step .ps-arrow{margin-left:auto;color:var(--txt3);font-size:16px}
+
+/* === 权益场景组件 === */
+.duration-bar-box{background:var(--card);border-radius:var(--r-md);padding:16px 20px;box-shadow:var(--sh-1);max-width:400px}
+.duration-bar-box .db-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.duration-bar-box .db-label{font-size:13px;color:var(--txt2);font-weight:500}
+.duration-bar-box .db-value{font-size:20px;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--ink)}
+.duration-bar-box .db-value.warn{color:var(--warning-deep)}
+.duration-bar-box .db-value.danger{color:var(--danger)}
+.duration-bar{height:8px;border-radius:4px;background:var(--ink-bg);overflow:hidden;margin-bottom:8px}
+.duration-bar .db-fill{height:100%;border-radius:4px;background:var(--ink);transition:width .3s var(--ease)}
+.duration-bar .db-fill.warn{background:var(--warning)}
+.duration-bar .db-fill.danger{background:var(--danger)}
+.duration-bar .db-fill.gradient{background:var(--grad-brand)}
+.duration-bar-box .db-footer{display:flex;justify-content:space-between;font-size:11px;color:var(--txt3);font-family:'JetBrains Mono',monospace}
+
+/* 套餐卡片 */
+.package-card{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-1);padding:24px;max-width:280px;position:relative;transition:all .3s var(--ease)}
+.package-card:hover{transform:translateY(-4px);box-shadow:var(--sh-2)}
+.package-card.featured{border:2px solid var(--accent);box-shadow:var(--sh-2)}
+.package-card .pc-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;font-size:11px;font-weight:600;padding:4px 12px;border-radius:var(--r-sm);white-space:nowrap}
+.package-card .pc-name{font-size:16px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.package-card .pc-desc{font-size:12px;color:var(--txt3);margin-bottom:16px}
+.package-card .pc-price{display:flex;align-items:baseline;gap:4px;margin-bottom:4px}
+.package-card .pc-price .pc-amount{font-size:32px;font-weight:600;color:var(--ink);font-family:'JetBrains Mono',monospace}
+.package-card .pc-price .pc-unit{font-size:14px;color:var(--txt3)}
+.package-card .pc-original{font-size:13px;color:var(--txt3);text-decoration:line-through;margin-bottom:16px}
+.package-card .pc-features{list-style:none;padding:0;margin:0 0 20px 0}
+.package-card .pc-features li{font-size:13px;color:var(--txt2);padding:6px 0;display:flex;align-items:center;gap:8px}
+.package-card .pc-features li::before{content:'✓';color:var(--success);font-weight:700;font-size:14px}
+
+/* 权益水单 */
+.waterbill{background:var(--card);border-radius:var(--r-md);box-shadow:var(--sh-1);padding:20px 24px;max-width:420px}
+.waterbill .wb-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid rgba(45,42,38,0.08)}
+.waterbill .wb-title{font-size:15px;font-weight:600;color:var(--ink)}
+.waterbill .wb-date{font-size:11px;color:var(--txt3);font-family:'JetBrains Mono',monospace}
+.waterbill .wb-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px}
+.waterbill .wb-row .wb-label{color:var(--txt2)}
+.waterbill .wb-row .wb-value{font-family:'JetBrains Mono',monospace;color:var(--ink);font-weight:500}
+.waterbill .wb-row .wb-value.plus{color:var(--success)}
+.waterbill .wb-row .wb-value.minus{color:var(--danger)}
+.waterbill .wb-total{display:flex;justify-content:space-between;padding-top:12px;margin-top:8px;border-top:1px solid rgba(45,42,38,0.08);font-size:15px;font-weight:600}
+.waterbill .wb-total .wb-value{font-family:'JetBrains Mono',monospace;color:var(--ink)}
+
+/* === 备选皮肤 === */
+.scheme{max-width:880px;margin:0 auto 40px;border-radius:20px;overflow:hidden;border:1px solid rgba(0,0,0,0.06);box-shadow:0 4px 24px rgba(0,0,0,0.04)}
+.scheme-tag{padding:14px 24px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.scheme-body{padding:36px 32px}
+.scheme-a{background:#FAF7F2}
+.scheme-a .scheme-tag{background:#F4E8D8;color:#C97D3A}
+.scheme-b{background:#EEF2FB}
+.scheme-b .scheme-tag{background:#E0E7F4;color:#3B5BDB}
+.swatch-row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.swatch-sm{width:60px;text-align:center}
+.swatch-sm .swatch-color{width:60px;height:60px;border-radius:12px;margin-bottom:4px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.swatch-sm .swatch-label{font-size:10px;color:#999;line-height:1.3}
+.swatch-sm .swatch-hex{font-size:9px;color:#BBB;font-family:monospace}
+.gradient-text{font-size:22px;font-weight:700;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;opacity:0.35;margin-bottom:10px;margin-top:16px}
+.btn-demo{padding:10px 24px;border-radius:10px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .2s}
+.badge-demo{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--r-full);font-size:11px;font-weight:600}
+.card-demo{border-radius:14px;padding:20px;margin-bottom:12px;display:flex;align-items:center;gap:16px}
+.avatar-demo{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0}
+.bottom-nav{display:flex;gap:8px;margin-top:16px;padding:10px;border-radius:14px}
+.nav-item-demo{flex:1;text-align:center;padding:8px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:500}
+
+/* === 备选皮肤变量 === */
+.a-primary{background:#C97D3A}.a-primary-light{background:#E8A856}.a-accent{background:#F5C842}
+.a-bg{background:#FAF7F2}.a-card{background:#FFFFFF}.a-card-warm{background:#F4E8D8}.a-border{background:#E8DDD0}
+.a-grad-text{background:linear-gradient(135deg,#C97D3A,#F5C842);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.a-btn{background:#C97D3A;color:#fff}.a-badge{background:#FCEDD8;color:#C97D3A}
+.a-card-demo{background:#FFFFFF;border:1px solid #E8DDD0;box-shadow:0 2px 12px rgba(0,0,0,0.03)}
+.a-nav{background:#FFFFFF;border:1px solid #E8DDD0}.a-nav .nav-item-demo.active{background:#FCEDD8;color:#C97D3A}
+.a-avatar{background:linear-gradient(135deg,#C97D3A,#E8A856)}
+
+.b-primary{background:#3B5BDB}.b-primary-light{background:#7B95F0}.b-accent{background:#F97316}
+.b-bg{background:#EEF2FB}.b-card{background:#FFFFFF}.b-card-cool{background:#E0E7F4}.b-border{background:#D5DDF0}
+.b-grad-text{background:linear-gradient(135deg,#3B5BDB,#F97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.b-btn{background:#3B5BDB;color:#fff}.b-badge{background:#FFF0E4;color:#F97316}
+.b-card-demo{background:#FFFFFF;border:1px solid #D5DDF0;box-shadow:0 2px 12px rgba(0,0,0,0.03)}
+.b-nav{background:#FFFFFF;border:1px solid #D5DDF0}.b-nav .nav-item-demo.active{background:#E0E7F4;color:#3B5BDB}
+.b-avatar{background:linear-gradient(135deg,#3B5BDB,#7B95F0)}
+
+/* === 动效演示 === */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes scaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+.anim-demo{padding:16px 24px;background:var(--card);border-radius:var(--r-md);box-shadow:var(--sh-0);font-size:13px;color:var(--txt);margin-bottom:8px}
+.anim-fade{animation:fadeInUp .4s var(--ease-out)}
+.anim-scale{animation:scaleIn .2s var(--ease-out)}
+
+/* === 图标系统（线性图标 · 统一描边）=== */
+/* .ic 用 currentColor 描边，随文字色变化；不使用系统 emoji（见反例清单） */
+.ic{width:1em;height:1em;display:inline-block;vertical-align:-0.14em;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.ic-fill{fill:currentColor;stroke:none}
+.icon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:12px}
+.icon-cell{background:var(--card);border-radius:var(--r-md);box-shadow:var(--sh-0);padding:16px 8px;text-align:center;color:var(--ink)}
+.icon-cell .ic{width:22px;height:22px}
+.icon-cell .icon-name{font-size:10px;color:var(--txt3);font-family:'JetBrains Mono',monospace;margin-top:8px}
+.demo-bottomnav .bn-item .ic{width:20px;height:20px;display:block;margin:0 auto 3px}
+
+/* === 金句 / 引言（情绪高地）=== */
+/* 大字号衬线 + 悬挂引号 + 充足留白：让被引用的话「被郑重对待」 */
+.quote-hero{position:relative;font-family:var(--font-serif);font-size:30px;line-height:1.7;color:var(--txt);font-weight:400;padding:12px 8px 12px 44px;max-width:620px}
+.quote-hero::before{content:'\201C';position:absolute;left:0;top:-6px;font-size:64px;line-height:1;color:var(--amber);opacity:.55;font-family:var(--font-serif)}
+.quote-hero .qh-cite{display:block;margin-top:16px;font-family:var(--font-sans);font-size:13px;font-style:normal;color:var(--txt3);font-weight:500}
+
+/* === 无障碍：键盘焦点环 + 减弱动效 === */
+a:focus-visible,.nav-link:focus-visible,.bn-item:focus-visible,.tc-btn:focus-visible,.waveform-play:focus-visible,.input-field:focus-visible{outline:2px solid var(--ring);outline-offset:2px;border-radius:var(--r-sm)}
+/* 尊重系统「减弱动效」偏好：前庭敏感用户关闭大部分动画/过渡 */
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* === 声波母题（Voice motif）：语音产品的签名视觉 === */
+/* voicePulse：一根声条的跳动；用于 live「正在说话」与加载态 */
+@keyframes voicePulse{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+@keyframes breathe{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.05);opacity:1}}
+.voice-loader{display:inline-flex;align-items:center;gap:3px;height:28px}
+.voice-loader span{width:3px;height:100%;border-radius:2px;background:var(--voice-live);transform-origin:center;animation:voicePulse 1s var(--ease-out) infinite}
+.voice-loader span:nth-child(2){animation-delay:.15s}
+.voice-loader span:nth-child(3){animation-delay:.3s}
+.voice-loader span:nth-child(4){animation-delay:.45s}
+.voice-loader span:nth-child(5){animation-delay:.6s}
+.voice-live-dot{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--voice-live);font-weight:600}
+.voice-live-dot::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--voice-live);animation:breathe 1.6s var(--ease-out) infinite}
+</style>
+<style>.ours-select{position:relative}.ours-select .selection-item{display:block;cursor:pointer;width:100%;height:36px;line-height:36px;box-sizing:border-box;padding:0 32px 0 10px;position:relative}.ours-select .selection-item .arrow-svg{position:absolute;display:inline-block;width:14px;height:14px;top:50%;transform:translateY(-50%);right:10px}.ours-select .selection-item .arrow-svg path{transition:all .3s}.ours-select .selection-item .arrow-fold::before{right:50%;top:75%;transform:rotate(45deg)}.ours-select .selection-item .arrow-fold::after{left:50%;top:75%;transform:rotate(-45deg)}.ours-select .selection-item .arrow-unfold::before{right:50%;top:25%;transform:rotate(-45deg)}.ours-select .selection-item .arrow-unfold::after{left:50%;top:25%;transform:rotate(45deg)}.ours-select .selector{top:0;position:absolute;border-radius:6px;overflow:hidden;width:100%;background:#f7f7f7}.ours-select .selector:focus{outline:none}.ours-select .selector.z-index{z-index:9999999999999;box-shadow:0px 6px 10px 0px rgba(0,0,0,.14)}.ours-select .selector .select-dropdown{transition:all .2s}.ours-select .selector .select-dropdown.unfold{max-height:252px;overflow-y:auto;z-index:9999999}.ours-select .selector .select-dropdown.fold{max-height:0px;overflow-y:hidden}.ours-select .option-wrapper{cursor:pointer;width:100%;height:36px;line-height:36px;box-sizing:border-box;padding:0 32px 0 10px}.ours-select .option-wrapper:hover{background:#fff}.ours-select .seleted{background:#e6f4ff}.ours-select .option{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}</style></head>
+<body>
+
+<!-- ===== 侧边导航 ===== -->
+<nav class="sidebar">
+  <div class="logo">Talko</div>
+  <div class="logo-sub">设计系统 V1.2 · 光色版</div>
+  <div class="nav-section">
+    <div class="nav-label">基础</div>
+    <a class="nav-link" onclick="scrollToSection(&#39;overview&#39;)">概览</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;colors&#39;)">色彩系统</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;typography&#39;)">字体系统</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;spacing&#39;)">间距 / 圆角 / 阴影</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;motion&#39;)">动效规范</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;voice-motif&#39;)">声波母题</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;icons&#39;)">图标系统</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">通用组件</div>
+    <a class="nav-link" onclick="scrollToSection(&#39;buttons&#39;)">按钮</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;inputs&#39;)">输入框</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;tags&#39;)">标签 / 徽章</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;avatars&#39;)">头像</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;cards&#39;)">卡片</a>
+    <a class="nav-link active" onclick="scrollToSection(&#39;navbars&#39;)">导航栏</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;modals&#39;)">弹窗 / Toast</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;card-equal-height&#39;)">卡片等高规则</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Talk 场景</div>
+    <a class="nav-link" onclick="scrollToSection(&#39;talker-card&#39;)">Talker 卡片</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;chat-bubble&#39;)">对话气泡</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;waveform&#39;)">语音波形</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;transcript&#39;)">对话实录</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;timer&#39;)">时长面板</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;talk-control&#39;)">Talk 控制条</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;record-card&#39;)">记录卡片</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">社区场景</div>
+    <a class="nav-link" onclick="scrollToSection(&#39;feed-card&#39;)">社区卡片</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;dialog-snippet&#39;)">对话片段</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;comment&#39;)">评论组件</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;publish-flow&#39;)">发布流程</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">权益场景</div>
+    <a class="nav-link" onclick="scrollToSection(&#39;duration-bar&#39;)">时长条</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;package-card&#39;)">套餐卡片</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;waterbill&#39;)">权益水单</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">规范</div>
+    <a class="nav-link" onclick="scrollToSection(&#39;copy&#39;)">文案调性</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;anti&#39;)">反例清单</a>
+    <a class="nav-link" onclick="scrollToSection(&#39;skins&#39;)">备选皮肤 A / B</a>
+  </div>
+</nav>
+
+<!-- ===== 主内容 ===== -->
+<div class="main">
+
+<!-- ===== 概览 ===== -->
+<section class="section" id="overview">
+  <div class="section-title">Talko 设计系统 V1.2</div>
+  <div class="section-desc">
+    浅色暖灰底 + 暖墨黑结构 + 暖橙行动 + 暖金反馈。<br>
+    核心原则：暖墨黑只做结构，暖橙永远做 CTA，暖金做反馈。三者各司其职。
+  </div>
+
+  <div style="padding:20px 24px;background:var(--grad-voice);border-radius:var(--r-lg);margin-bottom:24px">
+    <div style="font-size:14px;font-weight:600;color:var(--txt);margin-bottom:8px">V1.2 设计原则补充：母题 · 留白 · 节奏</div>
+    <div style="font-size:13px;color:var(--txt2);line-height:1.8">
+      ① <strong>声波是品牌签名母题</strong>——Talko 是语音产品，声波应贯穿加载态 / 空状态 / 头像 / 社区封面，成为可被记住的独占视觉，而不只是回放组件里的一排灰条。<br>
+      ② <strong>留白即情绪</strong>——金句、空状态、结束页要敢留白、敢放大，让关键的一句话「被郑重对待」。<br>
+      ③ <strong>节奏要有起伏</strong>——不要整页都是「白卡 + 柔投影」。适度引入暖色 full-bleed 区块、编辑化（杂志感）的社区排版，用已定义却闲置的 <code>--grad-card</code> / <code>--grad-voice</code> 打破单调。
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px">
+    <div style="padding:20px 24px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-0);flex:1;min-width:200px">
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:4px">主色 · 暖墨黑</div>
+      <div style="font-size:28px;font-weight:600;color:var(--ink);font-family:&#39;JetBrains Mono&#39;,monospace">#2D2A26</div>
+      <div style="font-size:12px;color:var(--txt3);margin-top:4px">结构 / 导航 / 标题 / 选中态</div>
+    </div>
+    <div style="padding:20px 24px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-0);flex:1;min-width:200px">
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:4px">强调色 · 暖橙</div>
+      <div style="font-size:28px;font-weight:600;color:var(--amber);font-family:&#39;JetBrains Mono&#39;,monospace">#DE7D38</div>
+      <div style="font-size:12px;color:var(--txt3);margin-top:4px">CTA / 徽章 / 关键操作</div>
+    </div>
+    <div style="padding:20px 24px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-0);flex:1;min-width:200px">
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:4px">点缀色 · 暖金</div>
+      <div style="font-size:28px;font-weight:600;color:var(--gold);font-family:&#39;JetBrains Mono&#39;,monospace">#F0B842</div>
+      <div style="font-size:12px;color:var(--txt3);margin-top:4px">评分 / 奖励 / 金句标记</div>
+    </div>
+  </div>
+  <div style="padding:20px 24px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-0)">
+    <div style="font-size:14px;font-weight:600;color:var(--txt);margin-bottom:12px">品牌渐变</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="height:60px;border-radius:var(--r-md);background:var(--grad-brand)"></div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:6px;font-family:&#39;JetBrains Mono&#39;,monospace">--grad-brand: 暖墨黑→焦糖</div>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="height:60px;border-radius:var(--r-md);background:var(--grad-ink)"></div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:6px;font-family:&#39;JetBrains Mono&#39;,monospace">--grad-ink: 暖墨黑渐变</div>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="height:60px;border-radius:var(--r-md);background:var(--grad-card)"></div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:6px;font-family:&#39;JetBrains Mono&#39;,monospace">--grad-card: 米白渐变</div>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="height:60px;border-radius:var(--r-md);background:var(--grad-voice)"></div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:6px;font-family:&#39;JetBrains Mono&#39;,monospace">--grad-voice: 语音气泡</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 色彩系统 ===== -->
+<section class="section" id="colors">
+  <div class="section-title">色彩系统</div>
+  <div class="section-desc">暖灰底 + 纯白卡 + 暖墨黑结构 + 暖橙行动 + 暖金反馈。色彩各司其职，不混用。</div>
+
+  <div class="color-group">
+    <div class="color-group-title">中性色板（暖灰系 · 浅色）</div>
+    <div class="demo-row">
+      <div class="swatch"><div class="swatch-color" style="background:var(--bg)"></div><div class="swatch-label">页面底</div><div class="swatch-hex">#F6F4F1</div><div class="token-name">--bg</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--bg2)"></div><div class="swatch-label">二级底</div><div class="swatch-hex">#FFFFFF</div><div class="token-name">--bg2</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--bg3)"></div><div class="swatch-label">三级底</div><div class="swatch-hex">#EEEAE5</div><div class="token-name">--bg3</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--card)"></div><div class="swatch-label">卡片白</div><div class="swatch-hex">#FFFFFF</div><div class="token-name">--card</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--card2)"></div><div class="swatch-label">卡片hover</div><div class="swatch-hex">#F4F1ED</div><div class="token-name">--card2</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--card3)"></div><div class="swatch-label">三级容器</div><div class="swatch-hex">#E8E4DD</div><div class="token-name">--card3</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--txt)"></div><div class="swatch-label">主文字</div><div class="swatch-hex">#2A2520</div><div class="token-name">--txt</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--txt2)"></div><div class="swatch-label">次要文字</div><div class="swatch-hex">#6B6358</div><div class="token-name">--txt2</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--txt3)"></div><div class="swatch-label">三级文字</div><div class="swatch-hex">#8A8278</div><div class="token-name">--txt3</div></div>
+    </div>
+  </div>
+
+  <div class="color-group">
+    <div class="color-group-title">结构性主色：暖墨黑 — 用于导航 / 标题 / Logo / 选中态</div>
+    <div class="demo-row">
+      <div class="swatch"><div class="swatch-color" style="background:var(--ink)"></div><div class="swatch-label">主色</div><div class="swatch-hex">#2D2A26</div><div class="token-name">--ink</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--ink-light)"></div><div class="swatch-label">浅暖墨黑</div><div class="swatch-hex">#5A554F</div><div class="token-name">--ink-light</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--ink-bg)"></div><div class="swatch-label">暖墨黑底</div><div class="swatch-hex">rgba(45,42,38,.10)</div><div class="token-name">--ink-bg</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--ink-deep)"></div><div class="swatch-label">深暖墨黑</div><div class="swatch-hex">#1A1815</div><div class="token-name">--ink-deep</div></div>
+    </div>
+    <div class="note">用量控制：≤ 20% 页面面积。饱和度 ~15%（莫兰迪级），浅灰底上不脏不闷。</div>
+  </div>
+
+  <div class="color-group">
+    <div class="color-group-title">行动强调色：暖橙 — 用于 CTA / 徽章 / 关键操作</div>
+    <div class="demo-row">
+      <div class="swatch"><div class="swatch-color" style="background:var(--amber)"></div><div class="swatch-label">强调色</div><div class="swatch-hex">#DE7D38</div><div class="token-name">--amber</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--amber-light)"></div><div class="swatch-label">浅橙</div><div class="swatch-hex">#F5E6D8</div><div class="token-name">--amber-light</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--amber-bg)"></div><div class="swatch-label">橙底</div><div class="swatch-hex">rgba(222,125,56,.12)</div><div class="token-name">--amber-bg</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--amber-deep)"></div><div class="swatch-label">深橙</div><div class="swatch-hex">#C77024</div><div class="token-name">--amber-deep</div></div>
+    </div>
+    <div class="note">用量控制：≤ 5% 页面面积。❌ 不允许暖墨黑做 CTA，也不允许暖橙做大面铺色。</div>
+  </div>
+
+  <div class="color-group">
+    <div class="color-group-title">反馈点缀色：暖金 — 用于评分 / 奖励 / 金句标记</div>
+    <div class="demo-row">
+      <div class="swatch"><div class="swatch-color" style="background:var(--gold)"></div><div class="swatch-label">点缀色</div><div class="swatch-hex">#F0B842</div><div class="token-name">--gold</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--gold-light)"></div><div class="swatch-label">浅金</div><div class="swatch-hex">#FBE5A6</div><div class="token-name">--gold-light</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--gold-bg)"></div><div class="swatch-label">金底</div><div class="swatch-hex">rgba(240,184,66,.15)</div><div class="token-name">--gold-bg</div></div>
+    </div>
+    <div class="note">用量控制：2-3 处/页。</div>
+  </div>
+
+  <div class="color-group">
+    <div class="color-group-title">状态色</div>
+    <div class="demo-row">
+      <div class="swatch"><div class="swatch-color" style="background:var(--success)"></div><div class="swatch-label">成功</div><div class="swatch-hex">#3D9970</div><div class="token-name">--success</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--success-bg)"></div><div class="swatch-label">成功底</div><div class="swatch-hex">rgba(61,153,112,.12)</div><div class="token-name">--success-bg</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--warning)"></div><div class="swatch-label">警示</div><div class="swatch-hex">#E08A1F</div><div class="token-name">--warning</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--warning-bg)"></div><div class="swatch-label">警示底</div><div class="swatch-hex">rgba(224,138,31,.14)</div><div class="token-name">--warning-bg</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--warning-deep)"></div><div class="swatch-label">警示文字</div><div class="swatch-hex">#9A6206</div><div class="token-name">--warning-deep</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--danger)"></div><div class="swatch-label">错误</div><div class="swatch-hex">#D32F2F</div><div class="token-name">--danger</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--danger-bg)"></div><div class="swatch-label">错误底</div><div class="swatch-hex">rgba(211,47,47,.12)</div><div class="token-name">--danger-bg</div></div>
+    </div>
+  </div>
+
+  <div class="color-group">
+    <div class="color-group-title">分割线</div>
+    <div class="demo-row">
+      <div class="swatch"><div class="swatch-color" style="background:var(--line)"></div><div class="swatch-label">默认分割线</div><div class="swatch-hex">rgba(60,40,20,.07)</div><div class="token-name">--line</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--line2)"></div><div class="swatch-label">强调分割线</div><div class="swatch-hex">rgba(60,40,20,.12)</div><div class="token-name">--line2</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 字体系统 ===== -->
+<section class="section" id="typography">
+  <div class="section-title">字体系统</div>
+  <div class="section-desc">衬线（标题/金句）+ 无衬线（UI/正文）+ 等宽（时间码）。字重限 3 档（400/500/600），禁止 700+。</div>
+
+  <div class="font-demo">
+    <div class="font-name">Noto Serif SC — 衬线 · 标题 / 金句 / 品牌</div>
+    <div class="font-sample" style="font-family:&#39;Noto Serif SC&#39;,serif;font-size:28px;font-weight:600;color:var(--txt)">Talko</div>
+    <div class="font-sample" style="font-family:&#39;Noto Serif SC&#39;,serif;font-size:20px;font-weight:400;color:var(--txt2);font-style:italic">慢慢说，我在听</div>
+    <div class="font-sample" style="font-family:&#39;Inter&#39;,sans-serif;font-size:15px;font-weight:400;color:var(--txt3);font-style:italic">Lay it on me.</div>
+    <div class="font-meta">28px/36px 600 · 20px/28px 400 — 用于 Logo / 页面大标题 / Slogan</div>
+  </div>
+
+  <div class="font-demo">
+    <div class="font-name">Inter + Noto Sans SC — 无衬线 · UI / 正文 / 按钮</div>
+    <div class="font-sample" style="font-family:&#39;Inter&#39;,&#39;Noto Sans SC&#39;,sans-serif;font-size:17px;font-weight:500;color:var(--txt)">知微 · 职场导师</div>
+    <div class="font-sample" style="font-family:&#39;Inter&#39;,&#39;Noto Sans SC&#39;,sans-serif;font-size:15px;font-weight:400;color:var(--txt2)">用提问引导深度思考，帮你拆解复杂问题。每次 Talk 约 15-30 分钟。</div>
+    <div class="font-sample" style="font-family:&#39;Inter&#39;,&#39;Noto Sans SC&#39;,sans-serif;font-size:13px;font-weight:500;color:var(--ink)">开始 Talk</div>
+    <div class="font-meta">17px/26px 500 · 15px/24px 400 · 13px/20px 500 — 用于卡片标题 / 正文 / 按钮 / 元信息</div>
+  </div>
+
+  <div class="font-demo">
+    <div class="font-name">JetBrains Mono — 等宽 · 时间码 / 编号 / Token</div>
+    <div class="font-sample" style="font-family:&#39;JetBrains Mono&#39;,monospace;font-size:11px;color:var(--txt3)">02:34 · 2026-07-04 · --amber: #DE7D38</div>
+    <div class="font-meta">11px/16px 400 — 用于时间戳 / 技术编号 / CSS Token 展示</div>
+  </div>
+
+  <div class="subsection-title">字号体系（6 档）</div>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;padding:20px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-0)">
+    <div><div style="font-size:28px;font-weight:600;color:var(--txt)">Display</div><div style="font-size:11px;color:var(--txt3);font-family:&#39;JetBrains Mono&#39;,monospace">28px / 36px · --fs-display</div></div>
+    <div><div style="font-size:20px;font-weight:600;color:var(--txt)">Title</div><div style="font-size:11px;color:var(--txt3);font-family:&#39;JetBrains Mono&#39;,monospace">20px / 28px · --fs-title</div></div>
+    <div><div style="font-size:17px;font-weight:500;color:var(--txt)">Heading</div><div style="font-size:11px;color:var(--txt3);font-family:&#39;JetBrains Mono&#39;,monospace">17px / 26px · --fs-h3</div></div>
+    <div><div style="font-size:15px;font-weight:400;color:var(--txt)">Body</div><div style="font-size:11px;color:var(--txt3);font-family:&#39;JetBrains Mono&#39;,monospace">15px / 24px · --fs-body</div></div>
+    <div><div style="font-size:13px;font-weight:500;color:var(--txt)">Meta</div><div style="font-size:11px;color:var(--txt3);font-family:&#39;JetBrains Mono&#39;,monospace">13px / 20px · --fs-meta</div></div>
+    <div><div style="font-size:11px;font-weight:400;color:var(--txt)">Caption</div><div style="font-size:11px;color:var(--txt3);font-family:&#39;JetBrains Mono&#39;,monospace">11px / 16px · --fs-caption</div></div>
+  </div>
+
+  <div class="subsection-title">金句 / 引言（情绪高地）</div>
+  <div class="section-desc" style="margin-bottom:16px">金句是产品的情绪触点（详情页、Talk 结束页、被引用的话）。要靠<strong>大字号 + 充足留白 + 悬挂引号</strong>把它抬起来，而不是塞在小卡片里。留白本身就是「被郑重对待」的信号。</div>
+  <div style="padding:36px 32px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-0)">
+    <div class="quote-hero">
+      真正的答案，往往在你沉默的那一刻浮现。
+      <span class="qh-cite">— 知微 · 关于跳槽时机的那次 Talk</span>
+    </div>
+  </div>
+  <div class="note">尺度：hero 金句 28–30px / 行高 1.7；卡片内金句 18px / 行高 1.7。引号用 <code>::before</code> 悬挂，不占正文行首。</div>
+
+  <div class="subsection-title">字重 · 层级靠「对比」而非「统一 600」</div>
+  <div class="section-desc" style="margin-bottom:16px">字重仍限 400 / 500 / 600（禁 700+），但<strong>不要全站压在 600</strong>——那样层级发闷。高级感来自对比：大字号衬线反而用「轻」（若字库支持 300/400）显优雅，正文 400，只有关键信息才 600。让轻重拉开。</div>
+  <div style="padding:24px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-0)">
+    <div style="font-family:var(--font-serif);font-size:30px;font-weight:400;color:var(--txt);line-height:1.4;margin-bottom:6px">慢慢说，我在听</div>
+    <div style="font-size:15px;font-weight:400;color:var(--txt2);margin-bottom:6px">正文用 400，保证长文阅读的松弛感。</div>
+    <div style="font-size:13px;font-weight:600;color:var(--ink)">关键信息 / 按钮才用 600 收口。</div>
+    <div class="note" style="margin-top:10px">❌ 反例：大标题也 600、正文也 600、按钮也 600 → 全页一个重量，没有呼吸。</div>
+  </div>
+</section>
+
+<!-- ===== 间距 / 圆角 / 阴影 ===== -->
+<section class="section" id="spacing">
+  <div class="section-title">间距 / 圆角 / 阴影</div>
+  <div class="section-desc">4pt 网格 · 7 档间距 · 4 档圆角 · 3 档暖阴影。阴影全部偏暖（rgba 60,40,20）。</div>
+
+  <div class="subsection-title">间距（4pt 网格 · 7 档）</div>
+  <div class="demo-row" style="align-items:center">
+    <div style="text-align:center"><div class="spacing-bar" style="width:32px;background:var(--ink-light)"></div><div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:&#39;JetBrains Mono&#39;,monospace">4px</div><div style="font-size:10px;color:var(--txt3)">--sp-1</div></div>
+    <div style="text-align:center"><div class="spacing-bar" style="width:48px;background:var(--ink-light)"></div><div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:&#39;JetBrains Mono&#39;,monospace">8px</div><div style="font-size:10px;color:var(--txt3)">--sp-2</div></div>
+    <div style="text-align:center"><div class="spacing-bar" style="width:72px"></div><div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:&#39;JetBrains Mono&#39;,monospace">12px</div><div style="font-size:10px;color:var(--txt3)">--sp-3</div></div>
+    <div style="text-align:center"><div class="spacing-bar" style="width:96px"></div><div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:&#39;JetBrains Mono&#39;,monospace">16px</div><div style="font-size:10px;color:var(--txt3)">--sp-4</div></div>
+    <div style="text-align:center"><div class="spacing-bar" style="width:120px"></div><div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:&#39;JetBrains Mono&#39;,monospace">20px</div><div style="font-size:10px;color:var(--txt3)">--sp-5</div></div>
+    <div style="text-align:center"><div class="spacing-bar" style="width:192px"></div><div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:&#39;JetBrains Mono&#39;,monospace">32px</div><div style="font-size:10px;color:var(--txt3)">--sp-6</div></div>
+    <div style="text-align:center"><div class="spacing-bar" style="width:288px"></div><div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:&#39;JetBrains Mono&#39;,monospace">48px</div><div style="font-size:10px;color:var(--txt3)">--sp-8</div></div>
+  </div>
+
+  <div class="subsection-title">圆角（4 档）</div>
+  <div class="demo-row">
+    <div style="text-align:center"><div class="radius-box" style="border-radius:6px">6px</div><div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:&#39;JetBrains Mono&#39;,monospace">--r-sm</div><div style="font-size:10px;color:var(--txt3)">标签/徽章</div></div>
+    <div style="text-align:center"><div class="radius-box" style="border-radius:10px">10px</div><div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:&#39;JetBrains Mono&#39;,monospace">--r-md</div><div style="font-size:10px;color:var(--txt3)">按钮/输入框</div></div>
+    <div style="text-align:center"><div class="radius-box" style="border-radius:16px">16px</div><div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:&#39;JetBrains Mono&#39;,monospace">--r-lg</div><div style="font-size:10px;color:var(--txt3)">卡片/容器</div></div>
+    <div style="text-align:center"><div class="radius-box" style="border-radius:24px">24px</div><div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:&#39;JetBrains Mono&#39;,monospace">--r-xl</div><div style="font-size:10px;color:var(--txt3)">弹窗/Banner</div></div>
+  </div>
+
+  <div class="subsection-title">阴影（3 档 · 暖色调）</div>
+  <div class="demo-row" style="background:var(--bg);padding:32px;border-radius:var(--r-lg)">
+    <div style="text-align:center">
+      <div class="shadow-box" style="box-shadow:var(--sh-0)">sh-0</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:8px;font-family:&#39;JetBrains Mono&#39;,monospace">--sh-0</div>
+      <div style="font-size:10px;color:var(--txt3)">默认卡片</div>
+    </div>
+    <div style="text-align:center">
+      <div class="shadow-box" style="box-shadow:var(--sh-1)">sh-1</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:8px;font-family:&#39;JetBrains Mono&#39;,monospace">--sh-1</div>
+      <div style="font-size:10px;color:var(--txt3)">hover 卡片</div>
+    </div>
+    <div style="text-align:center">
+      <div class="shadow-box" style="box-shadow:var(--sh-2)">sh-2</div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:8px;font-family:&#39;JetBrains Mono&#39;,monospace">--sh-2</div>
+      <div style="font-size:10px;color:var(--txt3)">弹窗 / FAB</div>
+    </div>
+  </div>
+  <div class="note">V1.1 取消 1px 边框，纯阴影分层（V1.0 深色底上边框可见度低，V1.1 浅色底纯阴影更干净）。</div>
+</section>
+
+<!-- ===== 动效规范 ===== -->
+<section class="section" id="motion">
+  <div class="section-title">动效规范</div>
+  <div class="section-desc">统一 cubic-bezier(0.16, 1, 0.3, 1) 减速曲线。禁止 spring 回弹，禁止 &gt; 500ms 动画。</div>
+
+  <div class="demo-row">
+    <div style="flex:1;min-width:280px">
+      <div class="anim-demo anim-fade">卡片入场 fadeInUp — 400ms · 30ms stagger</div>
+      <div class="anim-demo anim-scale">弹窗出现 scaleIn — 200ms · 0.96→1</div>
+      <div class="note">点击按钮感受 active 缩放 ↓</div>
+      <button class="btn btn-primary" style="margin-top:8px">点击我试试</button>
+    </div>
+  </div>
+
+  <table class="copy-table" style="margin-top:16px">
+    <thead><tr><th>动效类型</th><th>时长</th><th>缓动</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>卡片入场 stagger</td><td>400ms + 30ms/张</td><td>cubic-bezier(0.16,1,0.3,1)</td><td>最多 8 级</td></tr>
+      <tr><td>按钮 hover</td><td>150ms</td><td>ease-out</td><td>背景色过渡</td></tr>
+      <tr><td>弹窗出现</td><td>200ms scale 0.96→1</td><td>cubic-bezier(0.16,1,0.3,1)</td><td>+ fade in</td></tr>
+      <tr><td>弹窗消失</td><td>150ms scale 1→0.96</td><td>ease-in</td><td>+ fade out</td></tr>
+      <tr><td>Tab 切换</td><td>150ms</td><td>ease-out</td><td>下划线滑动</td></tr>
+      <tr><td>卡片 hover 位移</td><td>200ms</td><td>cubic-bezier(0.16,1,0.3,1)</td><td>translateY(-4px)</td></tr>
+      <tr><td>页面切换</td><td>200ms</td><td>ease-out</td><td>fade in</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===== 图标系统 ===== -->
+<section class="section" id="icons">
+  <div class="section-title">图标系统</div>
+  <div class="section-desc">
+    统一使用<strong>线性图标</strong>（stroke 1.75、圆角端点、24 网格），颜色继承 currentColor，随文字色走。<br>
+    <strong>❌ 一律不用系统 emoji</strong>（🏠💬❤★ 等）——emoji 是「廉价感」头号来源，与暖色/衬线的高级调性冲突。推荐用 Lucide / Phosphor 一类线性图标库，保持全站描边粗细一致。
+  </div>
+
+  <div class="subsection-title">通用图标集</div>
+  <div class="icon-grid">
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><div class="icon-name">home</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg><div class="icon-name">chat</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M4 10v4M8 6v12M12 3v18M16 6v12M20 10v4"/></svg><div class="icon-name">sound</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="8" r="4"/></svg><div class="icon-name">user</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><div class="icon-name">mic</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M9 4v16M15 4v16"/></svg><div class="icon-name">pause</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg><div class="icon-name">stop</div></div>
+    <div class="icon-cell"><svg class="ic ic-fill" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><div class="icon-name">play</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20s-7-4.6-9.3-9C1.2 8.3 2.7 5 6.2 5 8.6 5 12 8 12 8s3.4-3 5.8-3c3.5 0 5 3.3 3.5 6-2.3 4.4-9.3 9-9.3 9z"/></svg><div class="icon-name">heart</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8-4.3-4.1 5.9-.9z"/></svg><div class="icon-name">star</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><div class="icon-name">copy</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg><div class="icon-name">bookmark</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg><div class="icon-name">arrow</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M12 8v8M8 12h8"/><circle cx="12" cy="12" r="9"/></svg><div class="icon-name">add</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg><div class="icon-name">list</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg><div class="icon-name">download</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></svg><div class="icon-name">share</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg><div class="icon-name">more</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><div class="icon-name">check</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><div class="icon-name">close</div></div>
+    <div class="icon-cell"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><div class="icon-name">search</div></div>
+  </div>
+  <div class="note">尺寸档：导航 20px · 按钮内 18–20px · 行内数据 14–16px。图标与文字并排时用 <code>gap:4–6px</code>，图标垂直居中。</div>
+
+  <div class="subsection-title">对照：emoji ❌ → 线性图标 ✓</div>
+  <div class="demo-row" style="align-items:center;gap:24px">
+    <div style="font-size:22px">🏠 💬 🎵 👤 ❤ ⭐ 🎤 ⏸</div>
+    <div style="font-size:22px;color:var(--ink)">→</div>
+    <div style="display:flex;gap:14px;color:var(--ink);font-size:22px">
+      <svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+      <svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg>
+      <svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M4 10v4M8 6v12M12 3v18M16 6v12M20 10v4"/></svg>
+      <svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="8" r="4"/></svg>
+      <svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px;color:var(--accent)"><path d="M12 20s-7-4.6-9.3-9C1.2 8.3 2.7 5 6.2 5 8.6 5 12 8 12 8s3.4-3 5.8-3c3.5 0 5 3.3 3.5 6-2.3 4.4-9.3 9-9.3 9z"/></svg>
+      <svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px;color:var(--gold-deep)"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8-4.3-4.1 5.9-.9z"/></svg>
+      <svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      <svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M9 4v16M15 4v16"/></svg>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 声波母题 ===== -->
+<section class="section" id="voice-motif">
+  <div class="section-title">声波母题 <span style="font-weight:400;color:var(--txt3);font-size:16px">Voice motif</span></div>
+  <div class="section-desc">Talko 是语音产品，声波是<strong>独占的签名视觉</strong>——不该只是回放里一排静条，而应升格为系统级母题：live「正在说话/聆听」、加载态、头像呼吸都用它。以下为标准动效组件（均遵守 <code>prefers-reduced-motion</code>）。</div>
+
+  <div class="demo-row" style="gap:36px;align-items:center;background:var(--card);padding:28px 32px;border-radius:var(--r-lg);box-shadow:var(--sh-0)">
+    <div style="text-align:center">
+      <div class="voice-loader"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="note" style="margin-top:12px">加载 / 正在说话<br><code>.voice-loader</code></div>
+    </div>
+    <div style="text-align:center">
+      <div class="voice-live-dot">正在聆听</div>
+      <div class="note" style="margin-top:12px">live 状态点（呼吸）<br><code>.voice-live-dot</code></div>
+    </div>
+    <div style="text-align:center">
+      <div class="avatar avatar-56 avatar-ink" style="animation:breathe 1.6s var(--ease-out) infinite">知</div>
+      <div class="note" style="margin-top:12px">头像呼吸（说话中）<br><code>animation:breathe</code></div>
+    </div>
+  </div>
+  <div class="note">动效 token：<code>@keyframes voicePulse</code>（声条跳动）· <code>@keyframes breathe</code>（呼吸缩放）· <code>--voice-live</code> live 色 · <code>--voice-bg</code> live 底。</div>
+  <div class="note" style="color:var(--txt3)">替代通用 spinner：加载文案「正在回忆…」配声波跳动，把等待也变成品牌表达。空状态、社区封面用它的静态变体。</div>
+</section>
+
+<!-- ===== 按钮 ===== -->
+<section class="section" id="buttons">
+  <div class="section-title">按钮</div>
+  <div class="section-desc">CTA 永远用暖橙（--amber），暖墨黑只做 Secondary 结构性操作。</div>
+
+  <div class="subsection-title">按钮类型</div>
+  <div class="demo-row">
+    <button class="btn btn-primary">Primary · 暖橙 CTA</button>
+    <button class="btn btn-secondary">Secondary · 暖墨黑</button>
+    <button class="btn btn-outline">Outline · 暖墨黑描边</button>
+    <button class="btn btn-ghost">Ghost · 透明</button>
+    <button class="btn btn-danger">Danger · 删除</button>
+  </div>
+  <div class="note">❌ 暖墨黑不做 CTA 主按钮 · ❌ 暖橙不做大面积铺色 · ❌ 渐变按钮背景 · ❌ font-weight 700+ · ❌ 按钮内 emoji</div>
+
+  <div class="subsection-title">按钮尺寸</div>
+  <div class="demo-row">
+    <button class="btn btn-primary btn-sm">小按钮 14px</button>
+    <button class="btn btn-primary">默认 15px</button>
+    <button class="btn btn-primary btn-lg">大按钮 16px</button>
+  </div>
+
+  <div class="subsection-title">按钮状态（五态统一规则）</div>
+  <div class="demo-row" style="align-items:center">
+    <button class="btn btn-primary">默认</button>
+    <button class="btn btn-primary" style="background:var(--amber-hover)">hover · 变亮</button>
+    <button class="btn btn-primary" style="background:var(--amber-deep);transform:scale(.97)">active · 变深</button>
+    <button class="btn btn-primary" style="outline:2px solid var(--ring);outline-offset:2px">focus · 焦点环</button>
+    <button class="btn btn-primary" disabled>disabled</button>
+  </div>
+  <div class="note"><strong>hover 变亮</strong>（迎上来）→ <strong>active 变深 + 轻微缩放</strong>（被按下）→ <strong>focus-visible 2px 暖橙焦点环</strong>（键盘可达）→ <strong>disabled 半透明 + 禁指针</strong>。Secondary（暖墨黑）、Danger（红）同理。字号 15px、字重 650（四分之一档，仍守禁 700+）。</div>
+
+  <div class="subsection-title">实际场景</div>
+  <div class="demo-row">
+    <button class="btn btn-primary">开始 Talk</button>
+    <button class="btn btn-primary">立即购买</button>
+    <button class="btn btn-primary">登录</button>
+    <button class="btn btn-secondary">保存</button>
+    <button class="btn btn-outline">跳过</button>
+    <button class="btn btn-ghost">取消</button>
+    <button class="btn btn-danger">结束 Talk</button>
+  </div>
+</section>
+
+<!-- ===== 输入框 ===== -->
+<section class="section" id="inputs">
+  <div class="section-title">输入框</div>
+  <div class="section-desc">Focus 状态用暖墨黑边框（结构性），错误用 danger 暖红。</div>
+
+  <div style="max-width:420px">
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:6px">默认状态</div>
+      <input class="input-field" placeholder="输入手机号">
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;color:var(--ink);margin-bottom:6px">Focus 状态 — 暖墨黑边框</div>
+      <input class="input-field" style="border-color:var(--ink)" placeholder="输入验证码" value="1234">
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;color:var(--danger);margin-bottom:6px">错误状态 — 暖红边框</div>
+      <input class="input-field error" placeholder="输入密码" value="••••••">
+      <div style="font-size:12px;color:var(--danger);margin-top:4px">密码长度不足 8 位</div>
+    </div>
+    <div>
+      <div style="font-size:13px;color:var(--txt3);margin-bottom:6px">禁用状态</div>
+      <input class="input-field" style="border-color:var(--line);background:var(--bg3);color:var(--txt3)" placeholder="禁用" disabled="">
+    </div>
+  </div>
+</section>
+
+<!-- ===== 标签 / 徽章 ===== -->
+<section class="section" id="tags">
+  <div class="section-title">标签 / 徽章</div>
+  <div class="section-desc">场景标签用暖墨黑底，Talker 标签用暖金底，推荐徽章用暖橙实色。</div>
+
+  <div class="subsection-title">标签类型</div>
+  <div class="demo-row">
+    <span class="tag tag-scene">职场</span>
+    <span class="tag tag-scene">成长</span>
+    <span class="tag tag-talker">知微</span>
+    <span class="tag tag-talker">金句标记</span>
+    <span class="tag tag-identity">专业 Talker</span>
+    <span class="tag tag-recommend" style="background:var(--amber);color:#fff">★ 推荐</span>
+    <span class="tag tag-warning">录制中</span>
+    <span class="tag tag-success">已完成</span>
+  </div>
+
+  <div class="subsection-title">实际场景</div>
+  <div class="demo-row">
+    <div style="padding:16px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-0)">
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <span class="tag tag-scene">职场</span>
+        <span class="tag tag-talker">知微</span>
+      </div>
+      <div style="font-size:15px;font-weight:500;color:var(--txt);margin-bottom:4px">第一次当主管，团队不服我怎么办</div>
+      <div style="font-size:13px;color:var(--txt2)">2026-07-04 · 时长 23 分钟</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 头像 ===== -->
+<section class="section" id="avatars">
+  <div class="section-title">头像</div>
+  <div class="section-desc">渐变底用 --grad-ink（暖墨黑渐变）。替代原紫蓝渐变。</div>
+
+  <div class="demo-row">
+    <div style="text-align:center"><div class="avatar avatar-28 avatar-ink">T</div><div style="font-size:11px;color:var(--txt3);margin-top:6px">28×28</div><div style="font-size:10px;color:var(--txt3)">导航栏</div></div>
+    <div style="text-align:center"><div class="avatar avatar-40 avatar-ink">T</div><div style="font-size:11px;color:var(--txt3);margin-top:6px">40×40</div><div style="font-size:10px;color:var(--txt3)">卡片/评论</div></div>
+    <div style="text-align:center"><div class="avatar avatar-56 avatar-ink">T</div><div style="font-size:11px;color:var(--txt3);margin-top:6px">56×56</div><div style="font-size:10px;color:var(--txt3)">详情页</div></div>
+    <div style="text-align:center"><div class="avatar avatar-64 avatar-ink">T</div><div style="font-size:11px;color:var(--txt3);margin-top:6px">64×64</div><div style="font-size:10px;color:var(--txt3)">用户中心</div></div>
+    <div style="text-align:center"><div class="avatar avatar-56 avatar-warm">T</div><div style="font-size:11px;color:var(--txt3);margin-top:6px">56×56</div><div style="font-size:10px;color:var(--txt3)">品牌渐变</div></div>
+  </div>
+</section>
+
+<!-- ===== 卡片 ===== -->
+<section class="section" id="cards">
+  <div class="section-title">卡片</div>
+  <div class="section-desc">纯白底 + 纯阴影分层（取消 1px 边框）。hover 上移 4px + 阴影加深。</div>
+
+  <div class="demo-row">
+    <div class="demo-card" style="flex:1;min-width:280px;max-width:360px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div class="avatar avatar-40 avatar-ink">知</div>
+        <div>
+          <div style="font-size:15px;font-weight:600;color:var(--txt)">知微 · 职场导师</div>
+          <div style="font-size:12px;color:var(--txt2)">用提问引导深度思考</div>
+        </div>
+      </div>
+      <div style="font-family:&#39;Noto Serif SC&#39;,serif;font-size:17px;color:var(--txt);margin-bottom:8px;font-style:italic">「慢慢说，我在听。」</div>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <span class="tag tag-scene">职场</span>
+        <span class="tag tag-talker">知微</span>
+      </div>
+      <button class="btn btn-primary btn-sm">开始 Talk</button>
+    </div>
+    <div class="demo-card" style="flex:1;min-width:280px;max-width:360px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div class="avatar avatar-40 avatar-warm">暖</div>
+        <div>
+          <div style="font-size:15px;font-weight:600;color:var(--txt)">暖阳 · 情感陪伴</div>
+          <div style="font-size:12px;color:var(--txt2)">温柔倾听，给你安全感</div>
+        </div>
+      </div>
+      <div style="font-family:&#39;Noto Serif SC&#39;,serif;font-size:17px;color:var(--txt);margin-bottom:8px;font-style:italic">「慢慢说，我在听。」</div>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <span class="tag tag-scene">情感</span>
+        <span class="tag tag-talker">暖阳</span>
+      </div>
+      <button class="btn btn-primary btn-sm">开始 Talk</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 导航栏 ===== -->
+<section class="section" id="navbars">
+  <div class="section-title">导航栏</div>
+  <div class="section-desc">PC 端顶部导航 + 移动端底部 Tab Bar。Active 态用暖墨黑底（结构性选中）。</div>
+
+  <div class="subsection-title">PC 端顶部导航</div>
+  <div class="demo-topnav">
+    <div class="logo">Talko</div>
+    <div class="nav-item active">首页</div>
+    <div class="nav-item">Talk</div>
+    <div class="nav-item">记录</div>
+    <div class="nav-item">声声漫</div>
+    <div class="nav-right">
+      <div class="nav-time">⏱ 128 分钟</div>
+      <div class="avatar avatar-28 avatar-ink">张</div>
+    </div>
+  </div>
+
+  <div class="subsection-title">移动端底部 Tab Bar</div>
+  <div class="demo-bottomnav" style="max-width:400px">
+    <div class="bn-item active"><svg class="ic" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>首页</div>
+    <div class="bn-item"><svg class="ic" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg>Talk</div>
+    <div class="bn-item"><svg class="ic" viewBox="0 0 24 24"><path d="M4 10v4M8 6v12M12 3v18M16 6v12M20 10v4"/></svg>声声漫</div>
+    <div class="bn-item"><svg class="ic" viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="8" r="4"/></svg>我的</div>
+  </div>
+</section>
+
+<!-- ===== 弹窗 / Toast ===== -->
+<section class="section" id="modals">
+  <div class="section-title">弹窗 / Toast</div>
+  <div class="section-desc">遮罩 rgba(60,40,20,0.3) + blur(4px)。容器白底 + --r-xl 圆角 + --sh-2 阴影。</div>
+
+  <div class="subsection-title">弹窗</div>
+  <div class="demo-modal-overlay" style="max-width:520px">
+    <div class="demo-modal">
+      <div style="font-family:&#39;Noto Serif SC&#39;,serif;font-size:20px;font-weight:600;color:var(--txt);margin-bottom:12px">确认购买</div>
+      <div style="font-size:15px;color:var(--txt2);margin-bottom:24px;line-height:1.6">购买 60 分钟时长包，支付 ¥29.9。时长永久有效，无使用期限。</div>
+      <div style="display:flex;gap:12px;justify-content:flex-end">
+        <button class="btn btn-ghost">取消</button>
+        <button class="btn btn-primary">确认购买</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection-title">Toast 提示</div>
+  <div class="demo-toast">✓ 时长已到账</div>
+  <div class="note" style="margin-top:8px">底部居中 · 距底 48px · 2.5s 自动消失 · 200ms slide up + fade</div>
+</section>
+
+<!-- ===== 卡片等高规则 ===== -->
+<section class="section" id="card-equal-height">
+  <div class="section-title">卡片等高规则</div>
+  <div class="section-desc">同一网格内的卡片必须视觉等高，不因内容长短导致高低不齐。</div>
+
+  <div class="subsection-title">约束项</div>
+  <table class="copy-table">
+    <thead><tr><th style="width:140px">约束项</th><th>实现方式</th></tr></thead>
+    <tbody>
+      <tr><td>照片区域</td><td>固定高度（如 Talker 卡片 280px），不允许弹性伸缩</td></tr>
+      <tr><td>金句 / 引言</td><td><code>min-height</code> 固定两行高度 + <code>-webkit-line-clamp:2</code> 截断</td></tr>
+      <tr><td>标签行</td><td><code>min-height</code> 固定一行高度</td></tr>
+      <tr><td>正文区</td><td><code>flex-shrink:0</code>，不被压缩</td></tr>
+      <tr><td>网格容器</td><td><code>grid</code> 默认 <code>align-items:stretch</code>（同行卡片等高）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="subsection-title" style="margin-top:16px">反例</div>
+  <div class="note" style="color:var(--danger)">❌ 照片用 <code>flex:1</code> 弹性高度 → 小屏卡片缩小</div>
+  <div class="note" style="color:var(--danger)">❌ 金句不限行数 → 一行和两行卡片高度不同</div>
+  <div class="note" style="color:var(--danger)">❌ 正文区不加 <code>flex-shrink:0</code> → 被 flex 布局压缩</div>
+</section>
+
+<!-- ===== 文案调性 ===== -->
+<section class="section" id="copy">
+  <div class="section-title">文案调性</div>
+  <div class="section-desc">有人味、不机械、不催促。用对话感而非系统提示音。</div>
+
+  <table class="copy-table">
+    <thead><tr><th style="width:120px">场景</th><th>不要写</th><th>写</th></tr></thead>
+    <tbody>
+      <tr><td>空状态</td><td class="copy-bad">暂无内容，快去发布吧！</td><td class="copy-good">这里还是安静的，等第一条漫谈。</td></tr>
+      <tr><td>AI 提示</td><td class="copy-bad">本文由 AI 生成</td><td class="copy-good">内容与 AI 共创，已标注</td></tr>
+      <tr><td>加载</td><td class="copy-bad">加载中…</td><td class="copy-good">正在回忆…</td></tr>
+      <tr><td>关注按钮</td><td class="copy-bad">+ 关注</td><td class="copy-good">也想听见 TA</td></tr>
+      <tr><td>收藏按钮</td><td class="copy-bad">⭐ 收藏</td><td class="copy-good">存入抽屉</td></tr>
+      <tr><td>购买成功</td><td class="copy-bad">购买成功！</td><td class="copy-good">时长已到账</td></tr>
+      <tr><td>时长不足</td><td class="copy-bad">余额不足，请充值</td><td class="copy-good">时长快用完了，续一段？</td></tr>
+      <tr><td>删除确认</td><td class="copy-bad">确定删除？此操作不可撤销</td><td class="copy-good">删掉就找不回来了，确定吗？</td></tr>
+      <tr><td>登录过期</td><td class="copy-bad">登录已过期，请重新登录</td><td class="copy-good">换个姿势，重新登录一下</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===== Talk 场景 ===== -->
+
+<!-- Talker 卡片 -->
+<section class="section" id="talker-card">
+  <div class="section-title">Talker 卡片</div>
+  <div class="section-desc">Talker 选择页的核心组件。白底卡片 + 头像 + 人设金句 + 标签 + CTA。hover 上移 4px。</div>
+  <div class="demo-row">
+    <div class="talker-card">
+      <div class="tc-header">
+        <div class="avatar avatar-40 avatar-ink">知</div>
+        <div>
+          <div class="tc-name">知微 · 职场导师</div>
+          <div class="tc-role">用提问引导深度思考</div>
+        </div>
+      </div>
+      <div class="tc-quote">「真正的答案，往往在你沉默的那一刻浮现。」</div>
+      <div class="tc-tags">
+        <span class="tag tag-scene">职场</span>
+        <span class="tag tag-talker">知微</span>
+        <span class="tag" style="background:var(--warning-bg);color:var(--warning-deep)">限时</span>
+      </div>
+      <div class="tc-footer">
+        <div class="tc-stat"><span>·2.4k Talk</span><span>·4.9 ★</span></div>
+        <button class="btn btn-primary btn-sm">开始 Talk</button>
+      </div>
+    </div>
+    <div class="talker-card">
+      <div class="tc-header">
+        <div class="avatar avatar-40 avatar-warm">暖</div>
+        <div>
+          <div class="tc-name">暖阳 · 情感陪伴</div>
+          <div class="tc-role">温柔倾听，给你安全感</div>
+        </div>
+      </div>
+      <div class="tc-quote">「慢慢说，我在听。」</div>
+      <div class="tc-tags">
+        <span class="tag tag-scene">情感</span>
+        <span class="tag tag-talker">暖阳</span>
+      </div>
+      <div class="tc-footer">
+        <div class="tc-stat"><span>·3.1k Talk</span><span>·4.9 ★</span></div>
+        <button class="btn btn-primary btn-sm">开始 Talk</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 对话气泡 -->
+<section class="section" id="chat-bubble">
+  <div class="section-title">对话气泡</div>
+  <div class="section-desc">Talk 进行中的聊天气泡。AI 气泡白底 + 左下小圆角；用户气泡暖墨黑底 + 右下小圆角。<strong>单人对谈不显示名字</strong>（用户知道对方是谁），群对谈才需名字标识。</div>
+  <div class="chat-area">
+    <div class="chat-msg">
+      <div class="msg-avatar ai">知</div>
+      <div class="msg-body">
+        <div class="msg-bubble ai">你好，我是知微。今天想聊点什么？不用急，慢慢说，我在听。</div>
+        <div class="msg-time">14:32</div>
+      </div>
+    </div>
+    <div class="chat-msg user">
+      <div class="msg-avatar user">我</div>
+      <div class="msg-body">
+        <div class="msg-bubble user">最近工作中遇到一个选择，不知道该不该跳槽。</div>
+        <div class="msg-time">14:33</div>
+      </div>
+    </div>
+    <div class="chat-msg">
+      <div class="msg-avatar ai">知</div>
+      <div class="msg-body">
+        <div class="msg-bubble ai">跳槽是手段，不是目的。在你做决定之前，我想先了解——是什么让你开始思考这个问题？</div>
+        <div class="msg-time">14:33</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 语音波形 -->
+<section class="section" id="waveform">
+  <div class="section-title">语音波形</div>
+  <div class="section-desc">录音回放组件。暖墨黑未播放 + 暖橙当前播放 + 半透明已播放。播放按钮暖墨黑底。</div>
+  <div class="demo-row" style="flex-direction:column;align-items:flex-start;gap:16px">
+    <div class="waveform-box">
+      <div class="waveform-bar">
+        <span class="wbar played" style="height:60%"></span><span class="wbar played" style="height:80%"></span><span class="wbar played" style="height:45%"></span><span class="wbar played" style="height:90%"></span><span class="wbar played" style="height:70%"></span><span class="wbar played" style="height:55%"></span><span class="wbar played" style="height:85%"></span><span class="wbar active" style="height:75%"></span><span class="wbar" style="height:50%"></span><span class="wbar" style="height:65%"></span><span class="wbar" style="height:40%"></span><span class="wbar" style="height:80%"></span><span class="wbar" style="height:55%"></span><span class="wbar" style="height:70%"></span><span class="wbar" style="height:45%"></span><span class="wbar" style="height:60%"></span><span class="wbar" style="height:35%"></span><span class="wbar" style="height:75%"></span><span class="wbar" style="height:50%"></span><span class="wbar" style="height:65%"></span><span class="wbar" style="height:40%"></span><span class="wbar" style="height:55%"></span><span class="wbar" style="height:30%"></span><span class="wbar" style="height:60%"></span>
+      </div>
+      <div class="waveform-info">
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="waveform-play"><svg class="ic ic-fill" viewBox="0 0 24 24" style="width:16px;height:16px;margin-left:2px"><path d="M8 5v14l11-7z"/></svg></button>
+          <div>
+            <div class="waveform-time">02:34 / 05:12</div>
+            <div class="waveform-duration">Talker: 知微</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <span class="tag" style="background:var(--ink-bg);color:var(--ink)">1.0x</span>
+          <span class="tag" style="background:var(--ink-bg);color:var(--ink)">下载</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 对话实录 -->
+<section class="section" id="transcript">
+  <div class="section-title">对话实录</div>
+  <div class="section-desc">Talk 结束后的逐句文字记录。说话者 + 时间码 + 文字。AI 用暖墨黑，用户用暖橙。</div>
+  <div class="transcript-box">
+    <div class="transcript-item">
+      <div class="ts-speaker">知微</div>
+      <div class="ts-time">00:12</div>
+      <div class="ts-text">你好，我是知微。今天想聊些什么？不用急，慢慢说。</div>
+    </div>
+    <div class="transcript-item">
+      <div class="ts-speaker user">我</div>
+      <div class="ts-time">00:18</div>
+      <div class="ts-text">最近在考虑要不要换工作，有点纠结。</div>
+    </div>
+    <div class="transcript-item">
+      <div class="ts-speaker">知微</div>
+      <div class="ts-time">00:24</div>
+      <div class="ts-text">跳槽是手段，不是目的。是什么让你开始思考这个问题的？</div>
+    </div>
+    <div class="transcript-item">
+      <div class="ts-speaker user">我</div>
+      <div class="ts-time">00:35</div>
+      <div class="ts-text">主要是觉得现在的工作没有成长空间了……</div>
+    </div>
+  </div>
+</section>
+
+<!-- 时长面板 -->
+<section class="section" id="timer">
+  <div class="section-title">时长面板</div>
+  <div class="section-desc">Talk 进行中的实时时长消耗。正常暖墨黑环 → 不足时冷红环。秒级实时扣减显示。</div>
+  <div class="demo-row">
+    <div class="timer-panel">
+      <div class="timer-circle">
+        <div class="tc-val">42:18</div>
+        <div class="tc-label">剩余时长</div>
+      </div>
+      <div class="timer-status">Talk 进行中 · 知微</div>
+      <button class="btn btn-outline btn-sm" style="width:100%">+ 购买时长</button>
+      <div class="timer-deduct" style="margin-top:8px">消耗速率：1.0 分钟 / 分钟</div>
+    </div>
+    <div class="timer-panel">
+      <div class="timer-circle warn">
+        <div class="tc-val" style="color:var(--warning-deep)">05:32</div>
+        <div class="tc-label">剩余不足</div>
+      </div>
+      <div class="timer-status" style="color:var(--warning-deep)">时长即将耗尽</div>
+      <button class="btn btn-primary btn-sm" style="width:100%">续费继续</button>
+      <div class="timer-deduct" style="margin-top:8px">消耗速率：1.0 分钟 / 分钟</div>
+    </div>
+    <div class="timer-panel">
+      <div class="timer-circle danger">
+        <div class="tc-val" style="color:var(--danger)">00:00</div>
+        <div class="tc-label">已耗尽</div>
+      </div>
+      <div class="timer-status" style="color:var(--danger)">Talk 已暂停</div>
+      <button class="btn btn-danger btn-sm" style="width:100%">购买时长恢复</button>
+    </div>
+  </div>
+</section>
+
+<!-- Talk 控制条 -->
+<section class="section" id="talk-control">
+  <div class="section-title">Talk 控制条</div>
+  <div class="section-desc">Talk 进行中的底部控制栏。静音/暂停/结束三键 + 实时时长与消耗。暂停键最大（主操作），结束键冷红（危险操作）。</div>
+  <div class="demo-row" style="flex-direction:column;align-items:center;gap:16px">
+    <div class="talk-control">
+      <button class="tc-btn mute" title="静音"><svg class="ic" viewBox="0 0 24 24" style="width:20px;height:20px"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <div class="tc-info">
+        <div class="tc-time">12:34</div>
+        <div class="tc-cost">已消耗 12 分钟</div>
+      </div>
+      <button class="tc-btn pause" title="暂停"><svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M9 4v16M15 4v16"/></svg></button>
+      <button class="tc-btn end" title="结束"><svg class="ic" viewBox="0 0 24 24" style="width:20px;height:20px"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
+    </div>
+    <div class="talk-control" style="background:var(--ink);color:#F6F4F1">
+      <button class="tc-btn mute" style="background:rgba(255,255,255,0.1);color:#F6F4F1" title="静音"><svg class="ic" viewBox="0 0 24 24" style="width:20px;height:20px"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <div class="tc-info">
+        <div class="tc-time" style="color:#F6F4F1">12:34</div>
+        <div class="tc-cost" style="color:rgba(246,244,241,0.6)">已消耗 12 分钟</div>
+      </div>
+      <button class="tc-btn pause" title="暂停"><svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M9 4v16M15 4v16"/></svg></button>
+      <button class="tc-btn end" title="结束"><svg class="ic" viewBox="0 0 24 24" style="width:20px;height:20px"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
+    </div>
+  </div>
+</section>
+
+<!-- 记录卡片 -->
+<section class="section" id="record-card">
+  <div class="section-title">Talk 记录卡片</div>
+  <div class="section-desc">「我的记录」列表项。展示场景标签 + Talker + 摘要 + 时长 + 日期。hover 变灰底。</div>
+  <div class="demo-row" style="flex-direction:column;align-items:flex-start;gap:12px">
+    <div class="record-card">
+      <div class="rc-top">
+        <div class="rc-tags">
+          <span class="tag tag-scene">职场</span>
+          <span class="tag tag-talker">知微</span>
+        </div>
+        <div class="rc-date">2026.07.04</div>
+      </div>
+      <div class="rc-title">关于跳槽时机的深度对话</div>
+      <div class="rc-summary">探讨了跳槽的真正动因——不是逃避现状，而是寻找下一个成长曲线。关键问题：三年后你想成为什么样的人？</div>
+      <div class="rc-meta">
+        <span>时长 <span class="rc-hl">28 分钟</span></span>
+        <span>12 条对话</span>
+        <span>已导出</span>
+      </div>
+    </div>
+    <div class="record-card">
+      <div class="rc-top">
+        <div class="rc-tags">
+          <span class="tag tag-scene">情感</span>
+          <span class="tag tag-talker">暖阳</span>
+        </div>
+        <div class="rc-date">2026.07.02</div>
+      </div>
+      <div class="rc-title">和父亲的矛盾怎么化解</div>
+      <div class="rc-summary">从一次争吵出发，聊到代际差异和表达爱的方式。意识到父亲的「控制」背后是担心。</div>
+      <div class="rc-meta">
+        <span>时长 <span class="rc-hl">45 分钟</span></span>
+        <span>18 条对话</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 社区场景 ===== -->
+
+<!-- 社区卡片 -->
+<section class="section" id="feed-card">
+  <div class="section-title">社区信息流卡片</div>
+  <div class="section-desc">「声声漫」Feed 内容卡。顶部波形可视化 + AI 共创标签 + 标题 + 摘要 + 作者 + 互动数据。</div>
+  <div class="demo-row">
+    <div class="feed-card">
+      <div class="fc-media">
+        <div class="fc-wave">
+          <span style="height:30%"></span><span style="height:60%"></span><span class="active" style="height:80%"></span><span style="height:45%"></span><span style="height:70%"></span><span style="height:55%"></span><span style="height:90%"></span><span style="height:40%"></span><span style="height:65%"></span><span style="height:50%"></span><span style="height:75%"></span><span style="height:35%"></span><span style="height:60%"></span><span style="height:45%"></span><span style="height:70%"></span><span style="height:55%"></span>
+        </div>
+        <div class="fc-badge">AI 共创</div>
+      </div>
+      <div class="fc-body">
+        <div class="fc-title">跳槽不是逃避，是选择下一个自己</div>
+        <div class="fc-desc">和知微聊了一个小时，从「要不要走」聊到「想成为谁」。原来纠结的不是跳槽，是害怕选错。</div>
+        <div class="fc-footer">
+          <div class="fc-author">
+            <div class="avatar avatar-28 avatar-warm">林</div>
+            <div class="fc-author-name">林深见鹿</div>
+          </div>
+          <div class="fc-stats">
+            <span><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M12 20s-7-4.6-9.3-9C1.2 8.3 2.7 5 6.2 5 8.6 5 12 8 12 8s3.4-3 5.8-3c3.5 0 5 3.3 3.5 6-2.3 4.4-9.3 9-9.3 9z"/></svg>234</span>
+            <span><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg>18</span>
+            <span><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8-4.3-4.1 5.9-.9z"/></svg>56</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="feed-card">
+      <div class="fc-media" style="background:var(--bg)">
+        <div class="fc-wave">
+          <span style="height:45%"></span><span style="height:70%"></span><span style="height:50%"></span><span class="active" style="height:85%"></span><span style="height:60%"></span><span style="height:40%"></span><span style="height:75%"></span><span style="height:55%"></span><span style="height:65%"></span><span style="height:45%"></span><span style="height:80%"></span><span style="height:35%"></span><span style="height:60%"></span><span style="height:50%"></span><span style="height:70%"></span><span style="height:45%"></span>
+        </div>
+        <div class="fc-badge">UGC</div>
+      </div>
+      <div class="fc-body">
+        <div class="fc-title">和父亲吵完架后，我打了这通电话</div>
+        <div class="fc-desc">暖阳没有劝我懂事，也没有站我爸那边。她只是问我：你觉得他控制你的时候，他在害怕什么？</div>
+        <div class="fc-footer">
+          <div class="fc-author">
+            <div class="avatar avatar-28 avatar-ink">月</div>
+            <div class="fc-author-name">月落星沉</div>
+          </div>
+          <div class="fc-stats">
+            <span><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M12 20s-7-4.6-9.3-9C1.2 8.3 2.7 5 6.2 5 8.6 5 12 8 12 8s3.4-3 5.8-3c3.5 0 5 3.3 3.5 6-2.3 4.4-9.3 9-9.3 9z"/></svg>1.2k</span>
+            <span><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/></svg>47</span>
+            <span><svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8-4.3-4.1 5.9-.9z"/></svg>189</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 对话片段 -->
+<section class="section" id="dialog-snippet">
+  <div class="section-title">对话片段（社区内嵌）</div>
+  <div class="section-desc">社区帖子中引用的 Talk 对话片段。暖灰底 + 暖橙左边框。AI 文字衬线斜体，用户文字常规。</div>
+  <div class="demo-row" style="flex-direction:column;align-items:flex-start;gap:16px">
+    <div class="snippet-box">
+      <div class="sn-speaker ai">知微</div>
+      <div class="sn-text ai">「跳槽是手段，不是目的。三年后你想成为什么样的人？」</div>
+      <div class="sn-speaker user" style="margin-top:12px">我</div>
+      <div class="sn-text">我想成为一个能独立带项目的人，但在现在的公司感觉没这个机会。</div>
+      <div class="sn-actions">
+        <span><svg class="ic ic-fill" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M8 5v14l11-7z"/></svg> 播放原声</span>
+        <span><svg class="ic" viewBox="0 0 24 24" style="width:13px;height:13px"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> 复制</span>
+        <span><svg class="ic" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M6 3h12v18l-6-4-6 4z"/></svg> 收藏</span>
+      </div>
+    </div>
+    <div class="snippet-box" style="border-left-color:var(--ink)">
+      <div class="sn-speaker ai">暖阳</div>
+      <div class="sn-text ai">「你觉得他控制你的时候，他在害怕什么？」</div>
+      <div class="sn-actions">
+        <span><svg class="ic ic-fill" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M8 5v14l11-7z"/></svg> 播放原声</span>
+        <span><svg class="ic" viewBox="0 0 24 24" style="width:13px;height:13px"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg> 复制</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 评论组件 -->
+<section class="section" id="comment">
+  <div class="section-title">评论组件</div>
+  <div class="section-desc">社区帖子评论区。头像 + 用户名 + 时间 + 内容 + 点赞/回复。点赞激活态用暖橙。</div>
+  <div style="max-width:480px">
+    <div class="comment-item">
+      <div class="cm-avatar" style="background:var(--ink)">林</div>
+      <div class="cm-body">
+        <div class="cm-header">
+          <div class="cm-name">林深见鹿</div>
+          <div class="cm-time">2 小时前</div>
+        </div>
+        <div class="cm-text">「三年后你想成为什么样的人」——这句话我也被问到了，当时直接愣住。知微真的有一种让人安静的魔力。</div>
+        <div class="cm-actions">
+          <span class="liked"><svg class="ic ic-fill" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M12 20s-7-4.6-9.3-9C1.2 8.3 2.7 5 6.2 5 8.6 5 12 8 12 8s3.4-3 5.8-3c3.5 0 5 3.3 3.5 6-2.3 4.4-9.3 9-9.3 9z"/></svg>23</span>
+          <span>回复</span>
+        </div>
+      </div>
+    </div>
+    <div class="comment-item">
+      <div class="cm-avatar" style="background:var(--accent)">月</div>
+      <div class="cm-body">
+        <div class="cm-header">
+          <div class="cm-name">月落星沉</div>
+          <div class="cm-time">1 小时前</div>
+        </div>
+        <div class="cm-text">楼主说的「不是劝我懂事」太有共鸣了。大部分人都急着给建议，但暖阳只是陪你想。</div>
+        <div class="cm-actions">
+          <span><svg class="ic" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M12 20s-7-4.6-9.3-9C1.2 8.3 2.7 5 6.2 5 8.6 5 12 8 12 8s3.4-3 5.8-3c3.5 0 5 3.3 3.5 6-2.3 4.4-9.3 9-9.3 9z"/></svg>8</span>
+          <span>回复</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 发布流程 -->
+<section class="section" id="publish-flow">
+  <div class="section-title">发布流程</div>
+  <div class="section-desc">从 Talk 记录发布到社区的三步流程。选中片段 → 编辑文案 → 发布。步骤数字暖墨黑圆底，完成变冷绿。</div>
+  <div style="max-width:480px">
+    <div class="publish-step">
+      <div class="ps-num done">✓</div>
+      <div>
+        <div class="ps-title">选择对话片段</div>
+        <div class="ps-desc">从 Talk 记录中选中 3 段对话</div>
+      </div>
+      <div class="ps-arrow">→</div>
+    </div>
+    <div class="publish-step">
+      <div class="ps-num done">✓</div>
+      <div>
+        <div class="ps-title">编辑标题与文案</div>
+        <div class="ps-desc">添加标题「跳槽不是逃避」和描述</div>
+      </div>
+      <div class="ps-arrow">→</div>
+    </div>
+    <div class="publish-step">
+      <div class="ps-num">3</div>
+      <div>
+        <div class="ps-title">发布到声声漫</div>
+        <div class="ps-desc">选择标签：职场 · 知微 · 成长</div>
+      </div>
+      <div class="ps-arrow">发布</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 权益场景 ===== -->
+
+<!-- 时长条 -->
+<section class="section" id="duration-bar">
+  <div class="section-title">时长条</div>
+  <div class="section-desc">顶部栏 / 个人中心的剩余时长展示。正常暖墨黑填充，不足冷红填充。</div>
+  <div class="demo-row" style="flex-direction:column;align-items:flex-start;gap:16px">
+    <div class="duration-bar-box">
+      <div class="db-header">
+        <div class="db-label">剩余时长</div>
+        <div class="db-value">42:18</div>
+      </div>
+      <div class="duration-bar"><div class="db-fill" style="width:70%"></div></div>
+      <div class="db-footer"><span>已用 18 分钟</span><span>总计 60 分钟</span></div>
+    </div>
+    <div class="duration-bar-box">
+      <div class="db-header">
+        <div class="db-label">剩余时长</div>
+        <div class="db-value warn">05:32</div>
+      </div>
+      <div class="duration-bar"><div class="db-fill warn" style="width:9%"></div></div>
+      <div class="db-footer"><span>已用 54 分钟</span><span>总计 60 分钟</span></div>
+    </div>
+    <div class="duration-bar-box">
+      <div class="db-header">
+        <div class="db-label">剩余时长</div>
+        <div class="db-value danger">00:00</div>
+      </div>
+      <div class="duration-bar"><div class="db-fill danger" style="width:0%"></div></div>
+      <div class="db-footer"><span>已用尽</span><span>已耗尽</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 套餐卡片 -->
+<section class="section" id="package-card">
+  <div class="section-title">套餐卡片</div>
+  <div class="section-desc">购买页套餐展示。推荐套餐暖橙描边 + 角标。价格用等宽字体。</div>
+  <div class="demo-row">
+    <div class="package-card">
+      <div class="pc-name">体验包</div>
+      <div class="pc-desc">初次尝试</div>
+      <div class="pc-price"><span class="pc-amount">¥9</span><span class="pc-unit">/ 30 分钟</span></div>
+      <div class="pc-original">¥15</div>
+      <ul class="pc-features">
+        <li>30 分钟 Talk 时长</li>
+        <li>有效期 7 天</li>
+        <li>全部 Talker 可用</li>
+      </ul>
+      <button class="btn btn-outline btn-sm" style="width:100%">购买</button>
+    </div>
+    <div class="package-card featured">
+      <div class="pc-badge">推荐</div>
+      <div class="pc-name">月度包</div>
+      <div class="pc-desc">高频用户首选</div>
+      <div class="pc-price"><span class="pc-amount">¥39</span><span class="pc-unit">/ 月</span></div>
+      <div class="pc-original">¥60</div>
+      <ul class="pc-features">
+        <li>每月 120 分钟时长</li>
+        <li>有效期 30 天</li>
+        <li>全部 Talker 可用</li>
+        <li>社区发布权限</li>
+      </ul>
+      <button class="btn btn-primary btn-sm" style="width:100%">购买</button>
+    </div>
+    <div class="package-card">
+      <div class="pc-name">年度包</div>
+      <div class="pc-desc">深度对谈者</div>
+      <div class="pc-price"><span class="pc-amount">¥299</span><span class="pc-unit">/ 年</span></div>
+      <div class="pc-original">¥468</div>
+      <ul class="pc-features">
+        <li>每月 200 分钟时长</li>
+        <li>有效期 365 天</li>
+        <li>全部 Talker 可用</li>
+        <li>社区发布权限</li>
+        <li>优先体验新功能</li>
+      </ul>
+      <button class="btn btn-outline btn-sm" style="width:100%">购买</button>
+    </div>
+  </div>
+</section>
+
+<!-- 权益水单 -->
+<section class="section" id="waterbill">
+  <div class="section-title">权益水单</div>
+  <div class="section-desc">时长消耗明细。收入（赠送/购买）冷绿，支出（Talk 消耗）冷红，结余暖墨黑。</div>
+  <div class="waterbill">
+    <div class="wb-header">
+      <div class="wb-title">时长明细</div>
+      <div class="wb-date">2026.07.04</div>
+    </div>
+    <div class="wb-row"><span class="wb-label">注册赠送</span><span class="wb-value plus">+60.00 分钟</span></div>
+    <div class="wb-row"><span class="wb-label">购买月度包</span><span class="wb-value plus">+120.00 分钟</span></div>
+    <div class="wb-row"><span class="wb-label">Talk · 知微 · 职场</span><span class="wb-value minus">-28.00 分钟</span></div>
+    <div class="wb-row"><span class="wb-label">Talk · 暖阳 · 情感</span><span class="wb-value minus">-45.00 分钟</span></div>
+    <div class="wb-row"><span class="wb-label">信用消费</span><span class="wb-value minus">-5.00 分钟</span></div>
+    <div class="wb-total"><span>当前结余</span><span class="wb-value">102.00 分钟</span></div>
+  </div>
+</section>
+
+<!-- ===== 反例清单 ===== -->
+<section class="section" id="anti">
+  <div class="section-title">反例清单</div>
+  <div class="section-desc">以下绝对不要做。出现任何一项视为设计缺陷。</div>
+
+  <div class="anti-item">紫色 / 蓝色主色（#7C3AED / #B794F6 / #60A5FA）</div>
+  <div class="anti-item">深色页面底（#1A1714 / #0F0F1A）— V1.1 全面浅色</div>
+  <div class="anti-item">暖墨黑做 CTA 主按钮（CTA 永远用 --amber 暖橙）</div>
+  <div class="anti-item">暖橙做大面积铺色（橙色饱和度高，大面会廉价）</div>
+  <div class="anti-item">紫蓝渐变文字 linear-gradient(紫, 蓝)</div>
+  <div class="anti-item">微信纯绿按钮 #07C160 作主色</div>
+  <div class="anti-item">「热门」「爆款」「🔥」字样</div>
+  <div class="anti-item">阅读数 / 观看数 / 热度分（社区专属）</div>
+  <div class="anti-item">弹窗在 Feed 中自动弹出</div>
+  <div class="anti-item">红色 + 加粗 + 感叹号组合</div>
+  <div class="anti-item">font-weight: 700+</div>
+  <div class="anti-item">弹性回弹缓动 spring overshoot</div>
+  <div class="anti-item">任何界面 emoji（🏠💬❤★🎤 等）— 一律改用线性图标（见「图标系统」）</div>
+</section>
+
+<!-- ===== 备选皮肤 ===== -->
+<section class="section" id="skins">
+  <div class="section-title">备选皮肤 A / B</div>
+  <div class="section-desc">主系统（上文「光色版 V1.2」）为当前生产方案；方案 A / B 保留作视觉调整、UI 升级或多皮肤 / 季节皮肤备选。</div>
+
+  <!-- 方案 A -->
+  <div class="scheme scheme-a">
+    <div class="scheme-tag">方案 A · 暖米橙 Warm Caramel — 参 FluffyTails · 备选皮肤</div>
+    <div class="scheme-body" style="background:#FAF7F2">
+      <div class="section-label" style="color:#C97D3A">色板</div>
+      <div class="swatch-row">
+        <div class="swatch-sm"><div class="swatch-color a-bg"></div><div class="swatch-label">页面底</div><div class="swatch-hex">#FAF7F2</div></div>
+        <div class="swatch-sm"><div class="swatch-color a-card"></div><div class="swatch-label">卡片白</div><div class="swatch-hex">#FFFFFF</div></div>
+        <div class="swatch-sm"><div class="swatch-color a-card-warm"></div><div class="swatch-label">暖卡片</div><div class="swatch-hex">#F4E8D8</div></div>
+        <div class="swatch-sm"><div class="swatch-color a-primary"></div><div class="swatch-label">主色</div><div class="swatch-hex">#C97D3A</div></div>
+        <div class="swatch-sm"><div class="swatch-color a-primary-light"></div><div class="swatch-label">浅主色</div><div class="swatch-hex">#E8A856</div></div>
+        <div class="swatch-sm"><div class="swatch-color a-accent"></div><div class="swatch-label">点缀黄</div><div class="swatch-hex">#F5C842</div></div>
+        <div class="swatch-sm"><div class="swatch-color a-border"></div><div class="swatch-label">边框</div><div class="swatch-hex">#E8DDD0</div></div>
+      </div>
+      <div class="section-label" style="color:#C97D3A">标题渐变</div>
+      <div class="gradient-text a-grad-text" style="margin-bottom:12px">Talko · 慢慢说，我在听</div>
+      <div class="section-label" style="color:#C97D3A">卡片 + 按钮</div>
+      <div class="card-demo a-card-demo">
+        <div class="avatar-demo a-avatar">T</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:#2A2520;margin-bottom:2px">知微 · 职场导师</div>
+          <div style="font-size:12px;color:#8A8278">用提问引导深度思考</div>
+          <div style="margin-top:6px"><span class="badge-demo a-badge">★ 推荐</span></div>
+        </div>
+        <button class="btn-demo a-btn">开始 Talk</button>
+      </div>
+      <div style="margin-top:12px;padding:14px;background:#F4E8D8;border-radius:10px;font-size:12px;color:#8A7A60;line-height:1.5">
+        <strong>定位：</strong>温暖治愈 · 陪伴感 · 参 FluffyTails。可作为多皮肤/季节皮肤使用。
+      </div>
+    </div>
+  </div>
+
+  <!-- 方案 B -->
+  <div class="scheme scheme-b">
+    <div class="scheme-tag">方案 B · 冷蓝橙 Cool Indigo — 参 Jobportal · 备选皮肤</div>
+    <div class="scheme-body" style="background:#EEF2FB">
+      <div class="section-label" style="color:#3B5BDB">色板</div>
+      <div class="swatch-row">
+        <div class="swatch-sm"><div class="swatch-color b-bg"></div><div class="swatch-label">页面底</div><div class="swatch-hex">#EEF2FB</div></div>
+        <div class="swatch-sm"><div class="swatch-color b-card"></div><div class="swatch-label">卡片白</div><div class="swatch-hex">#FFFFFF</div></div>
+        <div class="swatch-sm"><div class="swatch-color b-card-cool"></div><div class="swatch-label">冷卡片</div><div class="swatch-hex">#E0E7F4</div></div>
+        <div class="swatch-sm"><div class="swatch-color b-primary"></div><div class="swatch-label">主色</div><div class="swatch-hex">#3B5BDB</div></div>
+        <div class="swatch-sm"><div class="swatch-color b-primary-light"></div><div class="swatch-label">浅主色</div><div class="swatch-hex">#7B95F0</div></div>
+        <div class="swatch-sm"><div class="swatch-color b-accent"></div><div class="swatch-label">点缀橙</div><div class="swatch-hex">#F97316</div></div>
+        <div class="swatch-sm"><div class="swatch-color b-border"></div><div class="swatch-label">边框</div><div class="swatch-hex">#D5DDF0</div></div>
+      </div>
+      <div class="section-label" style="color:#3B5BDB">标题渐变</div>
+      <div class="gradient-text b-grad-text" style="margin-bottom:12px">Talko · 慢慢说，我在听</div>
+      <div class="section-label" style="color:#3B5BDB">卡片 + 按钮</div>
+      <div class="card-demo b-card-demo">
+        <div class="avatar-demo b-avatar">T</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:#1A1A2E;margin-bottom:2px">知微 · 职场导师</div>
+          <div style="font-size:12px;color:#6B7280">用提问引导深度思考</div>
+          <div style="margin-top:6px"><span class="badge-demo b-badge">★ 推荐</span></div>
+        </div>
+        <button class="btn-demo b-btn">开始 Talk</button>
+      </div>
+      <div style="margin-top:12px;padding:14px;background:#E0E7F4;border-radius:10px;font-size:12px;color:#4A5578;line-height:1.5">
+        <strong>定位：</strong>专业清晰 · 工具感 · 参 Jobportal。可作为 B 端/企业版皮肤使用。
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+function scrollToSection(id){
+  document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});
+  document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+  const link=document.querySelector('.nav-link[onclick*="'+id+'"]');
+  if(link)link.classList.add('active');
+}
+</script>
+</body>
+</html>

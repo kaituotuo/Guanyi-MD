@@ -35,6 +35,21 @@ for (const command of ['row-above', 'row-below', 'column-left', 'column-right', 
 }
 assert.match(appSource, /function runPreviewTableCommand\([\s\S]+insertPreviewTableRow[\s\S]+insertPreviewTableColumn[\s\S]+deletePreviewTableRow[\s\S]+deletePreviewTableColumn/,
   'table toolbar commands should mutate the selected row or column through one routed workflow');
+const insertTableStart = appSource.indexOf('function insertTablePure(');
+const insertTableEnd = appSource.indexOf('\n  function markdownTableCountBefore', insertTableStart);
+assert.notEqual(insertTableStart, -1, 'table insertion helper should exist');
+assert.notEqual(insertTableEnd, -1, 'table insertion helper should have a stable boundary');
+const insertTablePure = vm.runInNewContext(`(() => {
+  const TABLE_MAX_ROWS = 8;
+  const TABLE_MAX_COLS = 10;
+  ${appSource.slice(insertTableStart, insertTableEnd)}
+  return insertTablePure;
+})()`);
+const middleInsert = insertTablePure('第一段\n\n第二段', 5, 5, 2, 1);
+assert.match(middleInsert.text, /^第一段\n\n\| 列 1 \|\n\| --- \|\n\|  \|\n\n第二段$/,
+  'a table inserted from a preview caret must stay at that caret instead of appending to the document');
+assert.match(appSource, /function insertTable\([\s\S]+captureImageInsertion\(\{ surface: 'preview' \}\)[\s\S]+selectPreviewTableCell/,
+  'preview table insertion must reuse the caret anchor and restore focus to the inserted cell');
 assert.match(cssSource, /\.editor-preview th, \.editor-preview td \{[\s\S]+height: 48px;[\s\S]+vertical-align: middle/,
   'preview table rows should keep a readable mature-editor default height');
 assert.match(cssSource, /\.editor-preview \.app-table-cell-content \{[\s\S]+min-height: 48px;[\s\S]+line-height: 22px/,

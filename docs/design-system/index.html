@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="观译阅读器设计系统 V1.0 可视手册。">
+  <title>观译阅读器 · 设计系统 V1.0</title>
+  <link rel="stylesheet" href="../../css/app.css">
+  <link rel="stylesheet" href="../../css/home-workspace.css">
+  <style>
+    /* The guide uses product tokens live. Its own classes are isolated from app components. */
+    body.ds-page {
+      min-width: 0;
+      min-height: 100vh;
+      background: var(--ui-color-background-base);
+      color: var(--ui-color-text-primary);
+    }
+    .ds-page *, .ds-page *::before, .ds-page *::after { box-sizing: border-box; }
+    .ds-page a { color: inherit; }
+    .ds-page button { font: inherit; }
+    .ds-page :focus-visible { outline: 2px solid var(--ui-focus-ring); outline-offset: 3px; }
+    .ds-shell { display: grid; grid-template-columns: 246px minmax(0, 1fr); min-height: 100vh; }
+    .ds-rail {
+      position: sticky; top: 0; height: 100vh; min-height: 580px;
+      display: flex; flex-direction: column; gap: 18px; min-width: 0;
+      padding: 26px 16px 20px 20px;
+      border-right: 1px solid var(--ui-color-line-regular);
+      background: var(--ui-color-background-container);
+      z-index: 10;
+    }
+    .ds-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; padding: 2px 5px 16px; border-bottom: 1px solid var(--ui-color-line-regular); }
+    .ds-brand > img { width: 32px; height: 32px; flex: 0 0 32px; }
+    .ds-brand strong { display: block; font: 650 17px/1.2 "Noto Serif SC", "Songti SC", serif; letter-spacing: .03em; }
+    .ds-brand small { display: block; margin-top: 3px; color: var(--ui-color-text-tertiary); font-size: 10px; letter-spacing: .08em; }
+    .ds-rail-label { margin: 0 8px 2px; color: var(--ui-color-text-tertiary); font-size: 10px; font-weight: 650; letter-spacing: .14em; }
+    .ds-nav { min-height: 0; display: grid; align-content: start; gap: 3px; overflow: auto; padding-right: 2px; }
+    .ds-nav a { display: grid; grid-template-columns: 25px 1fr; align-items: center; min-height: 36px; padding: 0 9px; border-radius: 7px; text-decoration: none; color: var(--ui-color-text-secondary); font-size: 12px; }
+    .ds-nav a span { color: var(--ui-color-text-tertiary); font: 10px "SF Mono", Menlo, Consolas, monospace; }
+    .ds-nav a:hover, .ds-nav a.ds-active { background: var(--ui-color-state-pressed-brand); color: var(--ui-color-text-primary); }
+    .ds-nav a.ds-active { box-shadow: inset 3px 0 var(--ui-color-public-normal); font-weight: 650; }
+    .ds-rail-footer { margin-top: auto; border-top: 1px solid var(--ui-color-line-regular); padding: 14px 8px 0; color: var(--ui-color-text-tertiary); font-size: 11px; line-height: 1.6; }
+    .ds-rail-footer a { color: var(--ui-color-text-brand); text-underline-offset: 3px; }
+    .ds-main { min-width: 0; padding: 0 clamp(22px, 5.2vw, 82px) 96px; }
+    .ds-main-inner { max-width: 1160px; margin: 0 auto; }
+    .ds-topline { min-height: 57px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--ui-color-line-light); }
+    .ds-breadcrumb { color: var(--ui-color-text-tertiary); font-size: 11px; letter-spacing: .04em; }
+    .ds-breadcrumb b { color: var(--ui-color-text-primary); font-weight: 550; }
+    .ds-theme-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; border: 1px solid var(--ui-color-line-regular); border-radius: 7px; padding: 0 11px; background: var(--ui-color-background-top); color: var(--ui-color-text-primary); cursor: pointer; font-size: 11px; }
+    .ds-theme-toggle:hover { border-color: var(--ui-color-line-public); color: var(--ui-color-text-brand); }
+    .ds-theme-toggle svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .ds-hero { padding: clamp(40px, 5vw, 72px) 0 38px; border-bottom: 1px solid var(--ui-color-line-regular); }
+    .ds-eyebrow { display: inline-flex; gap: 10px; align-items: center; color: var(--ui-color-text-brand); font: 650 11px/1.3 "SF Mono", Menlo, Consolas, monospace; letter-spacing: .08em; }
+    .ds-eyebrow::before { content: ""; width: 22px; height: 2px; background: var(--ui-color-public-normal); }
+    .ds-hero h1 { margin: 22px 0 17px; font: 650 clamp(34px, 4vw, 55px)/1.2 "Noto Serif SC", "Songti SC", serif; letter-spacing: -.025em; }
+    .ds-hero p { max-width: 700px; margin: 0; color: var(--ui-color-text-secondary); font-size: 15px; line-height: 1.85; }
+    .ds-hero-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 28px; }
+    .ds-tag { display: inline-flex; align-items: center; min-height: 25px; padding: 2px 8px; border: 1px solid var(--ui-color-line-regular); border-radius: 5px; color: var(--ui-color-text-secondary); background: var(--ui-color-background-top); font-size: 10px; }
+    .ds-tag.ds-tag-brand { color: var(--ui-color-text-brand); border-color: var(--ui-color-line-public); background: var(--ui-color-state-pressed-brand); }
+    .ds-section { padding-top: 58px; scroll-margin-top: 24px; }
+    .ds-section-heading { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 12px; align-items: start; margin-bottom: 22px; }
+    .ds-section-heading > span { border-top: 2px solid var(--ui-color-public-normal); padding-top: 8px; color: var(--ui-color-text-brand); font: 11px "SF Mono", Menlo, Consolas, monospace; }
+    .ds-section-heading h2 { margin: 0 0 7px; font: 650 25px/1.3 "Noto Serif SC", "Songti SC", serif; }
+    .ds-section-heading p { margin: 0; max-width: 720px; color: var(--ui-color-text-secondary); font-size: 12px; line-height: 1.75; }
+    .ds-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .ds-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .ds-card { min-width: 0; border: 1px solid var(--ui-color-line-regular); border-radius: 9px; background: var(--ui-color-background-top); box-shadow: var(--ui-shadow-soft); overflow: hidden; }
+    .ds-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--ui-color-line-light); }
+    .ds-card-head strong { font-size: 12px; }
+    .ds-card-head small { color: var(--ui-color-text-tertiary); font-size: 10px; }
+    .ds-card-body { padding: 18px; }
+    .ds-card-note { margin: 12px 0 0; color: var(--ui-color-text-tertiary); font-size: 11px; line-height: 1.65; }
+    .ds-principle { padding: 20px; border: 1px solid var(--ui-color-line-regular); border-radius: 8px; background: var(--ui-color-background-top); }
+    .ds-principle b { color: var(--ui-color-text-brand); font: 11px "SF Mono", Menlo, Consolas, monospace; }
+    .ds-principle h3 { margin: 13px 0 7px; font: 650 17px "Noto Serif SC", "Songti SC", serif; }
+    .ds-principle p { margin: 0; color: var(--ui-color-text-secondary); font-size: 11px; line-height: 1.75; }
+    .ds-subhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 28px 0 12px; }
+    .ds-subhead h3 { margin: 0; font: 650 16px "Noto Serif SC", "Songti SC", serif; }
+    .ds-subhead small { color: var(--ui-color-text-tertiary); font-size: 10px; }
+    .ds-swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .ds-swatch { min-width: 0; border: 1px solid var(--ui-color-line-regular); border-radius: 8px; background: var(--ui-color-background-top); overflow: hidden; }
+    .ds-swatch-color { height: 76px; border-bottom: 1px solid var(--ui-color-line-light); background: var(--ds-swatch-color); }
+    .ds-swatch-info { padding: 10px 11px 12px; }
+    .ds-swatch-info strong { display: block; font-size: 11px; }
+    .ds-swatch-info code { display: block; margin-top: 6px; overflow-wrap: anywhere; color: var(--ui-color-text-tertiary); font: 10px/1.45 "SF Mono", Menlo, Consolas, monospace; }
+    .ds-swatch-info small { display: block; margin-top: 6px; color: var(--ui-color-text-secondary); font: 10px "SF Mono", Menlo, Consolas, monospace; }
+    .ds-type-ui { font-family: var(--ui-font-family); }
+    .ds-type-serif { font-family: "Noto Serif SC", "Songti SC", serif; }
+    .ds-type-mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
+    .ds-type-sample { margin: 0; color: var(--ui-color-text-primary); }
+    .ds-type-large { font-size: 28px; line-height: 1.4; }
+    .ds-type-medium { font-size: 18px; line-height: 1.55; }
+    .ds-type-small { font-size: 13px; line-height: 1.8; }
+    .ds-type-caption { display: block; margin-top: 13px; padding-top: 10px; border-top: 1px solid var(--ui-color-line-light); color: var(--ui-color-text-tertiary); font: 10px/1.5 "SF Mono", Menlo, Consolas, monospace; }
+    .ds-measure-row { display: flex; align-items: center; gap: 12px; margin: 11px 0; font: 10px "SF Mono", Menlo, Consolas, monospace; }
+    .ds-measure-row > span { width: 27px; color: var(--ui-color-text-secondary); }
+    .ds-measure-row > i { display: block; width: var(--ds-measure); height: 13px; border-radius: 2px; background: var(--ui-color-public-normal); }
+    .ds-measure-row > small { color: var(--ui-color-text-tertiary); }
+    .ds-shape-row { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+    .ds-shape { width: 63px; height: 54px; display: grid; place-items: center; border: 1px solid var(--ui-color-line-regular); background: var(--ui-color-background-container); color: var(--ui-color-text-secondary); font: 10px "SF Mono", Menlo, Consolas, monospace; }
+    .ds-shape:nth-child(1) { border-radius: 6px; }
+    .ds-shape:nth-child(2) { border-radius: 8px; }
+    .ds-shape:nth-child(3) { border-radius: 10px 10px 0 0; }
+    .ds-shape:nth-child(4) { border-radius: 8px; box-shadow: var(--ui-shadow-soft); }
+    .ds-shape:nth-child(5) { border-radius: 8px; box-shadow: var(--ui-shadow-raised); }
+    .ds-icon-set { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+    .ds-icon-tile { display: grid; place-items: center; gap: 8px; min-height: 83px; border: 1px solid var(--ui-color-line-light); border-radius: 7px; background: var(--ui-color-background-base); color: var(--ui-color-text-primary); }
+    .ds-icon-tile small { color: var(--ui-color-text-tertiary); font-size: 10px; }
+    .ds-icon { --ds-icon-accent: var(--ui-color-text-brand); display: block; width: 18px; height: 18px; color: currentColor; overflow: visible; }
+    .ds-icon-ink, .ds-icon-accent { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+    .ds-icon-ink { stroke: currentColor; stroke-width: 1.65px; }
+    .ds-icon-accent { stroke: var(--ds-icon-accent); stroke-width: 1.8px; }
+    .ds-button-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+    .ds-button { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 13px; border: 1px solid transparent; border-radius: 7px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .ds-button-primary { color: #fff; background: var(--ui-color-public-normal); }
+    .ds-button-secondary { color: var(--ui-color-text-primary); background: var(--ui-color-background-top); border-color: var(--ui-color-line-regular); }
+    .ds-button-quiet { color: var(--ui-color-text-brand); background: var(--ui-color-state-pressed-brand); }
+    .ds-button-danger { color: #fff; background: var(--ui-color-error); }
+    .ds-button-disabled { opacity: .48; }
+    .ds-button-focus { outline: 2px solid var(--ui-focus-ring); outline-offset: 2px; }
+    .ds-button .ds-icon { width: 16px; height: 16px; --ds-icon-accent: currentColor; }
+    .ds-example-label { display: block; margin: 9px 0 0; color: var(--ui-color-text-tertiary); font-size: 10px; }
+    .ds-state-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+    .ds-state-chip { padding: 5px 7px; border-radius: 5px; color: var(--ui-color-text-secondary); background: var(--ui-color-fill-light); font-size: 10px; }
+    .ds-state-chip.ds-current { color: var(--ui-color-text-brand); background: var(--ui-color-state-pressed-brand); }
+    .ds-tabs { display: flex; align-items: flex-end; gap: 2px; min-height: 43px; padding: 8px 12px 0; overflow-x: auto; scrollbar-width: thin; border-bottom: 1px solid var(--ui-color-line-light); background: var(--ui-color-fill-light); }
+    .ds-tab { position: relative; min-width: 105px; max-width: 170px; height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 9px; border-radius: 10px 10px 0 0; color: var(--ui-color-text-secondary); font-size: 12px; }
+    .ds-tab.ds-selected { color: var(--ui-color-text-primary); background: var(--ui-color-background-top); }
+    .ds-tab.ds-selected::before, .ds-tab.ds-selected::after { content: ""; position: absolute; bottom: 0; width: 10px; height: 10px; }
+    .ds-tab.ds-selected::before { left: -10px; border-bottom-right-radius: 10px; box-shadow: 5px 5px 0 5px var(--ui-color-background-top); }
+    .ds-tab.ds-selected::after { right: -10px; border-bottom-left-radius: 10px; box-shadow: -5px 5px 0 5px var(--ui-color-background-top); }
+    .ds-tab-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ds-tab-close { margin-left: auto; color: var(--ui-color-text-tertiary); font-size: 15px; }
+    .ds-file-type { width: 16px; height: 16px; flex: 0 0 16px; display: grid; place-items: center; border-radius: 3.5px; background: #455164; color: #fff; box-shadow: inset 0 0 0 1px rgba(0,0,0,.1); }
+    .ds-file-type svg { display: block; width: 100%; height: 100%; }
+    .ds-file-type-txt { background: #1769aa; }
+    .ds-file-type-pdf { background: #c7352b; }
+    .ds-file-type-epub { background: #a94f1f; }
+    .ds-dirty { width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: var(--ui-color-public-normal); }
+    .ds-segment { display: inline-flex; min-height: 32px; align-items: stretch; padding: 3px; border: 1px solid var(--ui-color-line-light); border-radius: 8px; background: var(--ui-color-fill-light); }
+    .ds-segment span { min-width: 55px; display: grid; place-items: center; padding: 0 7px; border-radius: 5px; color: var(--ui-color-text-secondary); font-size: 11px; }
+    .ds-segment span.ds-on { color: var(--ui-color-text-primary); background: var(--ui-color-background-top); box-shadow: var(--ui-shadow-soft); font-weight: 600; }
+    .ds-field { display: grid; gap: 7px; max-width: 420px; color: var(--ui-color-text-secondary); font-size: 11px; font-weight: 600; }
+    .ds-field input { width: 100%; min-height: 36px; border: 1px solid var(--ui-color-line-regular); border-radius: 7px; padding: 0 10px; background: var(--ui-color-background-top); color: var(--ui-color-text-primary); font: 12px var(--ui-font-family); }
+    .ds-field input::placeholder { color: var(--ui-color-text-tertiary); }
+    .ds-field small { color: var(--ui-color-text-tertiary); font-size: 10px; font-weight: 400; }
+    .ds-field-error input { border-color: var(--ui-color-line-error); }
+    .ds-field-error small { color: var(--ui-color-text-error); }
+    .ds-search-input { height: 44px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--ui-color-line-regular); border-radius: 7px; padding: 0 11px; background: var(--ui-color-background-container); }
+    .ds-search-input .ds-icon { width: 17px; height: 17px; color: var(--ui-color-text-secondary); }
+    .ds-search-input span { color: var(--ui-color-text-tertiary); font-size: 12px; }
+    .ds-search-input kbd { margin-left: auto; border: 1px solid var(--ui-color-line-light); border-radius: 4px; padding: 2px 5px; color: var(--ui-color-text-tertiary); font: 10px "SF Mono", Menlo, Consolas, monospace; }
+    .ds-dialog-stage { display: grid; place-items: center; padding: 28px 16px; background: var(--ui-color-background-container); }
+    .ds-dialog { width: min(100%, 420px); border: 1px solid var(--ui-color-line-regular); border-radius: 9px; background: var(--ui-color-background-top); box-shadow: var(--ui-shadow-raised); }
+    .ds-dialog-head { display: flex; justify-content: space-between; align-items: start; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid var(--ui-color-line-light); }
+    .ds-dialog-head strong { font: 650 16px "Noto Serif SC", "Songti SC", serif; }
+    .ds-dialog-head small { color: var(--ui-color-text-tertiary); }
+    .ds-dialog-body { padding: 15px 18px; color: var(--ui-color-text-secondary); font-size: 11px; line-height: 1.7; }
+    .ds-dialog-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--ui-color-line-light); }
+    .ds-feedback { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; border: 1px solid var(--ui-color-line-regular); border-left: 3px solid var(--ds-feedback-color); border-radius: 6px; background: var(--ui-color-background-top); }
+    .ds-feedback b { display: block; font-size: 11px; }
+    .ds-feedback small { display: block; margin-top: 3px; color: var(--ui-color-text-secondary); font-size: 10px; line-height: 1.5; }
+    .ds-feedback-mark { color: var(--ds-feedback-color); font-weight: 700; }
+    .ds-feedback-stack { display: grid; gap: 8px; }
+    .ds-layout-stage { padding: 13px; border: 1px solid var(--ui-color-line-regular); border-radius: 9px; background: var(--ui-color-background-container); }
+    .ds-window { overflow: hidden; border: 1px solid var(--ui-color-line-regular); border-radius: 7px; background: var(--ui-color-background-base); box-shadow: var(--ui-shadow-soft); }
+    .ds-window-top { min-height: 36px; display: grid; grid-template-columns: 27% 1fr; align-items: center; background: var(--ui-color-fill-light); border-bottom: 1px solid var(--ui-color-line-light); }
+    .ds-window-brand { padding-left: 12px; font: 650 12px "Noto Serif SC", "Songti SC", serif; }
+    .ds-window-tab { align-self: end; width: 130px; height: 30px; display: flex; align-items: center; gap: 5px; padding: 0 9px; border-radius: 8px 8px 0 0; background: var(--ui-color-background-top); font-size: 10px; }
+    .ds-window-tab .ds-file-type { width: 13px; height: 13px; flex-basis: 13px; font-size: 6px; }
+    .ds-window-body { min-height: 275px; display: grid; grid-template-columns: 1fr; }
+    .ds-window-sidebar { padding: 12px 9px; border-right: 1px solid var(--ui-color-line-light); background: var(--ui-color-background-container); }
+    .ds-window-sidebar > div { margin: 0 0 8px; padding: 6px; border: 1px solid var(--ui-color-line-regular); border-radius: 5px; background: var(--ui-color-background-top); color: var(--ui-color-text-secondary); font-size: 9px; }
+    .ds-window-sidebar > div.ds-window-sidebar-current { border: 0; border-radius: 3px; background: var(--ui-color-state-pressed-brand); box-shadow: inset 2px 0 var(--ui-color-public-normal); color: var(--ui-color-text-primary); }
+    .ds-window-main { display: grid; grid-template-rows: 34px 1fr 20px; min-width: 0; }
+    .ds-window-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 7px; padding: 0 9px; border-bottom: 1px solid var(--ui-color-line-light); background: var(--ui-color-background-top); color: var(--ui-color-text-secondary); font-size: 9px; white-space: nowrap; overflow-x: auto; }
+    .ds-window-toolbar > span { flex: 0 0 auto; }
+    .ds-window-editor { display: grid; grid-template-columns: 1fr 8px 1fr; min-height: 0; margin: 7px 7px 0; border: 1px solid var(--ui-color-line-light); border-bottom: 0; border-radius: 6px 6px 0 0; overflow: hidden; }
+    .ds-window-source { padding: 17px 12px; background: var(--ui-color-background-container); color: var(--ui-color-text-secondary); font: 9px/1.7 "SF Mono", Menlo, Consolas, monospace; overflow: hidden; }
+    .ds-window-divider { position: relative; background: var(--ui-color-background-base); }
+    .ds-window-divider::after { content: ""; position: absolute; inset: 0 auto 0 50%; width: 1px; background: var(--ui-color-line-regular); }
+    .ds-window-preview { padding: 15px 14px; background: var(--ui-color-background-top); overflow: hidden; }
+    .ds-window-preview h4 { margin: 0 0 9px; font: 650 14px "Noto Serif SC", "Songti SC", serif; }
+    .ds-window-preview p { margin: 0 0 7px; color: var(--ui-color-text-secondary); font-size: 9px; line-height: 1.65; }
+    .ds-window-preview blockquote { margin: 9px 0; border-left: 2px solid var(--ui-color-public-normal); padding: 5px 8px; background: var(--ui-color-state-pressed-brand); color: var(--ui-color-text-secondary); font-size: 9px; }
+    .ds-window-status { display: flex; justify-content: space-between; padding: 3px 9px; border-top: 1px solid var(--ui-color-line-light); background: var(--ui-color-background-top); color: var(--ui-color-text-tertiary); font-size: 8px; }
+    .ds-layout-legend { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+    .ds-layout-legend span { border-left: 2px solid var(--ui-color-public-normal); padding: 2px 7px; color: var(--ui-color-text-secondary); font-size: 10px; }
+    .ds-rule-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .ds-rule-table th, .ds-rule-table td { padding: 10px 11px; border-bottom: 1px solid var(--ui-color-line-light); text-align: left; vertical-align: top; }
+    .ds-rule-table th { width: 170px; color: var(--ui-color-text-primary); font-weight: 650; }
+    .ds-rule-table td { color: var(--ui-color-text-secondary); line-height: 1.55; }
+    .ds-rule-table tr:last-child th, .ds-rule-table tr:last-child td { border-bottom: 0; }
+    .ds-do-dont { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .ds-advice { border: 1px solid var(--ui-color-line-regular); border-radius: 8px; padding: 17px; background: var(--ui-color-background-top); }
+    .ds-advice > span { color: var(--ds-advice-color); font: 700 10px "SF Mono", Menlo, Consolas, monospace; letter-spacing: .1em; }
+    .ds-advice strong { display: block; margin: 12px 0 6px; font-size: 13px; }
+    .ds-advice p { margin: 0; color: var(--ui-color-text-secondary); font-size: 11px; line-height: 1.7; }
+    .ds-a11y-note { margin-top: 12px; border: 1px solid var(--ui-color-line-regular); border-left: 3px solid var(--ui-color-warning); border-radius: 7px; padding: 13px 15px; color: var(--ui-color-text-secondary); background: var(--ui-color-background-top); font-size: 11px; line-height: 1.7; }
+    .ds-a11y-note strong { color: var(--ui-color-text-primary); }
+    .ds-footer { margin-top: 64px; padding-top: 19px; border-top: 1px solid var(--ui-color-line-regular); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; color: var(--ui-color-text-tertiary); font-size: 10px; }
+    .ds-footer a { color: var(--ui-color-text-brand); text-underline-offset: 3px; }
+    @media (max-width: 960px) {
+      .ds-shell { grid-template-columns: minmax(0, 1fr); }
+      .ds-rail { position: static; height: auto; min-height: 0; padding: 13px 20px; gap: 10px; border-right: 0; border-bottom: 1px solid var(--ui-color-line-regular); }
+      .ds-brand { padding: 0 0 7px; }
+      .ds-rail-label, .ds-rail-footer { display: none; }
+      .ds-nav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+      .ds-nav::-webkit-scrollbar { display: none; }
+      .ds-nav a { display: inline-flex; gap: 7px; flex: 0 0 auto; min-height: 30px; padding: 0 8px; white-space: nowrap; }
+    }
+    @media (max-width: 720px) {
+      .ds-main { padding-inline: 18px; }
+      .ds-grid, .ds-grid-3, .ds-do-dont { grid-template-columns: 1fr; }
+      .ds-swatches { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .ds-icon-set { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .ds-section { padding-top: 46px; }
+      .ds-window-body { grid-template-columns: 1fr; }
+      .ds-window-top { grid-template-columns: 29% 1fr; }
+      .ds-window-source { padding: 10px 6px; }
+      .ds-window-preview { padding: 10px 7px; }
+    }
+    @media (max-width: 420px) {
+      .ds-main { padding-inline: 13px; }
+      .ds-topline { align-items: flex-start; padding: 11px 0; flex-direction: column; }
+      .ds-hero h1 { font-size: 32px; }
+      .ds-section-heading { grid-template-columns: 30px minmax(0, 1fr); gap: 8px; }
+      .ds-section-heading h2 { font-size: 22px; }
+      .ds-window-sidebar { display: none; }
+      .ds-window-body, .ds-window-top { grid-template-columns: 1fr; }
+      .ds-window-brand { display: none; }
+      .ds-rule-table th { width: 100px; }
+    }
+
+    .ds-flow-stage { overflow: hidden; border: 1px solid var(--ui-color-line-regular); border-radius: 7px; background: var(--ui-color-background-base); }
+    .ds-model-switch-example { padding:6px; border:1px solid var(--ui-color-line-regular); border-radius:8px; background:var(--ui-color-background-top); }
+    .ds-model-switch-example button { display:block; width:100%; padding:9px 8px; border:0; border-radius:5px; background:transparent; color:var(--ui-color-text-primary); font-size:12px; text-align:left; overflow-wrap:anywhere; }
+    .ds-model-switch-example [aria-checked="true"] { background:var(--ui-color-state-pressed-brand); }
+    .ds-chat-live-example { display: grid; grid-template-columns: 180px minmax(0, 1fr); height: 580px; overflow: hidden; border: 1px solid var(--ui-color-line-regular); border-radius: 12px; background: var(--ui-color-background-base); }
+    .ds-chat-live-example nav { padding: 18px 12px; background: var(--ui-color-background-container); border-right: 1px solid var(--ui-color-line-light); font-size: 12px; }
+    .ds-chat-live-example nav strong { display: block; padding: 8px; }
+    .ds-chat-live-example nav p { margin: 8px 0; padding: 9px 8px; border-radius: 7px; color: var(--ui-color-text-secondary); }
+    .ds-chat-live-example nav .ds-chat-selected { color: var(--ui-color-text-primary); background: var(--ui-color-state-pressed-brand); }
+    .ds-home-live-example { display: block; overflow: visible; }
+    .ds-home-live-example .app-home-ai-heading h1 { font-size: 18px; }
+    .ds-history-example { width: 100%; max-height: 460px; margin: 0; box-shadow: none; }
+    @media(max-width:600px) { .ds-chat-live-example { grid-template-columns: minmax(0,1fr); } .ds-chat-live-example nav { display:none; } }
+    .ds-flow-tabs { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 12px; border-bottom: 1px solid var(--ui-color-line-light); font-size: 11px; background: var(--ui-color-background-container); }
+    .ds-flow-tabs .ds-icon { width: 15px; height: 15px; }
+    .ds-example-icon-button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 30px; height: 30px; padding: 6px; border: 0; border-radius: 5px; color: var(--ui-color-text-secondary); background: transparent; }
+    .ds-example-icon-button:last-child { margin-left: auto; }
+    .ds-example-icon-button:hover, .ds-example-icon-button:focus-visible { color: var(--ui-color-text-brand); background: var(--ui-color-state-hover); outline: 2px solid var(--ui-focus-ring); outline-offset: 1px; }
+    .ds-study-example-heading { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -12px -12px 12px; padding: 0 12px; border-bottom: 1px solid var(--ui-color-line-light); font-size: 12px; }
+    .ds-flow-body { display: grid; grid-template-columns: 105px minmax(0,1fr); min-height: 330px; }
+    .ds-flow-sidebar { padding: 12px 9px; border-right: 1px solid var(--ui-color-line-light); background: var(--ui-color-background-container); color: var(--ui-color-text-secondary); font-size: 10px; line-height: 2.4; }
+    .ds-flow-main { min-width: 0; padding: 14px; }
+    .ds-flow-main h4 { margin: 0 0 10px; font-size: 12px; }
+    .ds-home-search { width: min(100%,340px); height: 34px; margin: 0 0 22px auto; }
+    .ds-home-search span { font-size: 11px; }
+    .ds-flow-composer { margin-bottom: 23px; padding: 13px; border: 1px solid var(--ui-color-line-regular); border-radius: 8px; background: var(--ui-color-background-top); }
+    .ds-study-compact { margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .ds-study-compact article { padding:12px; border:1px solid var(--ui-color-line-regular); border-radius:6px; background:var(--ui-color-background-top); font-size:12px; }
+    .ds-study-compact p { margin:8px 0; line-height:1.55; }
+    .ds-study-compact small { color:var(--ui-color-text-tertiary); font-size:10px; }
+    .ds-study-input { position:relative; min-height:108px; margin-top:8px; padding:12px 12px 44px; border:1px solid var(--ui-color-line-regular); border-radius:8px; background:var(--ui-color-background-container); color:var(--ui-color-text-secondary); }
+    .ds-study-input svg { position:absolute; bottom:8px; right:8px; width:30px; height:30px; padding:7px; border-radius:6px; color:white; background:var(--ui-color-public-pressed); fill:none; stroke:currentColor; stroke-width:1.5; }
+    @media(max-width:600px) { .ds-study-compact { grid-template-columns:1fr; } }
+    .ds-flow-composer p { margin: 0 0 18px; color: var(--ui-color-text-tertiary); font-size: 11px; line-height: 1.7; }
+    .ds-flow-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .ds-flow-actions small { color: var(--ui-color-text-tertiary); font-size: 10px; }
+    .ds-flow-actions .ds-button { min-height: 28px; padding: 0 9px; font-size: 10px; }
+    .ds-recent-example { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--ui-color-line-light); font-size: 11px; }
+    .ds-recent-example small { color: var(--ui-color-text-tertiary); font-size: 10px; white-space: nowrap; }
+    .ds-study-example { display: grid; grid-template-columns: minmax(0,1fr) minmax(145px,.9fr); min-height: 330px; }
+    .ds-study-paper { margin: 14px 10px; padding: 18px 13px; background: var(--ui-color-background-top); }
+    .ds-study-paper h4 { margin: 0 0 15px; font: 650 14px "Noto Serif SC","Songti SC",serif; }
+    .ds-study-paper p { font-size: 11px; line-height: 1.9; color: var(--ui-color-text-secondary); }
+    .ds-study-paper mark { color: inherit; background: var(--ui-color-state-pressed-brand); }
+    .ds-study-example-panel { min-width: 0; padding: 12px; border-left: 1px solid var(--ui-color-line-regular); background: var(--ui-color-background-top); }
+    .ds-study-example-panel h4 { margin: 13px 0 8px; font-size: 12px; }
+    .ds-study-example-panel p { margin: 7px 0; font-size: 10px; line-height: 1.7; color: var(--ui-color-text-secondary); }
+    .ds-study-evidence { border-left: 2px solid var(--ui-color-public-normal); padding: 7px 8px; background: var(--ui-color-state-pressed-brand); }
+    .ds-study-example-panel .ds-state-strip { margin-top: 0; }
+    @media(max-width:420px) { .ds-flow-body { grid-template-columns:1fr; } .ds-flow-sidebar { display:none; } .ds-study-example { grid-template-columns:1fr; } .ds-study-example-panel { border-left:0; border-top:1px solid var(--ui-color-line-regular); } }
+  </style>
+</head>
+<body class="ds-page">
+  <svg class="ds-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+    <symbol id="ds-icon-new" viewBox="0 0 16 16"><path class="ds-icon-ink" d="M3 1.75h6l3.25 3.25v8A1.25 1.25 0 0 1 11 14.25H3A1.25 1.25 0 0 1 1.75 13V3A1.25 1.25 0 0 1 3 1.75Z M9 1.75V5h3.25"/><path class="ds-icon-accent" d="M5 9h4M7 7v4"/></symbol>
+    <symbol id="ds-icon-open" viewBox="0 0 16 16"><path class="ds-icon-ink" d="M1.75 6V3.25A1.25 1.25 0 0 1 3 2h3l1.5 1.75H13A1.25 1.25 0 0 1 14.25 5v1 M2 6h12l-1.35 6.9a1.25 1.25 0 0 1-1.23 1H3.5a1.25 1.25 0 0 1-1.23-1L1.25 7.5A1.25 1.25 0 0 1 2.5 6Z"/><path class="ds-icon-accent" d="M5.25 9.25h5.5"/></symbol>
+    <symbol id="ds-icon-search" viewBox="0 0 16 16"><circle class="ds-icon-ink" cx="7" cy="7" r="4.75"/><path class="ds-icon-accent" d="m10.5 10.5 3.6 3.6"/></symbol>
+    <symbol id="ds-icon-save" viewBox="0 0 16 16"><path class="ds-icon-ink" d="M2.1 1.6h8.1l3.7 3.7V13a1.3 1.3 0 0 1-1.3 1.3H3.4A1.3 1.3 0 0 1 2.1 13V1.6ZM5 1.6v4.2h5.2V1.6"/><path class="ds-icon-accent" d="M5 14.3V9.7h6v4.6"/></symbol>
+    <symbol id="ds-icon-export" viewBox="0 0 16 16"><path class="ds-icon-accent" d="M8 1.5v7.9M4.9 6.5 8 9.6l3.1-3.1"/><path class="ds-icon-ink" d="M2.5 10.7v2.1c0 .9.7 1.6 1.6 1.6h7.8c.9 0 1.6-.7 1.6-1.6v-2.1"/></symbol>
+    <symbol id="ds-icon-study" viewBox="0 0 16 16"><path class="ds-icon-ink" d="M8 5.5C6.4 4.4 4.3 4.1 2 4.6v7.7c2.3-.5 4.4-.2 6 1 1.6-1.2 3.7-1.5 6-1V6M8 5.5v7.8M4 7.1l2 .4M4 9.4l2 .4"/><path class="ds-icon-accent" d="m12 1.5.6 1.8 1.9.7-1.9.7-.6 1.8-.6-1.8L9.5 4l1.9-.7Z"/></symbol>
+    <symbol id="ds-icon-more" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1" fill="currentColor"/><circle cx="8" cy="8" r="1" fill="currentColor"/><circle cx="13" cy="8" r="1" fill="currentColor"/></symbol>
+    <symbol id="ds-icon-close" viewBox="0 0 16 16"><path class="ds-icon-ink" d="m4 4 8 8M12 4l-8 8"/></symbol>
+    <symbol id="ds-icon-folder" viewBox="0 0 16 16"><path class="ds-icon-accent" d="M1.7 5.9V3a1.3 1.3 0 0 1 1.3-1.3h3l1.6 1.8H13"/><path class="ds-icon-ink" d="M1.7 5.9h12.6V13a1.3 1.3 0 0 1-1.3 1.3H3A1.3 1.3 0 0 1 1.7 13V5.9Z"/></symbol>
+    <symbol id="ds-format-md" viewBox="0 0 16 16"><path fill="currentColor" d="M2.55 11.35v-6.7h1.62L6 7.09l1.83-2.44h1.62v6.7H8.02V6.94L6 9.54 3.98 6.94v4.41H2.55Z"/><path d="M12.15 4.65v4.08m-1.47-1.45 1.47 1.47 1.47-1.47m-2.98 3.22h3.02" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ds-format-txt" viewBox="0 0 16 16"><path d="M2.75 4.55h4.7M5.1 4.55v6.9M8.7 5.1h4.55M8.7 8h4.55m-4.55 2.9h3.25" fill="none" stroke="currentColor" stroke-width="1.18" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ds-format-pdf" viewBox="0 0 16 16"><path d="M2.65 11.35v-6.7h1.72a1.83 1.83 0 0 1 0 3.66H2.65m4.3 3.04v-6.7h1.08c2.72 0 2.72 6.7 0 6.7H6.95Zm4.35 0v-6.7h2.25M11.3 7.8h1.92" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ds-format-epub" viewBox="0 0 16 16"><path d="M2.55 4.25c1.94-.46 3.75-.03 5.45 1.28v6.18c-1.7-1.31-3.51-1.74-5.45-1.28V4.25Zm10.9 0c-1.94-.46-3.75-.03-5.45 1.28v6.18c1.7-1.31 3.51-1.74 5.45-1.28V4.25Z" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </svg>
+  <div class="ds-shell">
+    <aside class="ds-rail" aria-label="手册目录">
+      <a class="ds-brand" href="#ds-top"><img src="../../assets/guanyi-md-mark.svg" width="32" height="32" alt=""><span><strong>观译</strong><small>DESIGN SYSTEM / V1.0</small></span></a>
+      <p class="ds-rail-label">目录 / CONTENTS</p>
+      <nav class="ds-nav" aria-label="章节">
+        <a href="#ds-principles"><span>01</span>设计原则</a>
+        <a href="#ds-colors"><span>02</span>语义色彩</a>
+        <a href="#ds-typography"><span>03</span>字体与排版</a>
+        <a href="#ds-measures"><span>04</span>间距与形状</a>
+        <a href="#ds-icons"><span>05</span>图标</a>
+        <a href="#ds-components"><span>06</span>组件与状态</a>
+        <a href="#ds-workspace"><span>07</span>文稿工作区</a>
+        <a href="#ds-home-study"><span>08</span>主页与 PDF 研读</a>
+        <a href="#ds-rules"><span>09</span>适配与反例</a>
+      </nav>
+      <div class="ds-rail-footer">设计与交互规则见 <a href="README.md">V1.0 规范正文</a><br>此页为静态视觉示例；1.0.44 本地体验包构建与实包验收完成，未公证/未远端正式发布；1.0.43 已归档。</div>
+    </aside>
+    <main class="ds-main" id="ds-top"><div class="ds-main-inner">
+      <div class="ds-topline"><span class="ds-breadcrumb">观译阅读器 / <b>设计系统</b> / 可视手册</span><button class="ds-theme-toggle" id="ds-theme-toggle" type="button" aria-label="切换为暗色主题" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.7 11.8A6 6 0 0 1 4.2 3.3 6 6 0 1 0 12.7 11.8Z"/></svg><span id="ds-theme-label">暗色主题</span></button></div>
+      <header class="ds-hero"><span class="ds-eyebrow">GUANYI READER · DESIGN SYSTEM 01</span><h1>俯仰观物，译述我心</h1><p>品牌 slogan 固定为“俯仰观物，译述我心”，未经用户明确授权不得替换。从观译阅读器当前前端提炼的视觉与交互基线；1.0.43 历史包的菜单层级、唯一模型入口、PDF 研读图标、统一侧栏关闭和预览左侧大纲已完成真实浏览器、工作区 10/10 与实际 App 动态验收；标准 Mac 构建、包内来源核查和 DMG 完整性通过。已验收的 1.0.42 工具栏恢复与 Mac 本地包记录继续保留。当前 1.0.44 的 EPUB 共享智能审阅、模型连接与 PDF 灰线修订已完成标准Mac构建、工作区13/13、EPUB八组边界、实际App和DMG验收；基础全量44/45，唯一既有semantic-real-books限制保留，未公证且未远端正式发布。色彩、排版和组件样例引用产品的实时语义变量；后续原型、设计更新与前端实现共同以 V1.0 规范正文为依据。1.0.41 首包的主页与 PDF 研读浏览器、原生桌面专项及 Mac 本地包内流程验收已完成；全量回归另有一项复杂作品查询召回限制，真实模型语义质量尚未验收，详见<a href="../主页与智能研读开发.md">开发验收记录</a>。</p><div class="ds-hero-meta"><span class="ds-tag ds-tag-brand">V1.0 · 当前基线</span><span class="ds-tag">1.0.43 · 已验收历史包</span><span class="ds-tag">1.0.44 · 已验收本地体验包</span><span class="ds-tag">明色 / 暗色</span><span class="ds-tag">桌面 / 窄屏</span><span class="ds-tag">静态视觉样例</span></div></header>
+
+      <section class="ds-section" id="ds-principles" aria-labelledby="ds-principles-title"><div class="ds-section-heading"><span>01</span><div><h2 id="ds-principles-title">设计原则</h2><p>以本地阅读、摘录与编辑为中心。通过暖纸色、墨色文字与克制的朱砂橙建立层级。</p></div></div><div class="ds-grid-3"><article class="ds-principle"><b>01 / READ</b><h3>文稿优先</h3><p>正文先于工具，预览保持舒适行距与有限阅读宽度，界面结构不压迫内容。</p></article><article class="ds-principle"><b>02 / ORIENT</b><h3>明确当前位置</h3><p>页签、文档树与视图选择有清楚的选中态；颜色配合位置、标线与文字。</p></article><article class="ds-principle"><b>03 / EXPLAIN</b><h3>说明结果</h3><p>保存、冲突、检索和审阅状态写出发生了什么；暂时性反馈不承担唯一信息。</p></article></div></section>
+
+      <section class="ds-section" id="ds-colors" aria-labelledby="ds-colors-title"><div class="ds-section-heading"><span>02</span><div><h2 id="ds-colors-title">语义色彩</h2><p>切换右上角主题可查看实时 token。新组件引用变量名；色值是当前版本快照。</p></div></div><div class="ds-subhead"><h3>表面与文字</h3><small>请在两种主题下检查层级</small></div><div class="ds-swatches">
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-background-base)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>工作台底</strong><code>--ui-color-background-base</code><small>#f6f4f1 / #1f1d1a</small></div></div>
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-background-container)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>侧栏 / 源码底</strong><code>--ui-color-background-container</code><small>#f4f1ed / #292621</small></div></div>
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-background-top)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>纸面 / 浮层</strong><code>--ui-color-background-top</code><small>#ffffff / #302c27</small></div></div>
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-text-primary)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>主文字</strong><code>--ui-color-text-primary</code><small>#2a2520 / #f4f1ed</small></div></div>
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-text-secondary)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>次文字</strong><code>--ui-color-text-secondary</code><small>#6b6358 / #c8c0b6</small></div></div>
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-text-tertiary)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>弱文字</strong><code>--ui-color-text-tertiary</code><small>#736b60 / #aaa197</small></div></div>
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-text-brand)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>品牌文字</strong><code>--ui-color-text-brand</code><small>#d9431f / #ff6847</small></div></div>
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-public-normal)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>主操作</strong><code>--ui-color-public-normal</code><small>#df4b25 / #df4b25</small></div></div>
+      </div><div class="ds-subhead"><h3>操作与状态</h3><small>语义不得只靠颜色表达</small></div><div class="ds-swatches">
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-public-hover)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>主操作悬停</strong><code>--ui-color-public-hover</code><small>#ed5a2f</small></div></div>
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-success)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>成功</strong><code>--ui-color-success</code><small>#3d9970</small></div></div>
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-warning)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>警告</strong><code>--ui-color-warning</code><small>#e08a1f</small></div></div>
+        <div class="ds-swatch" style="--ds-swatch-color:var(--ui-color-error)"><div class="ds-swatch-color"></div><div class="ds-swatch-info"><strong>错误</strong><code>--ui-color-error</code><small>#d32f2f</small></div></div>
+      </div></section>
+
+      <section class="ds-section" id="ds-typography" aria-labelledby="ds-typography-title"><div class="ds-section-heading"><span>03</span><div><h2 id="ds-typography-title">字体与排版</h2><p>操作文字优先清晰，文章结构保留书卷感；用户可调整文稿字号与行距。</p></div></div><div class="ds-grid-3"><article class="ds-card"><div class="ds-card-head"><strong>界面文字</strong><small>UI / 14px 基础</small></div><div class="ds-card-body"><p class="ds-type-sample ds-type-ui ds-type-medium">查找、整理与继续阅读</p><p class="ds-type-sample ds-type-ui ds-type-small">文档列表、工具按钮、状态说明使用无衬线字体。</p><span class="ds-type-caption">Inter / Noto Sans SC / PingFang SC</span></div></article><article class="ds-card"><div class="ds-card-head"><strong>品牌与文章标题</strong><small>SERIF / 650</small></div><div class="ds-card-body"><p class="ds-type-sample ds-type-serif ds-type-large">观译</p><p class="ds-type-sample ds-type-serif ds-type-medium">一段文字的来处与去处</p><span class="ds-type-caption">Noto Serif SC / Songti SC</span></div></article><article class="ds-card"><div class="ds-card-head"><strong>源码与元数据</strong><small>MONO / tab 2</small></div><div class="ds-card-body"><p class="ds-type-sample ds-type-mono ds-type-small">## 阅读笔记<br>&gt; 引文与批注<br>- [ ] 继续整理</p><span class="ds-type-caption">SF Mono / Menlo / Consolas</span></div></article></div><div class="ds-card" style="margin-top:12px"><div class="ds-card-head"><strong>文稿阅读基线</strong><small>现行默认，可由用户设置改变</small></div><div class="ds-card-body"><p class="ds-type-sample ds-type-serif ds-type-medium">阅读与思考有自己的节奏</p><p class="ds-type-sample" style="max-width:820px;font-size:var(--guanyi-editor-font-size,15px);line-height:var(--guanyi-editor-line-height,1.75);margin:12px 0 0">打开文档时，正文留在稳定的纸面上。宽屏下源码与预览共享默认 15px 字号、1.75 行距，预览正文的最大阅读宽度为 820px；现行窄屏预览另以 14px 覆盖字号变量。原型须保留用户调整字号与行距的空间。</p><span class="ds-type-caption">--guanyi-editor-font-size: 15px · --guanyi-editor-line-height: 1.75</span></div></div></section>
+
+      <section class="ds-section" id="ds-measures" aria-labelledby="ds-measures-title"><div class="ds-section-heading"><span>04</span><div><h2 id="ds-measures-title">间距与形状</h2><p>间距序列是 V1 设计约定；圆角和阴影使用当前前端已有变量与尺寸。</p></div></div><div class="ds-grid"><article class="ds-card"><div class="ds-card-head"><strong>间距序列</strong><small>V1 约定，尚未全部 token 化</small></div><div class="ds-card-body"><div class="ds-measure-row" style="--ds-measure:4px"><span>04</span><i></i><small>图标细节</small></div><div class="ds-measure-row" style="--ds-measure:8px"><span>08</span><i></i><small>紧凑控件</small></div><div class="ds-measure-row" style="--ds-measure:12px"><span>12</span><i></i><small>组件内部</small></div><div class="ds-measure-row" style="--ds-measure:16px"><span>16</span><i></i><small>容器内边距</small></div><div class="ds-measure-row" style="--ds-measure:20px"><span>20</span><i></i><small>表单与区块</small></div><div class="ds-measure-row" style="--ds-measure:24px"><span>24</span><i></i><small>内容组</small></div><div class="ds-measure-row" style="--ds-measure:32px"><span>32</span><i></i><small>大区块</small></div></div></article><article class="ds-card"><div class="ds-card-head"><strong>圆角与阴影</strong><small>细线先于阴影</small></div><div class="ds-card-body"><div class="ds-shape-row"><div class="ds-shape">6px</div><div class="ds-shape">8px</div><div class="ds-shape">10px</div><div class="ds-shape">soft</div><div class="ds-shape">raised</div></div><p class="ds-card-note">小控件约 6px，容器约 8px；页签上缘 10px。常规页面靠底色与细分隔线，浮层才使用 raised 阴影。</p></div></article></div></section>
+
+      <section class="ds-section" id="ds-icons" aria-labelledby="ds-icons-title"><div class="ds-section-heading"><span>05</span><div><h2 id="ds-icons-title">图标</h2><p>迭代强制准则：所有新增功能图标必须遵循现有观译风格，先复用共享 SVG，缺失时按同一规范扩充。16×16 viewBox、圆端圆角、墨色主体与克制朱砂语义保持一致；实际尺寸、描边与状态以运行时为准。禁止 emoji、文本符号或异风格图标替代，新增样例与明暗交互状态须一并验收。详见规范正文 2.4 与验收矩阵 VW-12。类型图标另用字形与底色双重区分。</p></div></div><div class="ds-card"><div class="ds-card-head"><strong>功能动作</strong><small>常规占位 17px · 工具栏多用 18px</small></div><div class="ds-card-body"><div class="ds-icon-set"><div class="ds-icon-tile"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-new"/></svg><small>新建</small></div><div class="ds-icon-tile"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-open"/></svg><small>打开</small></div><div class="ds-icon-tile"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-search"/></svg><small>搜索</small></div><div class="ds-icon-tile"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-save"/></svg><small>保存</small></div><div class="ds-icon-tile"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-export"/></svg><small>导出</small></div><div class="ds-icon-tile"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-folder"/></svg><small>目录</small></div></div><p class="ds-card-note">纯图标按钮保留 title、aria-label、悬停和键盘焦点。PDF 工具栏的智能研读入口仅显示图标，面板内功能页签继续显示文字。文档格式标识请看下方页签示例。</p></div></div></section>
+
+      <section class="ds-section" id="ds-components" aria-labelledby="ds-components-title"><div class="ds-section-heading"><span>06</span><div><h2 id="ds-components-title">组件与状态</h2><p>样例展示视觉规范，不执行文档操作。后续原型须列出适用的默认、悬停、选中、焦点、禁用、加载、空态与错误状态。</p></div></div><div class="ds-grid"><article class="ds-card"><div class="ds-card-head"><strong>按钮</strong><small>一个操作组突出一个主动作</small></div><div class="ds-card-body"><div class="ds-button-row"><span class="ds-button ds-button-primary"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-open"/></svg>打开文档</span><span class="ds-button ds-button-secondary">新建文档</span><span class="ds-button ds-button-quiet">查看版本</span><span class="ds-button ds-button-danger">删除</span></div><div class="ds-button-row" style="margin-top:16px"><span class="ds-button ds-button-primary ds-button-disabled">禁用</span><span class="ds-button ds-button-secondary ds-button-focus">键盘焦点</span></div><span class="ds-example-label">侧栏主次按钮 38px 高；一般弹窗按钮至少 34px。</span></div></article><article class="ds-card"><div class="ds-card-head"><strong>分段切换</strong><small>当前视图与编辑区一致</small></div><div class="ds-card-body"><div class="ds-segment" aria-label="源码、预览、分栏视觉示例"><span>源码</span><span>预览</span><span class="ds-on">分栏</span></div><div class="ds-state-strip"><span class="ds-state-chip">默认</span><span class="ds-state-chip ds-current">选中</span><span class="ds-state-chip">悬停</span><span class="ds-state-chip">焦点</span></div><p class="ds-card-note">源码、预览、分栏是同一份文档的三个视图。切换时保留编辑状态。</p></div></article></div><div class="ds-subhead"><h3>页签与文件类型</h3><small>MD / TXT / PDF / EPUB 共用外壳</small></div><div class="ds-card"><div class="ds-tabs" aria-label="文档页签视觉示例"><div class="ds-tab ds-selected"><span class="ds-file-type" title="Markdown"><svg aria-hidden="true"><use href="#ds-format-md"/></svg></span><span class="ds-tab-label">阅读笔记.md</span><span class="ds-dirty" title="有未保存修改"></span><span class="ds-tab-close">×</span></div><div class="ds-tab"><span class="ds-file-type ds-file-type-txt" title="TXT"><svg aria-hidden="true"><use href="#ds-format-txt"/></svg></span><span class="ds-tab-label">摘录.txt</span><span class="ds-tab-close">×</span></div><div class="ds-tab"><span class="ds-file-type ds-file-type-pdf" title="PDF"><svg aria-hidden="true"><use href="#ds-format-pdf"/></svg></span><span class="ds-tab-label">论文.pdf</span></div><div class="ds-tab"><span class="ds-file-type ds-file-type-epub" title="EPUB"><svg aria-hidden="true"><use href="#ds-format-epub"/></svg></span><span class="ds-tab-label">书.epub</span></div></div><div class="ds-card-body"><p class="ds-card-note" style="margin:0">选中页签接到纸面；文件格式用图形/字形与颜色双重标识。未保存修改有橙色圆点。实际工具栏随格式切换，不把 Markdown 写作工具放在 PDF/EPUB 上。</p></div></div><div class="ds-grid" style="margin-top:12px"><article class="ds-card"><div class="ds-card-head"><strong>输入与搜索</strong><small>字段状态贴近字段本身</small></div><div class="ds-card-body"><label class="ds-field">文档名称<input type="text" placeholder="输入文档名称" aria-label="文档名称视觉示例"><small>普通输入框约 36px 高。</small></label><label class="ds-field ds-field-error" style="margin-top:15px">文档名称<input type="text" value="" placeholder="请输入名称" aria-invalid="true" aria-describedby="ds-field-error-text"><small id="ds-field-error-text">请输入文档名称。</small></label><div class="ds-search-input" style="margin-top:15px"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-search"/></svg><span>搜索当前文档列表</span><kbd>⌘⇧F</kbd></div><span class="ds-example-label">搜索输入框 44px 高，需显示范围、结果数及空态。</span></div></article><article class="ds-card"><div class="ds-card-head"><strong>反馈</strong><small>结果与下一步一同说明</small></div><div class="ds-card-body"><div class="ds-feedback-stack"><div class="ds-feedback" style="--ds-feedback-color:var(--ui-color-success)"><span class="ds-feedback-mark">✓</span><div><b>已保存到本地文档</b><small>状态栏继续显示当前文件状态。</small></div></div><div class="ds-feedback" style="--ds-feedback-color:var(--ui-color-warning)"><span class="ds-feedback-mark">!</span><div><b>磁盘版本已更新</b><small>查看版本、保留当前编辑或重新载入。</small></div></div><div class="ds-feedback" style="--ds-feedback-color:var(--ui-color-error)"><span class="ds-feedback-mark">×</span><div><b>保存失败</b><small>保留当前编辑，并说明可重试的操作。</small></div></div></div></div></article></div><div class="ds-subhead"><h3>弹窗结构</h3><small>以下为静态展示</small></div><div class="ds-card"><div class="ds-dialog-stage"><div class="ds-dialog"><div class="ds-dialog-head"><strong>保存文档</strong><button type="button" class="ds-example-icon-button" title="关闭保存文档（静态样例）" aria-label="关闭保存文档（静态样例）" disabled><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-close"/></svg></button></div><div class="ds-dialog-body">明确目标位置和操作结果。长内容应在弹窗内部滚动，标题与底部动作保持可见。</div><div class="ds-dialog-footer"><span class="ds-button ds-button-secondary">取消</span><span class="ds-button ds-button-primary">保存</span></div></div></div></div><div class="ds-subhead"><h3>模型连接与当前模型</h3><small>2026-11-16 Web 修订 · 切换与配置均从顶部 … 菜单进入</small></div>
+        <div class="ds-grid">
+          <article class="ds-card"><div class="ds-card-head"><strong>手动连接与多选模型</strong><small>静态示例</small></div><div class="ds-card-body app-model-form">
+            <label class="app-model-url"><span>服务地址</span><input type="url" value="https://api.example.com/v1" readonly aria-label="服务地址静态示例"></label>
+            <fieldset class="app-model-catalog"><legend>可用模型（可多选）</legend><div class="app-model-catalog__list"><label><input type="checkbox" checked disabled><span>reading-model-a</span></label><label><input type="checkbox" checked disabled><span>reading-model-b</span></label></div><p class="app-model-catalog__status">地址与 Key 可先保存，添加一个模型即可使用；模型列表不可用时可手动添加准确模型 ID。</p></fieldset>
+            <p class="app-security-note">设置仅从“顶部 … > 模型配置”进入。列表滚动、长 ID 换行，底部保存动作保持可见。</p>
+          </div></article>
+          <article class="ds-card"><div class="ds-card-head"><strong>共享当前模型与 CC Switch</strong><small>静态示例</small></div><div class="ds-card-body">
+            <p class="ds-card-note" style="margin-top:0">顶部 … → 切换模型 · CC Switch 跟随模式</p><div class="ds-model-switch-example" role="menu" aria-label="切换模型静态示例"><button type="button" role="menuitemradio" aria-checked="true" aria-disabled="true">✓　CC Switch · Codex · reading-model-a</button><button type="button" role="menuitemradio" aria-checked="false" aria-disabled="true">　　CC Switch · Claude · reading-model-b</button></div><p class="ds-card-note">手动连接模式列出已启用模型：</p><div class="ds-model-switch-example" role="menu" aria-label="手动模型静态示例"><button type="button" role="menuitemradio" aria-checked="true" aria-disabled="true">✓　手动连接 · local-reading-model</button></div>
+            <p class="ds-card-note">主页、MD/TXT、PDF 与 EPUB 共用当前模型；当前生成固定原选择，切换后下次请求生效。Codex 与 Claude 分别刷新，跟随来源以 sourceApp 持久化；来源失效时提示并停止，不自动回退另一来源或旧连接。</p>
+            <p class="ds-card-note">直接打开的离线页保留原工作区。需要本机能力时明确说明启动增强版及存储差异，由用户主动打开，不自动跳转或迁移文档。</p>
+          </div></article>
+        </div></section>
+
+      <section class="ds-section" id="ds-workspace" aria-labelledby="ds-workspace-title"><div class="ds-section-heading"><span>07</span><div><h2 id="ds-workspace-title">文稿工作区</h2><p>打开文档后收起主页文件夹栏。Markdown/TXT 默认直接进入编辑并显示完整旧工具栏与智能审阅入口；此图展示 Markdown 默认编辑分栏；大纲默认关闭，打开后位于预览页左侧，编辑/阅读工具栏和大纲标题 X 可控制。用户主动选择“阅读”后进入只读。</p></div></div><div class="ds-layout-stage"><div class="ds-window" role="img" aria-label="观译阅读器 Markdown 默认编辑布局示意：不显示主页文件夹列表，正文为源码和预览，上方常驻主页及文档页签和完整编辑工具栏，底部状态栏"><div class="ds-window-top"><div class="ds-window-brand">观译</div><div class="ds-window-tab"><span class="ds-file-type" title="Markdown"><svg aria-hidden="true"><use href="#ds-format-md"/></svg></span><span>阅读笔记.md</span></div></div><div class="ds-window-body"><div class="ds-window-main"><div class="ds-window-toolbar"><span>撤销　恢复　正文　加粗　斜体　大纲　智能审阅</span><span>源码 · 预览 · 分栏　保存　导出　主题</span></div><div class="ds-window-editor"><div class="ds-window-source"># 阅读笔记<br><br>打开一段文字，<br>记录自己的想法。<br><br>&gt; 保留原文依据。<br><br>- [ ] 继续阅读</div><div class="ds-window-divider"></div><div class="ds-window-preview"><h4>阅读笔记</h4><p>打开一段文字，记录自己的想法。</p><blockquote>保留原文依据。</blockquote><p>□ 继续阅读</p></div></div><div class="ds-window-status"><span>就绪</span><span>已保存</span></div></div></div></div><div class="ds-layout-legend"><span>大纲内联 220px · 可隐藏</span><span>预览 ≤560px：min(240px, 85%) 覆盖</span><span>桌面顶栏 42px</span><span>格式栏 49px</span><span>状态栏 26px</span><span>阅读宽度 ≤820px</span><span>审阅抽屉 360px</span></div></div><div class="ds-grid" style="margin-top:12px"><div class="ds-card"><div class="ds-card-head"><strong>分栏行为</strong><small>现行产品</small></div><div class="ds-card-body"><p class="ds-card-note" style="margin:0">默认 50 / 50；12px 拖动区；左右比例在 25–75% 之间，并保障单栏至少 280px。双击分隔器复位；键盘方向键 3%，Shift 加方向键 10%。1.0.43 大纲结构为“源码 | 分隔器 | [大纲 | 预览]”；源码模式暂藏，返回预览/分栏保留开关。宽预览大纲内联 220px；预览容器宽 ≤560px 时改为 min(240px, 85%) 覆盖式，遮罩仅预览区，定位标题后自动收起。</p></div></div><div class="ds-card"><div class="ds-card-head"><strong>审阅边界</strong><small>现行产品</small></div><div class="ds-card-body"><p class="ds-card-note" style="margin:0">Markdown 的批注、AI 辅助阅读和问作品使用审阅抽屉；PDF 使用独立研读面板。1.0.44 的 EPUB 也复用同一三页签抽屉，原生高亮/笔记/CFI 与导出保留；当前章或选区的真实原文由本地校验引用与定位，跨书首次定位等待目标阅读器就绪；取消和保存按文档隔离，生成期间新输入的下一条问题在取消/重开/重载后仍保留。都说明来源与生成状态，模型动作由用户主动触发。模型连接的裸域补全 /v1/chat/completions，明确前缀保留；网页、无效响应、鉴权、额度与网络错误用中文说明，不泄露响应正文或密钥。1.0.43 修订：模型配置只在顶部“…”常驻，面板头部统一 54px，X/遮罩/Esc 关闭后焦点归还、草稿保留；菜单在面板和遮罩上方可操作。</p></div></div></div></section>
+
+      <section class="ds-section" id="ds-home-study" aria-labelledby="ds-home-study-title">
+        <div class="ds-section-heading"><span>08</span><div><h2 id="ds-home-study-title">主页与 PDF 智能研读</h2><p>主页与研读于 1.0.41 接入，以下示例加入 1.0.43 的纯图标与统一面板规则（本地体验包构建与实包验收已完成）。静态结构不发送数据；真实操作、状态与范围以应用为准。</p></div></div>
+        <div class="ds-subhead"><h3>Web 对话 · 2026-11-16 修订</h3><small>实际组件 CSS · 静态演示内容</small></div>
+        <div class="ds-chat-live-example" aria-label="AI 对话静态样例，消息为演示内容">
+          <nav aria-label="会话列表静态样例"><strong>＋ 新对话</strong><p class="ds-chat-selected">梳理阅读笔记的思路　…</p><p>理解一份研究文档　…</p><p>开始写作前的问题　…</p></nav>
+          <div class="app-home-workspace">
+            <section class="app-home-chat" aria-label="AI 对话样例">
+              <header class="app-home-chat-heading"><div class="app-home-chat-title"><h1>AI 对话</h1></div><button type="button" class="app-home-icon-button" aria-label="整理为 Markdown（静态样例）" title="整理为 Markdown（静态样例）" disabled><svg viewBox="0 0 16 16"><path d="M3 2h6l4 4v8H3ZM9 2v4h4M5 9h6M5 11h4"/></svg></button></header>
+              <div class="app-home-chat-messages"><div class="app-home-chat-thread">
+                <article class="app-home-message is-user" aria-label="用户消息"><p class="app-home-answer-text">读完一篇文章后，怎样整理出有用的笔记？</p></article>
+                <article class="app-home-message" aria-label="AI 回答"><div class="app-home-answer-text is-markdown"><p>可以先回答三个问题：</p><ol><li><strong>作者想解决什么？</strong> 用一句话写出核心问题。</li><li><strong>什么证据支撑结论？</strong> 留下原文出处，方便回头核对。</li><li><strong>这对我有什么用？</strong> 写下自己的理解与下一步行动。</li></ol><p>先保留你真正想记住的内容，再逐步补充细节。</p></div><div class="app-home-answer-actions"><button type="button" class="app-home-icon-button" aria-label="复制回答（静态样例）" title="复制回答（静态样例）" disabled><svg viewBox="0 0 16 16"><rect x="5" y="5" width="8" height="9" rx="1.5"/><path d="M10 5V2H2v9h3"/></svg></button></div></article>
+              </div></div>
+              <div class="app-home-chat-composer"><label for="ds-chat-input" class="app-home-sr-only">对话输入框静态样例</label><textarea id="ds-chat-input" rows="1" placeholder="发消息…" readonly></textarea><div class="app-home-composer-bottom"><button type="button" class="app-home-source-button" title="选择文档来源（静态样例）" aria-label="选择文档来源（静态样例）" disabled><svg viewBox="0 0 16 16"><path d="M8 2.5v11M2.5 8h11"/></svg></button><button type="button" class="app-home-send" aria-label="发送（静态样例）" title="发送（静态样例）" disabled><svg viewBox="0 0 16 16"><path d="M8 13V3m-4 4 4-4 4 4"/></svg></button></div></div>
+            </section>
+          </div>
+        </div>
+        <p class="ds-card-note">此样例直接引用 home-workspace.css：用户气泡靠右，助手无外卡片，消息居中，输入框自适应高度，来源“+”与发送/停止在框内。会话侧栏替代对话中的文件树；回主页恢复文件列表。顶部“AI 对话”入口从阅读/编辑返回时恢复原活动消息与草稿。会话“…”和右键菜单可软删除，记录可在全局菜单恢复。历史、来源、复制与整理能力由真实应用提供，样例按钮不发送请求。所有可关闭弹框统一右上角 X 图标，具有 title、可访问名称与键盘焦点；X 沿用取消语义。</p>
+        <div class="ds-subhead"><h3>历史对话记录</h3><small>顶部 … → 历史对话记录 · 静态结构示例</small></div>
+        <div class="ds-grid">
+          <div class="app-home-history-dialog ds-history-example" role="region" aria-label="历史对话列表静态示例">
+            <header class="app-home-history-heading"><h2>历史对话记录</h2><button type="button" class="app-home-history-close" title="关闭历史记录（静态示例）" aria-label="关闭历史记录（静态示例）" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4 4 12"/></svg></button></header>
+            <div class="app-home-history-tabs" role="tablist" aria-label="记录筛选示例"><button type="button" role="tab" data-history-filter="all" aria-selected="true" disabled>全部</button><button type="button" role="tab" data-history-filter="deleted" aria-selected="false" disabled>已删除</button></div>
+            <div data-history-list><article class="app-home-history-row"><button type="button" data-history-open="example-current" disabled><strong class="title">梳理阅读笔记的思路</strong><span class="preview">怎样整理出有用的笔记？</span><small class="time">今天 15:20</small></button></article><article class="app-home-history-row"><button type="button" data-history-open="example-deleted" disabled><strong class="title">理解一份研究文档</strong><span class="preview">这篇文章的主要问题是什么？</span><small class="time">昨天 20:10</small></button><span class="app-home-history-badge">已删除</span></article></div>
+          </div>
+          <div class="app-home-history-dialog ds-history-example" role="region" aria-label="已删除对话详情静态示例">
+            <header class="app-home-history-heading"><h2>历史对话记录</h2><button type="button" class="app-home-history-close" title="关闭历史记录（静态示例）" aria-label="关闭历史记录（静态示例）" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4 4 12"/></svg></button></header>
+            <div data-history-detail><button type="button" data-history-back disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3m5-5L3 8l5 5"/></svg>返回记录</button><h3>理解一份研究文档</h3><p>已删除 · 今天 09:30</p><div class="app-home-history-messages"><article class="app-home-message is-user"><p class="app-home-answer-text">这篇文章的主要问题是什么？</p></article><article class="app-home-message"><p class="app-home-answer-text">作者尝试说明结论在什么条件下成立，并给出相关证据。</p></article></div></div>
+            <footer><button type="button" data-history-restore="example-deleted" disabled>恢复对话</button></footer>
+          </div>
+        </div>
+        <p class="ds-card-note">软删除只从会话栏移除，消息、来源与未发送草稿仍保留；不提供永久删除。“全部 / 已删除”筛选后可查看只读详情或恢复。打开和关闭历史不会改变底层文档或活动会话，X/Esc 归还入口焦点；只有主动继续某条对话才切换。弹框宽 680px，上限 min(760px, 85dvh)，自身单层滚动，标题、X 与底部动作保持可达。此处仅说明本轮交互规则，测试结果另行记录。</p>
+        <div class="ds-subhead"><h3>主页与文档研读</h3><small>既有工作区与阅读规则保留</small></div>
+        <div class="ds-grid">
+          <article class="ds-card"><div class="ds-card-head"><strong>常驻工作台</strong><small>最近使用按实际打开时间降序</small></div><div class="ds-card-body">
+            <div class="ds-flow-stage" role="img" aria-label="主页静态示例：文档夹列表、独立搜索、可选文档的 AI 对话和最近打开文档。没有宣传首屏或重复主页标题。">
+              <div class="ds-flow-tabs"><svg class="ds-icon" aria-hidden="true" viewBox="0 0 16 16"><path class="ds-icon-ink" d="m2 7 6-5 6 5v7H9.5V9h-3v5H2V7Z"/></svg><span>阅读笔记.md</span><button type="button" class="ds-example-icon-button" title="全局菜单（静态样例）" aria-label="全局菜单（静态样例）"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-more"/></svg></button></div>
+              <div class="ds-flow-body"><div class="ds-flow-sidebar">新建 Markdown<br>打开文档<br><br>文档夹<br>研究资料<br>我的写作</div><div class="ds-flow-main">
+                <div class="ds-search-input ds-home-search"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-search"/></svg><span>搜索文档…</span><kbd>⌘ K</kbd></div>
+                <div class="app-home-workspace ds-home-live-example"><section class="app-home-ai"><div class="app-home-ai-heading"><h1>你想读懂什么，或写点什么？</h1></div><div class="app-home-prompt-composer"><textarea rows="1" data-home-prompt aria-label="主页输入静态样例" placeholder="问一个问题…" readonly></textarea><div class="app-home-composer-bottom"><button type="button" class="app-home-source-button" title="选择文档来源（静态样例）" aria-label="选择文档来源（静态样例）" disabled><svg viewBox="0 0 16 16"><path d="M8 2.5v11M2.5 8h11"/></svg></button><button type="button" class="app-home-send" title="发送（静态样例）" aria-label="发送（静态样例）" disabled><svg viewBox="0 0 16 16"><path d="M8 13V3m-4 4 4-4 4 4"/></svg></button></div></div></section></div>
+                <h4>最近使用</h4><div class="ds-recent-example"><span>论文.pdf</span><small>2 分钟前</small></div><div class="ds-recent-example"><span>阅读笔记.md</span><small>1 小时前</small></div><div class="ds-recent-example"><span>摘录.txt</span><small>昨天</small></div>
+              </div></div>
+            </div><p class="ds-card-note">独立搜索 34px 高，外层不加背景框。选择文档、预填问题不触发发送；保存和后台扫描不改变最近打开排序。窄屏文档夹按需覆盖展开。模型配置统一从“顶部 … > 模型配置”进入；缺模型保留输入并说明路径，主页与侧栏无独立配置按钮。</p>
+          </div></article>
+          <article class="ds-card"><div class="ds-card-head"><strong>阅读与研读</strong><small>默认纯阅读，主动打开研读</small></div><div class="ds-card-body">
+            <div class="ds-flow-stage" role="img" aria-label="PDF 智能研读静态示例：无主页文件夹栏，左侧原文，右侧全文概览、方法结果和来源卡；显示全文覆盖和来源版本。">
+              <div class="ds-flow-tabs"><span>论文.pdf</span><span>文件页 8 / 24</span><button type="button" class="ds-example-icon-button" title="智能研读（静态样例）" aria-label="智能研读（静态样例）" aria-expanded="true" aria-controls="ds-study-example-panel"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-study"/></svg></button><button type="button" class="ds-example-icon-button" title="全局菜单（静态样例）" aria-label="全局菜单（静态样例）"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-more"/></svg></button></div>
+              <div class="ds-study-example"><div class="ds-study-paper"><h4>方法与结果</h4><p>结合上下文阅读，先分清作者的判断和支撑判断的证据。</p><p><mark>原文定位高亮</mark>只用于核验来源，AI 解释另行标识。</p><p>返回阅读位置</p></div><div class="ds-study-example-panel" id="ds-study-example-panel">
+                <div class="ds-study-example-heading"><strong>智能研读</strong><button type="button" class="ds-example-icon-button" title="关闭智能研读（静态样例）" aria-label="关闭智能研读（静态样例）"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-close"/></svg></button></div>
+                <div class="ds-state-strip"><span class="ds-state-chip ds-current">导读</span><span class="ds-state-chip">对话</span><span class="ds-state-chip">学习卡</span><span class="ds-state-chip">批注</span></div>
+                <h4>全文概览（AI）</h4><p>全文 24 页 · 文字块与页面图像全量研读</p><div class="ds-flow-actions"><span class="ds-button ds-button-secondary">重新研读</span></div><h4>核心方法与结果</h4><p>原文事实 / 作者观点 / 辅助解释</p><div class="ds-study-evidence"><p>文件第 8 页图像 · 查看原图<br>定位图表所在页后可返回阅读位置</p></div><details><summary>研究过程、术语与原文摘引</summary><p>按需展开细节与逐字原文；译文单独标注。</p></details>
+              </div></div>
+            </div><p class="ds-card-note">研读面板 360px、头部 54px；X/遮罩/Esc 关闭与 Markdown 审阅一致，焦点回到研读图标且草稿保留。顶部“…”菜单在面板和遮罩之上；宽度不足 1180px 时面板覆盖显示。全文导读不采样文字块或页面图像，覆盖信息分别显示发送数；扫描页按图像研读。图像来源支持本地“查看原图”和定位图表所在页，图片不写入研读记录。提问默认全文，可主动锁定选区、当前页或页段；选区会发送所在整页图像，发送前披露。翻页不改变范围。一次任务冻结同一模型，重新研读成功才替换同版本缓存；当前全文范围和进度独立展示，旧采样或旧引擎结果默认折叠在“查看此前的研读结果”，范围说明与引用留在历史内。重新研读时上次结果也暂时折叠，失败或停止保留；成功后不再展示更早的失败提示。关闭面板取消在途任务并保留已有结果。来源变化时保留快照并提示重新核验，不假定位到新版。1.0.44 清零隐藏 PDF.js 工具栏的 padding/border/shadow，移除第二条灰线，保留正文高倍缩放的真实水平滚动。</p>
+            <div class="ds-study-compact" aria-label="本轮PDF批注与对话静态结构样例"><article><strong>批注卡片</strong><p style="color:var(--ui-color-text-brand)">结论需要结合材料与条件来理解。</p><p>这里的适用条件需要再核对。</p><small>第 2 页 · PDF 高亮 · 11/14 23:20</small></article><article><strong>文档对话</strong><p>全文　·　24 页</p><div class="ds-study-input">围绕原文提问…<svg viewBox="0 0 16 16" aria-label="发送图标样例"><path d="M8 12.5v-9m-3.5 3.5L8 3.5l3.5 3.5"/></svg></div></article></div><p class="ds-card-note">1.0.45 实现修订，体验包已验收：批注默认采用 MD 式卡片，“新建笔记”才展开表单，编辑草稿保留原 ID。原生评论直接读取 PDF.js，新增、修改、删除、撤销自动刷新。范围压成一行，发送/停止图标置于输入框右下角；精简重复说明，保留必要范围、配置路径与错误。</p>
+          </div></article>
+        </div>
+      </section>
+
+      <section class="ds-section" id="ds-rules" aria-labelledby="ds-rules-title"><div class="ds-section-heading"><span>09</span><div><h2 id="ds-rules-title">适配与反例</h2><p>原型必须标注所演示的格式、主题与宽度。不要把静态视觉样例当成已上线能力。</p></div></div><div class="ds-card"><table class="ds-rule-table"><tbody><tr><th>桌面与宽屏</th><td>品牌区与侧栏边界对齐；页签横向滚动。macOS 标题栏为交通灯留出安全区，控件不进入该区域。</td></tr><tr><th>≤760px</th><td>主页文件夹由按钮打开覆盖抽屉；阅读和编辑收起主页文件夹；工具栏横向滚动；分栏上下堆叠；弹窗靠底并保持内容可滚。</td></tr><tr><th>预览容器</th><td>独立于窗口宽度：大纲默认关闭；预览宽 >560px 内联 220px，宽 ≤560px 用 min(240px, 85%) 覆盖且遮罩仅预览区。源码模式暂藏，标题定位后自动收起。</td></tr><tr><th>≤360px</th><td>页签和设置表单继续压缩，保留操作文案、焦点和可触达区域。</td></tr><tr><th>明暗主题</th><td>同时核对纸面、源码、边线、选中态和反馈。主题切换使用同一组语义角色。</td></tr><tr><th>无障碍</th><td>纯图标按钮有可访问名称；键盘焦点可见；当前项、错误与文件类型有文字或形状辅助说明。</td></tr></tbody></table></div><div class="ds-subhead"><h3>推荐与避免</h3><small>新原型的基本检查</small></div><div class="ds-do-dont"><div class="ds-advice" style="--ds-advice-color:var(--ui-color-success)"><span>DO / 推荐</span><strong>写明状态和去向</strong><p>“已保存到本地文档”“磁盘版本已更新”，并给出下一步入口。按文件格式使用对应工具栏。</p></div><div class="ds-advice" style="--ds-advice-color:var(--ui-color-error)"><span>DON'T / 避免</span><strong>套用无关品牌和能力</strong><p>不使用旧蓝色主操作、系统 emoji 或大面积渐变；不把 Markdown 工具栏画在 PDF/EPUB 上，不把提案描绘成已上线。</p></div></div><div class="ds-a11y-note"><strong>V1 可读性目标与现状：</strong>普通文字目标对比度至少 4.5:1。通用旧主按钮白字对常态橙约 4.06:1，悬停橙约 3.44:1，尚未通过该目标；后续调整须同时核对明暗主题。新增 PDF 研读的主按钮采用更深的品牌色，仍需随状态验收。</div></section>
+      <footer class="ds-footer"><span>观译阅读器 · 设计系统 V1.0 · 1.0.44 已验收本地体验包 / 1.0.43 历史包</span><span><a href="README.md">规范正文</a> · <a href="../../index.html">当前前端</a> · <a href="../../css/app.css">样式源码</a></span></footer>
+    </div></main>
+  </div>
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const toggle = document.getElementById('ds-theme-toggle');
+      const label = document.getElementById('ds-theme-label');
+      const setTheme = (theme) => {
+        const dark = theme === 'dark';
+        root.dataset.theme = dark ? 'dark' : 'light';
+        toggle.setAttribute('aria-pressed', String(dark));
+        toggle.setAttribute('aria-label', dark ? '切换为明色主题' : '切换为暗色主题');
+        label.textContent = dark ? '明色主题' : '暗色主题';
+        try { localStorage.setItem('guanyi-design-system-theme', dark ? 'dark' : 'light'); } catch (_) {}
+      };
+      try { setTheme(localStorage.getItem('guanyi-design-system-theme') === 'dark' ? 'dark' : 'light'); } catch (_) { setTheme('light'); }
+      toggle.addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
+      const links = [...document.querySelectorAll('.ds-nav a')];
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver((entries) => {
+          const current = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+          if (!current) return;
+          links.forEach((link) => link.classList.toggle('ds-active', link.hash === '#' + current.target.id));
+        }, { rootMargin: '-12% 0px -70% 0px' });
+        links.forEach((link) => { const section = document.querySelector(link.hash); if (section) observer.observe(section); });
+      }
+    })();
+  </script>
+</body>
+</html>

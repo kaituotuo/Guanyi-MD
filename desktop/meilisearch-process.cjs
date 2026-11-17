@@ -295,7 +295,7 @@ class MeilisearchProcess {
 
   async startAttempt(attempt) {
     const stats = await fs.promises.stat(this.binaryPath).catch(() => null);
-    if (!stats?.isFile()) throw new Error('本地 Meilisearch 程序缺失，请重新安装观绎 MD');
+    if (!stats?.isFile()) throw new Error('本地 Meilisearch 程序缺失，请重新安装观译阅读器');
     if (process.platform !== 'win32' && !(stats.mode & 0o111)) await fs.promises.chmod(this.binaryPath, 0o755);
     await fs.promises.mkdir(this.dataDir, { recursive: true });
     const apiKey = await this.masterKey();

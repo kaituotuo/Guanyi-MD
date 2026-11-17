@@ -1,0 +1,2173 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>观译阅读器 · 交互原型 v1.0.45（现有功能）</title>
+<meta name="description" content="观译阅读器 1.0.45 版本现有功能完整复刻：主页、AI 对话、PDF 阅读、批注、智能研读。">
+<style>
+/* ═══ 设计 Tokens：完全对齐实际客户端 css/app.css ═══ */
+:root {
+  color-scheme: light;
+  --ui-font-family: Inter, "Noto Sans SC", "PingFang SC", system-ui, sans-serif;
+  --ui-font-size-base: 14px;
+  --ui-font-size-small: 12px;
+  --ui-font-weight-bold: 650;
+  --ui-font-weight-regular: 450;
+  --ui-border-radius-middle: 8px;
+  --ui-border-radius-small: 6px;
+  --ui-opacity-disabled: .45;
+  --ui-color-background-base: #f6f4f1;
+  --ui-color-background-container: #f4f1ed;
+  --ui-color-background-top: #ffffff;
+  --ui-color-fill-base: #ffffff;
+  --ui-color-fill-light: #f4f1ed;
+  --ui-color-fill-middle: #e8e4dd;
+  --ui-color-fill-regular: #eeeae5;
+  --ui-color-fill-heavy: rgba(60, 40, 20, .14);
+  --ui-color-text-primary: #2a2520;
+  --ui-color-text-secondary: #6b6358;
+  --ui-color-text-tertiary: #736b60;
+  --ui-color-text-brand: #d9431f;
+  --ui-color-text-white: #ffffff;
+  --ui-color-text-success: #3d9970;
+  --ui-color-text-warning: #9a6206;
+  --ui-color-text-error: #b72d2d;
+  --ui-color-line-light: rgba(60, 40, 20, .07);
+  --ui-color-line-regular: rgba(60, 40, 20, .12);
+  --ui-color-line-strong: rgba(60, 40, 20, .22);
+  --ui-color-line-public: #df4b25;
+  --ui-color-line-error: #d32f2f;
+  --ui-color-public-normal: #df4b25;
+  --ui-color-public-hover: #ed5a2f;
+  --ui-color-public-pressed: #bd3518;
+  --ui-color-theme: #df4b25;
+  --ui-color-state-hover: rgba(45, 42, 38, .06);
+  --ui-color-state-active: rgba(45, 42, 38, .1);
+  --ui-color-state-pressed-brand: rgba(217, 67, 31, .11);
+  --ui-color-state-pressed-public: rgba(223, 75, 37, .14);
+  --ui-color-success: #3d9970;
+  --ui-color-warning: #e08a1f;
+  --ui-color-error: #d32f2f;
+  --ui-color-error-light: rgba(211, 47, 47, .1);
+  --ui-shadow-soft: 0 2px 8px rgba(60, 40, 20, .08), 0 1px 2px rgba(60, 40, 20, .04);
+  --ui-shadow-raised: 0 12px 32px rgba(60, 40, 20, .16), 0 2px 6px rgba(60, 40, 20, .06);
+  --ui-focus-ring: rgba(223, 75, 37, .46);
+  --guanyi-sidebar-width: 268px;
+  --guanyi-topbar-height: 56px;
+  --guanyi-formatbar-height: 49px;
+  --guanyi-statusbar-height: 26px;
+  --guanyi-tab-arc-size: 10px;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --ui-color-background-base: #1f1d1a;
+  --ui-color-background-container: #292621;
+  --ui-color-background-top: #302c27;
+  --ui-color-fill-base: #302c27;
+  --ui-color-fill-light: #37322c;
+  --ui-color-fill-middle: #454039;
+  --ui-color-fill-regular: #3c3731;
+  --ui-color-fill-heavy: rgba(255, 247, 238, .16);
+  --ui-color-text-primary: #f4f1ed;
+  --ui-color-text-secondary: #c8c0b6;
+  --ui-color-text-tertiary: #aaa197;
+  --ui-color-text-brand: #ff6847;
+  --ui-color-line-light: rgba(255, 247, 238, .07);
+  --ui-color-line-regular: rgba(255, 247, 238, .13);
+  --ui-color-line-strong: rgba(255, 247, 238, .24);
+  --ui-color-state-hover: rgba(255, 247, 238, .07);
+  --ui-color-state-active: rgba(255, 247, 238, .12);
+  --ui-color-state-pressed-brand: rgba(255, 104, 71, .17);
+  --ui-color-state-pressed-public: rgba(255, 104, 71, .17);
+  --ui-shadow-soft: 0 2px 10px rgba(0, 0, 0, .22);
+  --ui-shadow-raised: 0 16px 40px rgba(0, 0, 0, .34);
+}
+
+/* ═══ 全局重置 ═══ */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; padding: 0; }
+body {
+  font-family: var(--ui-font-family);
+  background: var(--ui-color-background-base);
+  color: var(--ui-color-text-primary);
+  font-size: 14px;
+  line-height: 1.55;
+  overflow: hidden;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: transparent; border-radius: 6px; }
+button:disabled { cursor: default; opacity: var(--ui-opacity-disabled); }
+svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: middle;
+}
+[hidden] { display: none !important; }
+:focus-visible {
+  outline: 2px solid var(--ui-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ═══ 应用壳层 ═══ */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── 顶栏 ── */
+.app-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--ui-color-fill-base);
+  border-bottom: 1px solid var(--ui-color-line-regular);
+  flex-shrink: 0;
+  min-height: var(--guanyi-topbar-height);
+}
+.app-topbar__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: var(--ui-font-weight-bold);
+  white-space: nowrap;
+  margin-right: 8px;
+}
+.guanyi-mark {
+  width: 24px;
+  height: 24px;
+  background: var(--ui-color-text-primary);
+  color: #fff;
+  border: 2px solid var(--ui-color-public-normal);
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  font: 17px/1 Georgia, serif;
+  flex-shrink: 0;
+}
+.app-topbar__spacer { flex: 1; }
+.app-topbar__model {
+  font-size: 11px;
+  color: var(--ui-color-text-tertiary);
+  padding-right: 6px;
+}
+.topbar-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--ui-color-text-secondary);
+  flex-shrink: 0;
+}
+.topbar-btn:hover {
+  background: var(--ui-color-state-hover);
+  color: var(--ui-color-text-primary);
+}
+.topbar-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
+}
+
+/* 应用菜单 */
+.app-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 12px;
+  width: 210px;
+  padding: 6px;
+  background: var(--ui-color-background-top);
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 9px;
+  box-shadow: var(--ui-shadow-raised);
+  z-index: 50;
+}
+.app-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  text-align: left;
+  font-size: 13px;
+  border-radius: 5px;
+}
+.app-menu button:hover {
+  background: var(--ui-color-state-hover);
+}
+.app-menu button svg {
+  width: 15px;
+  height: 15px;
+  color: var(--ui-color-text-brand);
+}
+.menu-ver {
+  padding: 4px 10px 2px;
+  font-size: 11px;
+  color: var(--ui-color-text-tertiary);
+}
+
+/* ── 主体区域 ── */
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── 侧栏 ── */
+.app-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  min-width: 240px;
+  background: var(--ui-color-fill-base);
+  border-right: 1px solid var(--ui-color-line-regular);
+  display: flex;
+  flex-direction: column;
+}
+.app-sidebar[hidden] {
+  display: none !important;
+}
+.app-sidebar__header {
+  padding: 10px 8px 6px;
+}
+.app-sidebar__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0 8px;
+}
+.app-new-doc,
+.app-open-doc {
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--ui-border-radius-middle);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.app-new-doc {
+  background: var(--ui-color-fill-base);
+  color: var(--ui-color-text-primary);
+  border-color: var(--ui-color-fill-heavy);
+}
+.app-new-doc:hover {
+  background: var(--ui-color-fill-light);
+  border-color: var(--ui-color-line-regular);
+}
+.app-open-doc {
+  background: var(--ui-color-public-normal);
+  color: var(--ui-color-text-white);
+}
+.app-open-doc:hover {
+  background: var(--ui-color-public-hover);
+}
+.app-open-doc svg,
+.app-new-doc svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
+}
+
+/* 文档列表 */
+.app-sidebar__section {
+  padding: 4px 8px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ui-color-text-secondary);
+  border-top: 1px solid var(--ui-color-line-regular);
+}
+.app-doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px 8px 8px;
+  flex: 1;
+  min-height: 84px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.app-doc-item {
+  min-height: 34px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.app-doc-item:hover {
+  background: var(--ui-color-state-hover);
+}
+.app-doc-item.is-active {
+  background: var(--ui-color-state-pressed-public);
+  color: var(--ui-color-text-brand);
+  font-weight: 600;
+}
+.doc-badge {
+  width: 28px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  font: 700 10px/1 system-ui;
+  color: #fff;
+  flex-shrink: 0;
+}
+.doc-badge.pdf { background: #c7352b; }
+.doc-badge.md { background: #455164; }
+.doc-badge.txt { background: #1769aa; }
+.doc-badge.epub { background: #a94f1f; }
+.doc-info {
+  flex: 1;
+  min-width: 0;
+}
+.doc-info strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-info small {
+  font-size: 11px;
+  color: var(--ui-color-text-tertiary);
+}
+
+/* 侧栏底部说明 */
+.sidebar-note {
+  margin-top: auto;
+  border-top: 1px solid var(--ui-color-line-regular);
+  padding: 16px 12px;
+  font-size: 12px;
+  color: var(--ui-color-text-secondary);
+  line-height: 1.75;
+}
+.sidebar-note strong {
+  display: block;
+  font-size: 13px;
+  color: var(--ui-color-text-primary);
+  margin-bottom: 5px;
+}
+
+/* ── 工作区（路由容器）── */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--ui-color-background-base);
+}
+
+/* ═══ 主页路由 ═══ */
+.home-route {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.home-route[hidden] {
+  display: none !important;
+}
+.home-search-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  min-height: 49px;
+  border-bottom: 1px solid var(--ui-color-line-light);
+  background: var(--ui-color-background-top);
+  gap: 12px;
+}
+.home-search-row h2 {
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 7px;
+  background: var(--ui-color-background-container);
+  width: 240px;
+  max-width: 100%;
+}
+.search-box:focus-within {
+  border-color: var(--ui-color-line-public);
+  background: var(--ui-color-background-top);
+  box-shadow: 0 0 0 2px var(--ui-color-state-pressed-public);
+}
+.search-box svg {
+  width: 14px;
+  height: 14px;
+  color: var(--ui-color-text-tertiary);
+  flex-shrink: 0;
+}
+.search-box input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 12px;
+  min-width: 0;
+  width: 100%;
+}
+.search-box kbd {
+  font-size: 10px;
+  padding: 1px 5px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 4px;
+  color: var(--ui-color-text-tertiary);
+  background: var(--ui-color-background-top);
+  flex-shrink: 0;
+}
+.home-content {
+  max-width: 1120px;
+  padding: 36px 48px 48px;
+  margin: 0 auto;
+  flex: 1;
+}
+
+/* AI 对话卡片 */
+.home-ai {
+  padding: 20px 20px 14px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 8px;
+  background: var(--ui-color-background-top);
+  box-shadow: var(--ui-shadow-soft);
+  margin-bottom: 20px;
+}
+.home-ai:focus-within {
+  border-color: var(--ui-color-line-public);
+  box-shadow: 0 0 0 2px var(--ui-color-state-pressed-public);
+}
+.home-ai-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+}
+.home-ai-heading svg {
+  color: var(--ui-color-text-brand);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  stroke-width: 1.4;
+}
+.home-ai-heading h1 {
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+}
+.home-ai-heading span {
+  font-size: 11px;
+  color: var(--ui-color-text-tertiary);
+}
+.home-ai textarea {
+  display: block;
+  width: 100%;
+  min-height: 96px;
+  max-height: 320px;
+  padding: 16px 0 10px;
+  border: 0;
+  outline: 0;
+  resize: vertical;
+  background: transparent;
+  line-height: 1.75;
+  font-size: 14px;
+}
+.home-ai textarea::placeholder {
+  color: var(--ui-color-text-tertiary);
+}
+.home-ai-bottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.source-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 6px;
+  background: var(--ui-color-background-top);
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.source-btn:hover {
+  background: var(--ui-color-state-hover);
+}
+.source-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.5;
+}
+.scope-txt {
+  font-size: 11px;
+  color: var(--ui-color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.send-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--ui-color-public-normal);
+  color: #fff;
+  border: 1px solid transparent;
+}
+.send-btn:hover:not(:disabled) {
+  background: var(--ui-color-public-hover);
+}
+.send-btn:disabled {
+  background: var(--ui-color-background-container);
+  color: var(--ui-color-text-tertiary);
+  opacity: 1;
+}
+.send-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+}
+
+/* 快捷操作 */
+.home-quick {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 16px 0 40px;
+}
+.home-quick button {
+  padding: 2px 0;
+  font-size: 13px;
+  color: var(--ui-color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.home-quick button:hover {
+  background: transparent;
+  color: var(--ui-color-text-brand);
+}
+.home-quick button svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+}
+
+/* 文档区块 */
+.home-section {
+  margin-top: 0;
+}
+.home-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ui-color-line-regular);
+}
+.home-section-head h2 {
+  font-size: 18px;
+}
+.home-section-head span {
+  font-size: 12px;
+  color: var(--ui-color-text-secondary);
+}
+.doc-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--ui-color-line-light);
+  cursor: pointer;
+  border-radius: 6px;
+  width: 100%;
+  text-align: left;
+  background: none;
+}
+.doc-row:hover {
+  background: var(--ui-color-state-hover);
+}
+.doc-row .doc-badge {
+  width: 29px;
+  height: 34px;
+}
+.doc-row .doc-arrow {
+  color: var(--ui-color-text-tertiary);
+  font-size: 16px;
+}
+
+/* ═══ AI 对话路由 ═══ */
+.chat-route {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.chat-route[hidden] {
+  display: none !important;
+}
+.chat-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  min-height: 49px;
+  border-bottom: 1px solid var(--ui-color-line-regular);
+  background: var(--ui-color-background-top);
+  flex-shrink: 0;
+}
+.chat-head h1 {
+  font-size: 16px;
+  font-weight: 600;
+  flex: 1;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 11px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 6px;
+  background: var(--ui-color-background-top);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) {
+  background: var(--ui-color-state-hover);
+}
+.btn svg {
+  width: 14px;
+  height: 14px;
+}
+.chat-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 0 8px;
+}
+.chat-stream {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 24px 100px;
+}
+.chat-empty {
+  text-align: center;
+  padding: 72px 0;
+  color: var(--ui-color-text-secondary);
+}
+.chat-empty h2 {
+  font: 600 22px/1.3 Georgia, serif;
+  color: var(--ui-color-text-primary);
+  margin-bottom: 8px;
+}
+.chat-empty p {
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.chat-empty .btn {
+  margin: 3px;
+}
+.msg {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.msg.user {
+  justify-content: flex-end;
+}
+.msg.user .msg-text {
+  max-width: 76%;
+  background: var(--ui-color-fill-regular);
+  border-radius: 12px 12px 3px 12px;
+  padding: 10px 13px;
+}
+.msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ui-color-state-pressed-public);
+  color: var(--ui-color-text-brand);
+  display: grid;
+  place-items: center;
+  font-weight: 650;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.msg .msg-text {
+  line-height: 1.8;
+  font-size: 14px;
+}
+.msg-thinking {
+  color: var(--ui-color-text-secondary);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.msg-thinking::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ui-color-line-strong);
+  border-top-color: var(--ui-color-text-brand);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.chat-composer-wrap {
+  flex-shrink: 0;
+  padding: 0 24px 16px;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+}
+.chat-composer {
+  padding: 14px 16px 12px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 8px;
+  background: var(--ui-color-background-top);
+}
+.chat-composer:focus-within {
+  border-color: var(--ui-color-line-public);
+  box-shadow: 0 0 0 2px var(--ui-color-state-pressed-public);
+}
+.chat-composer > label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ui-color-text-secondary);
+  font-size: 12px;
+}
+.chat-composer textarea {
+  width: 100%;
+  min-height: 70px;
+  max-height: 220px;
+  padding: 0 0 10px;
+  border: 0;
+  outline: 0;
+  resize: vertical;
+  background: transparent;
+  line-height: 1.75;
+  font-size: 14px;
+}
+.chat-composer textarea::placeholder {
+  color: var(--ui-color-text-tertiary);
+}
+.composer-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.stop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 6px;
+  background: var(--ui-color-background-top);
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.stop-btn:hover {
+  background: var(--ui-color-state-hover);
+}
+.stop-btn svg {
+  width: 13px;
+  height: 13px;
+}
+.chat-status {
+  font-size: 11px;
+  color: var(--ui-color-text-tertiary);
+  padding: 5px 0 0;
+  min-height: 18px;
+}
+
+/* ═══ PDF 路由 ═══ */
+.pdf-route {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pdf-route[hidden] {
+  display: none !important;
+}
+
+/* PDF 工具栏 */
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-height: var(--guanyi-formatbar-height);
+  padding: 7px 14px;
+  overflow-x: auto;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--ui-color-line-regular);
+  background: var(--ui-color-background-top);
+  scrollbar-width: thin;
+}
+.pdf-toolbar > * {
+  flex-shrink: 0;
+}
+.pdf-ctrl-group {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 8px;
+  background: var(--ui-color-background-top);
+  overflow: hidden;
+}
+.pdf-ctrl-group .fmt-btn {
+  border-radius: 0;
+  border: 0;
+  min-height: 32px;
+}
+.pdf-ctrl-group .fmt-btn + .fmt-btn {
+  border-left: 1px solid var(--ui-color-line-regular);
+}
+.pdf-ctrl-group select {
+  height: 32px;
+  border: 0;
+  border-left: 1px solid var(--ui-color-line-regular);
+  border-radius: 0;
+  padding: 0 20px 0 8px;
+  font-size: 13px;
+  background: transparent;
+  cursor: pointer;
+}
+.pdf-ctrl-group input {
+  width: 46px;
+  height: 30px;
+  border: 0;
+  border-left: 1px solid var(--ui-color-line-regular);
+  border-radius: 0;
+  padding: 0;
+  text-align: center;
+  font-size: 13px;
+  background: transparent;
+}
+.pdf-page-sep {
+  padding: 0 8px;
+  font-size: 13px;
+  color: var(--ui-color-text-secondary);
+}
+.fmt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--ui-color-text-primary);
+  flex-shrink: 0;
+}
+.fmt-btn:hover:not(:disabled) {
+  background: var(--ui-color-state-hover);
+}
+.fmt-btn[aria-pressed="true"],
+.fmt-btn[aria-expanded="true"] {
+  background: var(--ui-color-state-pressed-public);
+  color: var(--ui-color-text-brand);
+}
+.fmt-btn:disabled {
+  opacity: .35;
+  cursor: default;
+}
+.fmt-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.5;
+}
+.fmt-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--ui-color-line-regular);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+/* PDF 阅读区 */
+.pdf-reading-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+.pdf-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 20px 60px;
+  background: var(--ui-color-background-base);
+}
+.pdf-paper {
+  background: #fff;
+  color: #252321;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 48px 48px 36px;
+  box-shadow: 0 1px 6px rgba(60, 40, 20, .12);
+}
+.pdf-paper h1 {
+  font: 600 26px/1.2 Georgia, serif;
+  margin-bottom: 20px;
+}
+.pdf-paper h2 {
+  font: 600 17px/1.4 Georgia, serif;
+  margin: 22px 0 11px;
+}
+.pdf-paper p {
+  font: 15px/1.85 Georgia, serif;
+  margin-bottom: 14px;
+  overflow-wrap: anywhere;
+}
+.pdf-paper p::selection {
+  background: #f7d5c5;
+}
+
+/* ═══ 智能研读侧栏 ═══ */
+.study-panel {
+  display: flex;
+  flex: 0 0 360px;
+  flex-direction: column;
+  width: 360px;
+  height: 100%;
+  border-left: 1px solid var(--ui-color-line-regular);
+  background: var(--ui-color-background-top);
+  font-size: 14px;
+}
+.study-panel[hidden] {
+  display: none !important;
+}
+.study-heading {
+  display: flex;
+  flex: 0 0 54px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--ui-color-line-regular);
+}
+.study-heading strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.study-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 7px;
+  color: var(--ui-color-text-secondary);
+  display: grid;
+  place-items: center;
+}
+.study-close:hover {
+  background: var(--ui-color-state-hover);
+  color: var(--ui-color-text-primary);
+}
+.study-close svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2.15;
+}
+.study-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--ui-color-line-regular);
+  flex-shrink: 0;
+}
+.study-tabs [role="tab"] {
+  flex: 1;
+  position: relative;
+  min-height: 42px;
+  padding: 7px 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ui-color-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.study-tabs [role="tab"]:hover {
+  color: var(--ui-color-text-primary);
+}
+.study-tabs [aria-selected="true"] {
+  color: var(--ui-color-text-brand);
+  font-weight: 600;
+}
+.study-tabs [aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 4px -1px;
+  height: 2px;
+  background: var(--ui-color-public-normal);
+}
+.study-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  overscroll-behavior: contain;
+}
+.study-body--ask {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.study-messages {
+  flex: 1;
+  min-height: 80px;
+  overflow: auto;
+  padding: 12px 16px;
+}
+.study-chat {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ui-color-line-light);
+}
+.study-chat h4 {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--ui-color-background-container);
+  font-size: 13px;
+  font-weight: 500;
+}
+.study-answer {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--ui-color-text-primary);
+  margin-top: 10px;
+}
+.study-thinking {
+  color: var(--ui-color-text-secondary);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.study-thinking::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--ui-color-line-strong);
+  border-top-color: var(--ui-color-text-brand);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+.study-empty-chat {
+  text-align: center;
+  padding: 36px 0;
+  font-size: 12px;
+  color: var(--ui-color-text-secondary);
+}
+.study-composer {
+  flex-shrink: 0;
+  max-height: 60%;
+  overflow: auto;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--ui-color-line-regular);
+  background: var(--ui-color-background-top);
+}
+.study-scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+.study-scope select {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 112px;
+  height: 30px;
+  padding: 4px 6px;
+  font-size: 12px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 5px;
+  background: var(--ui-color-background-container);
+}
+.study-scope-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ui-color-text-secondary);
+}
+.study-input-wrap {
+  position: relative;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 8px;
+  background: var(--ui-color-background-container);
+}
+.study-input-wrap:focus-within {
+  border-color: var(--ui-color-text-brand);
+}
+.study-input-wrap textarea {
+  display: block;
+  width: 100%;
+  min-height: 108px;
+  max-height: 180px;
+  padding: 10px 12px 44px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  resize: none;
+  outline: none;
+  line-height: 1.7;
+  font-size: 13px;
+}
+.study-input-wrap textarea::placeholder {
+  color: var(--ui-color-text-tertiary);
+}
+.study-send {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--ui-color-line-regular);
+  display: grid;
+  place-items: center;
+}
+.study-send:hover:not(:disabled) {
+  background: var(--ui-color-state-hover);
+}
+.study-send.is-primary {
+  background: var(--ui-color-public-normal);
+  border-color: var(--ui-color-public-normal);
+  color: #fff;
+}
+.study-send.is-primary:hover:not(:disabled) {
+  background: var(--ui-color-public-hover);
+}
+.study-send:disabled {
+  border-color: var(--ui-color-line-regular);
+  color: var(--ui-color-text-tertiary);
+}
+.study-send svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
+}
+.study-hint {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--ui-color-text-secondary);
+  line-height: 1.5;
+}
+.study-footer {
+  flex-shrink: 0;
+  min-height: 46px;
+  padding: 7px 12px;
+  border-top: 1px solid var(--ui-color-line-regular);
+}
+.study-footer > .btn {
+  width: 100%;
+  justify-content: center;
+}
+.study-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--ui-color-text-primary);
+}
+.study-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  margin: 12px 0;
+}
+.study-range input {
+  width: 60px;
+  height: 30px;
+  text-align: center;
+  padding: 4px 6px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 5px;
+  background: var(--ui-color-background-container);
+}
+.study-muted {
+  color: var(--ui-color-text-secondary);
+  font-size: 12px;
+}
+.study-overview {
+  padding: 14px 12px;
+  margin-bottom: 16px;
+  border-left: 3px solid var(--ui-color-public-normal);
+  border-radius: 0 8px 8px 0;
+  background: var(--ui-color-background-container);
+}
+.study-overview h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+.study-overview p {
+  font-size: 13px;
+  color: var(--ui-color-text-primary);
+  line-height: 1.75;
+}
+.study-entry {
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 8px;
+  background: var(--ui-color-background-base);
+}
+.study-entry h4 {
+  font-size: 14px;
+  margin-bottom: 7px;
+  overflow-wrap: anywhere;
+}
+.study-entry p {
+  font-size: 13px;
+  color: var(--ui-color-text-secondary);
+  line-height: 1.75;
+}
+.study-note-card {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 7px;
+  background: var(--ui-color-background-base);
+}
+.study-note-card small {
+  font-size: 11px;
+  color: var(--ui-color-text-secondary);
+  display: block;
+  margin-bottom: 5px;
+}
+.study-note-card p {
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.study-note-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.study-note-actions button {
+  font-size: 11px;
+  padding: 2px 7px;
+  border: 1px solid var(--ui-color-line-regular);
+  border-radius: 4px;
+  color: var(--ui-color-text-secondary);
+}
+.study-note-actions button:hover {
+  background: var(--ui-color-state-hover);
+  color: var(--ui-color-text-primary);
+}
+.study-mask {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(24, 21, 18, .3);
+  z-index: 21;
+  cursor: pointer;
+}
+@media (max-width: 1179px) {
+  .study-panel {
+    position: absolute;
+    z-index: 22;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(360px, 94vw);
+    box-shadow: var(--ui-shadow-raised);
+  }
+  .study-mask {
+    display: block;
+  }
+}
+
+/* ═══ 状态栏 ═══ */
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  min-height: 26px;
+  border-top: 1px solid var(--ui-color-line-regular);
+  background: var(--ui-color-background-top);
+  font-size: 11px;
+  color: var(--ui-color-text-secondary);
+}
+.statusbar span {
+  white-space: nowrap;
+}
+.statusbar .sb-gap {
+  flex: 1;
+}
+.statusbar button {
+  font-size: 11px;
+  color: var(--ui-color-text-brand);
+  padding: 2px 4px;
+}
+
+/* ═══ Toast ═══ */
+.toast {
+  position: fixed;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 18px;
+  border: 1px solid var(--ui-color-line-regular);
+  background: var(--ui-color-background-top);
+  box-shadow: var(--ui-shadow-raised);
+  border-radius: 7px;
+  z-index: 70;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ═══ 响应式 ═══ */
+@media (max-width: 900px) {
+  .app-sidebar {
+    display: none;
+  }
+  .home-content {
+    padding: 24px 20px;
+  }
+}
+@media (max-width: 600px) {
+  .home-content {
+    padding: 20px 16px;
+  }
+  .chat-stream,
+  .chat-composer-wrap {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+</style>
+
+<!-- SVG 图标库 -->
+<svg hidden xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-spark" viewBox="0 0 16 16"><path stroke-width="1.4" d="M8 2v12M2 8h12M5 5l6 6M11 5 5 11"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4"/></symbol>
+<symbol id="i-stop" viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" rx="1"/></symbol>
+<symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+<symbol id="i-close" viewBox="0 0 16 16"><path d="m4 4 8 8M4 12l8-8"/></symbol>
+<symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></symbol>
+<symbol id="i-left" viewBox="0 0 16 16"><path d="m10 3-5 5 5 5"/></symbol>
+<symbol id="i-right" viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"/></symbol>
+<symbol id="i-minus" viewBox="0 0 16 16"><path d="M3 8h10"/></symbol>
+<symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></symbol>
+<symbol id="i-outline" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5.5 2v12M8 5.5h4M8 8h4M8 10.5h3"/></symbol>
+<symbol id="i-highlight" viewBox="0 0 16 16"><path d="m4 10 5.5-6.5 3.5 3-5.5 6.5H4v-3Zm4-5 3.5 3M2 14h10"/></symbol>
+<symbol id="i-note" viewBox="0 0 16 16"><path d="M9.5 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6.5M6.5 9.5l1-3L13 2l2 2-5.5 5.5-3 1Z"/></symbol>
+<symbol id="i-comment" viewBox="0 0 16 16"><path d="M4 12H2V3h12v9H7L4 14v-2Zm2-5.5h4M6 9h3"/></symbol>
+<symbol id="i-undo" viewBox="0 0 16 16"><path d="m5.5 3-3 3 3 3M2.5 6h6a4 4 0 0 1 0 8"/></symbol>
+<symbol id="i-redo" viewBox="0 0 16 16"><path d="m10.5 3 3 3-3 3M13.5 6h-6a4 4 0 0 0 0 8"/></symbol>
+<symbol id="i-study" viewBox="0 0 16 16"><path d="M8 5C6.4 4 4.3 3.7 2 4.2v8c2.3-.5 4.4-.2 6 1 1.6-1.2 3.7-1.5 6-1v-8C11.7 3.7 9.6 4 8 5Zm0 0v8M5 6.5l1.5.3M5 8.5l1.5.3"/><path stroke-width="1.3" d="m12 1.5.5 1.5 1.5.5-1.5.5L12 5.5l-.5-1.5L10 3.5l1.5-.5Z"/></symbol>
+<symbol id="i-save" viewBox="0 0 16 16"><path d="M3 2h8l3 3v9H2V2h1Zm2 0v4h5V2M5 14v-5h6v5"/></symbol>
+<symbol id="i-markdown" viewBox="0 0 16 16"><rect x="1" y="3" width="14" height="10" rx="1.5"/><path d="M3.5 10.5V5.5M3.5 10.5l2.5-3 2.5 3M3.5 5.5h2m5 5V5.5m0 5-2-2.5m2 2.5 2-2.5"/></symbol>
+<symbol id="i-moon" viewBox="0 0 16 16"><path d="M13.3 10.2A5.5 5.5 0 0 1 6 2.7a5.5 5.5 0 1 0 7.3 7.5Z"/></symbol>
+<symbol id="i-model" viewBox="0 0 16 16"><path d="m8 1.5 5.5 3v5L8 13l-5.5-3.5v-5L8 1.5Zm-5.5 3 5.5 3 5.5-3M8 7.5V13"/></symbol>
+<symbol id="i-settings" viewBox="0 0 16 16"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/><circle cx="5.5" cy="4" r="1.5" fill="var(--ui-color-background-top)"/><circle cx="10.5" cy="8" r="1.5" fill="var(--ui-color-background-top)"/><circle cx="5.5" cy="12" r="1.5" fill="var(--ui-color-background-top)"/></symbol>
+<symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 7.5V11M8 5.5v.1"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 16 16"><path d="M12.6 5a4.8 4.8 0 1 0 .2 3M10 2.5h3v3"/></symbol>
+<symbol id="i-help" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M6 6.5a2 2 0 0 1 4 1c0 1-.8 1.5-1.5 2M8.5 11v.1"/></symbol>
+<symbol id="i-retry" viewBox="0 0 16 16"><path d="M13.5 5.5A6 6 0 1 0 14 8m0-5v3h-3"/></symbol>
+</svg>
+
+<!-- ═══ 应用壳层 ═══ -->
+<div class="app-shell" id="shell">
+
+<!-- 顶栏 -->
+<header class="app-topbar" id="topbar">
+  <span class="app-topbar__brand">
+    <span class="guanyi-mark">绎</span>
+    观译阅读器
+  </span>
+  <span class="app-topbar__spacer"></span>
+  <span class="app-topbar__model" id="topbar-model">观译默认模型</span>
+  <button class="topbar-btn" id="btn-theme" title="切换明暗主题" aria-label="切换明暗主题">
+    <svg><use href="#i-moon"/></svg>
+  </button>
+  <button class="topbar-btn" id="btn-menu" title="观译阅读器菜单" aria-label="观译阅读器菜单" aria-haspopup="menu" aria-expanded="false">
+    <svg><use href="#i-more"/></svg>
+  </button>
+  <div class="app-menu" id="app-menu" role="menu" hidden>
+    <button role="menuitem" data-menu="settings"><svg><use href="#i-settings"/></svg>设置</button>
+    <button role="menuitem" data-menu="model"><svg><use href="#i-model"/></svg>模型配置</button>
+    <button role="menuitem" data-menu="updates"><svg><use href="#i-retry"/></svg>检查更新</button>
+    <button role="menuitem" data-menu="help"><svg><use href="#i-help"/></svg>帮助</button>
+    <button role="menuitem" data-menu="about"><svg><use href="#i-info"/></svg>关于观译阅读器</button>
+    <p class="menu-ver">当前版本 1.0.45</p>
+  </div>
+</header>
+
+<!-- 主体 -->
+<div class="app-body">
+
+<!-- 侧栏 -->
+<aside class="app-sidebar" id="sidebar" aria-label="侧边面板">
+  <div class="app-sidebar__header">
+    <div class="app-sidebar__actions">
+      <button class="app-new-doc" id="new-doc">
+        <svg><use href="#i-plus"/></svg>
+        新建 Markdown
+      </button>
+      <button class="app-open-doc" id="open-doc">
+        <svg><use href="#i-outline"/></svg>
+        打开文档
+      </button>
+    </div>
+  </div>
+  <div class="app-sidebar__section">最近打开</div>
+  <ul class="app-doc-list" id="doc-list">
+    <li class="app-doc-item" data-route="pdf">
+      <span class="doc-badge pdf">PDF</span>
+      <span class="doc-info">
+        <strong>Bakker2024_平衡技能学习的神经相关_Meta分析</strong>
+        <small>PDF · 上次读到第 1 页 · 论文写作</small>
+      </span>
+    </li>
+    <li class="app-doc-item" data-route="md">
+      <span class="doc-badge md">M</span>
+      <span class="doc-info">
+        <strong>论文写作背景</strong>
+        <small>Markdown · 01-写作要求/论文写作背景.md</small>
+      </span>
+    </li>
+    <li class="app-doc-item">
+      <span class="doc-badge txt">TXT</span>
+      <span class="doc-info">
+        <strong>实验记录</strong>
+        <small>TXT · 研究笔记/实验记录.txt</small>
+      </span>
+    </li>
+    <li class="app-doc-item">
+      <span class="doc-badge epub">EPUB</span>
+      <span class="doc-info">
+        <strong>阅读与写作方法</strong>
+        <small>EPUB · 书库/阅读与写作方法.epub</small>
+      </span>
+    </li>
+  </ul>
+  <div class="sidebar-note">
+    <strong>俯仰观物，译述我心。</strong>
+    主页·AI 对话·PDF/MD/EPUB 阅读
+  </div>
+</aside>
+
+<!-- 工作区 -->
+<main class="workspace" id="workspace">
+
+<!-- 主页路由 -->
+<section id="route-home" class="home-route" aria-label="主页">
+  <div class="home-search-row">
+    <h2>你想读懂什么，或写点什么？</h2>
+    <label class="search-box">
+      <svg><use href="#i-search"/></svg>
+      <input placeholder="搜索文档…" aria-label="搜索文档">
+      <kbd>⌘K</kbd>
+    </label>
+  </div>
+  <div class="home-content">
+    <!-- AI 快捷对话卡 -->
+    <section class="home-ai" aria-labelledby="home-ai-title">
+      <div class="home-ai-heading">
+        <svg><use href="#i-spark"/></svg>
+        <h1 id="home-ai-title">你想读懂什么，或写点什么？</h1>
+        <span>AI 快捷对话</span>
+      </div>
+      <textarea id="home-input" data-home-prompt maxlength="12000" aria-label="向 AI 提问" placeholder="问一个问题，或选择文档，让我们一起读懂它…" rows="4"></textarea>
+      <div class="home-ai-bottom">
+        <button class="source-btn" id="home-source-btn">
+          <svg><use href="#i-plus"/></svg>
+          <span id="home-source-label">选择文档作为来源</span>
+        </button>
+        <span class="scope-txt" id="home-scope">自由对话</span>
+        <button class="send-btn" id="home-send" aria-label="发送问题" disabled>
+          <svg><use href="#i-arrow"/></svg>
+        </button>
+      </div>
+    </section>
+    <!-- 快捷操作 -->
+    <div class="home-quick" aria-label="快速开始">
+      <button data-quick="read">
+        读懂一份文档
+        <svg><use href="#i-right"/></svg>
+      </button>
+      <button data-quick="study">
+        智能研读
+        <svg><use href="#i-right"/></svg>
+      </button>
+      <button data-quick="outline">
+        构思一篇笔记
+        <svg><use href="#i-right"/></svg>
+      </button>
+      <button data-route="md">
+        从 Markdown 开始
+        <svg><use href="#i-plus"/></svg>
+      </button>
+    </div>
+    <!-- 最近打开 -->
+    <section class="home-section" aria-labelledby="recent-title">
+      <div class="home-section-head">
+        <h2 id="recent-title">最近打开</h2>
+        <span>按最近打开时间 ↓</span>
+      </div>
+      <div style="margin-top:4px">
+        <button class="doc-row" data-route="pdf">
+          <span class="doc-badge pdf">PDF</span>
+          <span class="doc-info">
+            <strong>Bakker2024_平衡技能学习的神经相关_Meta分析</strong>
+            <small>PDF · 上次读到第 1 页 · 论文写作</small>
+          </span>
+          <span class="doc-arrow">›</span>
+        </button>
+        <button class="doc-row" data-route="md">
+          <span class="doc-badge md">M</span>
+          <span class="doc-info">
+            <strong>论文写作背景</strong>
+            <small>Markdown · 01-写作要求/论文写作背景.md</small>
+          </span>
+          <span class="doc-arrow">›</span>
+        </button>
+        <button class="doc-row">
+          <span class="doc-badge txt">TXT</span>
+          <span class="doc-info">
+            <strong>实验记录</strong>
+            <small>TXT · 研究笔记/实验记录.txt</small>
+          </span>
+          <span class="doc-arrow">›</span>
+        </button>
+        <button class="doc-row">
+          <span class="doc-badge epub">EPUB</span>
+          <span class="doc-info">
+            <strong>阅读与写作方法</strong>
+            <small>EPUB · 书库/阅读与写作方法.epub</small>
+          </span>
+          <span class="doc-arrow">›</span>
+        </button>
+      </div>
+    </section>
+  </div>
+</section>
+
+<!-- AI 对话路由 -->
+<section id="route-chat" class="chat-route" aria-label="AI 对话" hidden>
+  <header class="chat-head">
+    <button class="btn" id="chat-back" aria-label="返回主页" style="font-size:12px;padding:4px 8px">← 主页</button>
+    <h1>AI 对话</h1>
+    <span style="flex:1"></span>
+    <button class="btn" id="chat-new">新对话</button>
+    <button class="btn" id="chat-export">
+      <svg><use href="#i-markdown"/></svg>
+      整理为 Markdown
+    </button>
+  </header>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-stream" id="chat-stream">
+      <div class="chat-empty" id="chat-empty">
+        <h2>从一个问题开始</h2>
+        <p>可以自由对话，也可以选择文档后继续。</p>
+        <button class="btn" data-prompt="帮我总结这份文档">总结一份文档</button>
+        <button class="btn" data-prompt="帮我解释这段内容">解释一段内容</button>
+        <button class="btn" data-prompt="这篇论文的核心方法是什么？">分析方法论</button>
+      </div>
+    </div>
+  </div>
+  <div class="chat-composer-wrap">
+    <form class="chat-composer" id="chat-form">
+      <label for="chat-input">继续这次思考</label>
+      <textarea id="chat-input" maxlength="12000" placeholder="继续追问…" rows="3"></textarea>
+      <div class="composer-bottom">
+        <button type="button" class="source-btn" id="chat-source-btn">
+          <svg><use href="#i-plus"/></svg>
+          <span id="chat-source-label">选择文档作为来源</span>
+        </button>
+        <span class="scope-txt" id="chat-footer-scope">自由对话</span>
+        <button type="button" class="stop-btn" id="chat-stop" hidden>
+          <svg><use href="#i-stop"/></svg>
+          停止
+        </button>
+        <button type="submit" class="send-btn" id="chat-send" aria-label="发送问题" disabled>
+          <svg><use href="#i-arrow"/></svg>
+        </button>
+      </div>
+    </form>
+    <div class="chat-status" id="chat-status" role="status"></div>
+  </div>
+</section>
+
+<!-- PDF 路由 -->
+<section id="route-pdf" class="pdf-route" aria-label="PDF 阅读" hidden>
+  <!-- PDF 工具栏 -->
+  <div class="pdf-toolbar" role="toolbar" aria-label="PDF 阅读工具栏">
+    <div class="pdf-ctrl-group">
+      <button class="fmt-btn" id="pdf-outline" title="目录与页面缩略图" aria-label="目录与页面缩略图">
+        <svg><use href="#i-outline"/></svg>
+      </button>
+      <button class="fmt-btn" id="pdf-find" title="在 PDF 中查找" aria-label="在 PDF 中查找">
+        <svg><use href="#i-search"/></svg>
+      </button>
+    </div>
+    <div class="pdf-ctrl-group" style="margin-left:4px">
+      <button class="fmt-btn" id="pdf-zoom-out" title="缩小" aria-label="缩小">
+        <svg><use href="#i-minus"/></svg>
+      </button>
+      <select id="pdf-zoom" aria-label="缩放比例">
+        <option>75%</option>
+        <option selected>100%</option>
+        <option>125%</option>
+        <option>150%</option>
+      </select>
+      <button class="fmt-btn" id="pdf-zoom-in" title="放大" aria-label="放大">
+        <svg><use href="#i-plus"/></svg>
+      </button>
+    </div>
+    <div class="pdf-ctrl-group" style="margin-left:4px">
+      <button class="fmt-btn" id="pdf-prev" title="上一页" aria-label="上一页">
+        <svg style="transform:rotate(180deg)"><use href="#i-right"/></svg>
+      </button>
+      <input type="number" id="pdf-page-num" value="1" min="1" max="3" aria-label="当前页码">
+      <span class="pdf-page-sep">/ 3</span>
+      <button class="fmt-btn" id="pdf-next" title="下一页" aria-label="下一页">
+        <svg><use href="#i-right"/></svg>
+      </button>
+    </div>
+    <span class="fmt-sep"></span>
+    <button class="fmt-btn" id="pdf-highlight" aria-pressed="false" title="高亮批注" aria-label="高亮批注">
+      <svg><use href="#i-highlight"/></svg>
+    </button>
+    <button class="fmt-btn" id="pdf-textnote" aria-pressed="false" title="文字笔记" aria-label="文字笔记">
+      <svg><use href="#i-note"/></svg>
+    </button>
+    <button class="fmt-btn" id="pdf-comment" aria-pressed="false" title="评论笔记" aria-label="评论笔记">
+      <svg><use href="#i-comment"/></svg>
+    </button>
+    <button class="fmt-btn" id="pdf-undo" disabled title="撤销批注" aria-label="撤销批注">
+      <svg><use href="#i-undo"/></svg>
+    </button>
+    <button class="fmt-btn" id="pdf-redo" disabled title="恢复批注" aria-label="恢复批注">
+      <svg><use href="#i-redo"/></svg>
+    </button>
+    <button class="fmt-btn" id="study-toggle" aria-expanded="false" aria-controls="study-panel" title="智能研读" aria-label="智能研读">
+      <svg><use href="#i-study"/></svg>
+    </button>
+    <span class="fmt-sep" style="margin:0 2px;margin-left:auto"></span>
+    <button class="fmt-btn" id="pdf-save" title="另存含批注的 PDF（⌘S）" aria-label="另存含批注的 PDF" style="padding:0 10px;gap:5px">
+      <svg><use href="#i-save"/></svg>
+      <span style="font-size:12px">另存为</span>
+    </button>
+  </div>
+
+  <!-- 阅读区壳层 -->
+  <div class="pdf-reading-shell">
+    <div class="study-mask" id="study-mask" aria-hidden="true" hidden></div>
+
+    <!-- PDF 阅读区 -->
+    <div class="pdf-scroll" id="pdf-scroll" tabindex="0" aria-label="PDF 阅读区">
+      <article class="pdf-paper" id="pdf-paper">
+        <h1>Understanding motion through everyday walking</h1>
+        <h2>Abstract</h2>
+        <p>Walking is a familiar activity, yet it involves a complex interaction between balance, muscle strength, and the environment. Small changes in movement can reveal how people adapt to different conditions. Looking at the complete pattern is often more useful than focusing on a single measurement.</p>
+        <p>This demonstration describes a simple approach to reading movement data. It introduces the role of context, the importance of repeated observations, and the limits of drawing conclusions from a small sample.</p>
+      </article>
+    </div>
+
+    <!-- 智能研读侧栏 -->
+    <aside class="study-panel" id="study-panel" role="complementary" aria-label="智能研读" hidden>
+      <div class="study-heading">
+        <strong>智能研读</strong>
+        <button class="study-close" id="study-close" aria-label="关闭智能研读，Esc">
+          <svg><use href="#i-close"/></svg>
+        </button>
+      </div>
+      <div class="study-tabs" role="tablist" aria-label="智能研读功能">
+        <button role="tab" id="tab-guide" aria-selected="true" aria-controls="panel-guide">导读</button>
+        <button role="tab" id="tab-ask" aria-selected="false" aria-controls="panel-ask">文档对话</button>
+        <button role="tab" id="tab-cards" aria-selected="false" aria-controls="panel-cards">学习卡 <span style="color:var(--ui-color-text-tertiary)">0</span></button>
+        <button role="tab" id="tab-notes" aria-selected="false" aria-controls="panel-notes">批注</button>
+      </div>
+
+      <!-- 导读 -->
+      <div class="study-body" id="panel-guide" role="tabpanel" aria-labelledby="tab-guide">
+        <p class="study-section-title">准备一段研读</p>
+        <div class="study-range">
+          <span>从第</span>
+          <input type="number" id="guide-from" value="1" min="1" max="3" aria-label="起始页">
+          <span>页到第</span>
+          <input type="number" id="guide-to" value="3" min="1" max="3" aria-label="结束页">
+          <span>页</span>
+          <span class="study-muted">（最多 50 页）</span>
+        </div>
+        <button class="btn" id="guide-start-btn" style="min-width:112px;background:var(--ui-color-public-normal);border-color:var(--ui-color-public-normal);color:#fff">准备这段研读</button>
+        <div id="guide-result" style="margin-top:20px" hidden>
+          <div class="study-overview">
+            <h3>从日常步行理解运动</h3>
+            <p>本文探讨了如何通过重复观察来理解运动模式，核心主张是：情境与重复性是解读运动数据的关键，单次测量不足以揭示规律。</p>
+          </div>
+          <div class="study-entry">
+            <h4>1 · 运动的情境依赖性</h4>
+            <p>步行速度（示例 1.2 m/s）的解读需结合任务条件；脱离情境的数字容易产生误导。</p>
+          </div>
+          <div class="study-entry">
+            <h4>2 · 重复观察的价值</h4>
+            <p>多次测量有助于区分稳定模式与偶发波动，试验间休息时间保证可比性。</p>
+          </div>
+          <div class="study-entry">
+            <h4>3 · 审慎解读原则</h4>
+            <p>翻译与研读共同服务于理解，原文用于核对术语；结论不替代专业评估。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 文档对话 -->
+      <div class="study-body--ask" id="panel-ask" role="tabpanel" aria-labelledby="tab-ask" hidden>
+        <div class="study-messages" id="ask-messages">
+          <div class="study-empty-chat" id="ask-empty">选择范围后向当前文档提问。</div>
+        </div>
+        <div class="study-composer">
+          <div class="study-scope">
+            <select id="ask-scope" aria-label="对话范围">
+              <option value="page">当前页</option>
+              <option value="range">页范围</option>
+              <option value="full">全文</option>
+            </select>
+            <span class="study-scope-label" id="ask-scope-label">文件第 1 页 · 已锁定</span>
+            <button class="fmt-btn" id="ask-refresh-btn" title="更新范围" aria-label="更新范围" style="width:26px;height:26px;min-width:26px;padding:5px">
+              <svg><use href="#i-refresh"/></svg>
+            </button>
+          </div>
+          <div class="study-input-wrap">
+            <textarea id="ask-input" placeholder="向文档提问…" aria-label="提问"></textarea>
+            <button class="study-send is-primary" id="ask-send" aria-label="发送" disabled>
+              <svg><use href="#i-arrow"/></svg>
+            </button>
+          </div>
+          <p class="study-hint">Enter 发送，Shift+Enter 换行</p>
+        </div>
+      </div>
+
+      <!-- 学习卡 -->
+      <div class="study-body" id="panel-cards" role="tabpanel" aria-labelledby="tab-cards" hidden>
+        <p class="study-muted" id="cards-empty">完成一段研读后自动生成学习卡。</p>
+        <div id="cards-list"></div>
+      </div>
+
+      <!-- 批注 -->
+      <div class="study-body" id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
+        <p class="study-muted" style="margin-bottom:12px">在 PDF 中选中文字后可添加批注。</p>
+        <div class="study-note-card">
+          <small>第 1 页 · 高亮 · 示例</small>
+          <p>Walking is a familiar activity, yet it involves a complex interaction…</p>
+          <div class="study-note-actions">
+            <button>编辑</button>
+            <button style="color:var(--ui-color-text-brand)">删除</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="study-footer">
+        <button class="btn" id="study-export">
+          <svg><use href="#i-markdown"/></svg>
+          整理为 Markdown
+        </button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer class="statusbar">
+  <span id="sb-route">主页 · 最近打开</span>
+  <span class="sb-gap"></span>
+  <span id="sb-info">原型演示 · 1.0.45 版本现有功能</span>
+  <button id="sb-lab">原型说明</button>
+</footer>
+</div>
+<!-- end shell -->
+
+<!-- Toast -->
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+/* ═══ 工具函数 ═══ */
+const $ = id => document.getElementById(id);
+let toastTimer;
+function toast(msg, dur = 2600) {
+  clearTimeout(toastTimer);
+  $('toast').textContent = msg;
+  $('toast').hidden = false;
+  toastTimer = setTimeout(() => ($('toast').hidden = true), dur);
+}
+
+/* ═══ 状态 ═══ */
+const st = {
+  route: 'home',
+  studyOpen: false,
+  studyTab: 'guide',
+  generating: false,
+  askGenerating: false,
+};
+
+/* ═══ 路由切换 ═══ */
+function setRoute(r) {
+  st.route = r;
+  ['home', 'chat', 'pdf'].forEach(id => {
+    $(`route-${id}`).hidden = id !== r;
+  });
+  $('sb-route').textContent =
+    r === 'home'
+      ? '主页 · 最近打开'
+      : r === 'chat'
+      ? 'AI 对话 · 当前会话'
+      : r === 'pdf'
+      ? 'PDF · 第 1 页'
+      : '文档阅读';
+  if (r === 'chat') setTimeout(() => $('chat-input').focus(), 0);
+}
+
+/* ═══ 顶栏 & 应用菜单 ═══ */
+document.querySelectorAll('[data-route]').forEach(el => {
+  el.addEventListener('click', () => setRoute(el.dataset.route));
+});
+$('btn-theme').addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+});
+$('btn-menu').addEventListener('click', () => {
+  const open = !$('app-menu').hidden;
+  $('app-menu').hidden = open;
+  $('btn-menu').setAttribute('aria-expanded', String(!open));
+});
+document.addEventListener('pointerdown', e => {
+  if (!$('app-menu').hidden && !e.target.closest('#app-menu') && !e.target.closest('#btn-menu')) {
+    $('app-menu').hidden = true;
+    $('btn-menu').setAttribute('aria-expanded', 'false');
+  }
+});
+$('app-menu').addEventListener('click', e => {
+  const item = e.target.closest('[data-menu]');
+  if (!item) return;
+  $('app-menu').hidden = true;
+  $('btn-menu').setAttribute('aria-expanded', 'false');
+  const msgs = {
+    settings: '打开设置面板',
+    model: '打开模型配置',
+    updates: '检查更新',
+    help: '打开帮助',
+    about: '关于观译阅读器 · 1.0.45',
+  };
+  toast(msgs[item.dataset.menu] || '');
+});
+
+/* ═══ 主页 ═══ */
+$('home-input').addEventListener('input', () => {
+  $('home-send').disabled = !$('home-input').value.trim();
+});
+$('home-send').addEventListener('click', () => {
+  const q = $('home-input').value.trim();
+  if (!q) return;
+  setRoute('chat');
+  addMsg('user', q);
+  startGenerate($('chat-send'), q);
+  $('home-input').value = '';
+  $('home-send').disabled = true;
+});
+document.querySelectorAll('[data-quick]').forEach(btn => {
+  btn.addEventListener('click', () => toast(`"${btn.dataset.quick}" 快捷入口原型演示`));
+});
+document.querySelectorAll('[data-prompt]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    setRoute('chat');
+    addMsg('user', btn.dataset.prompt);
+    startGenerate($('chat-send'), btn.dataset.prompt);
+  });
+});
+
+/* ═══ AI 对话 ═══ */
+let genTimer;
+function setSendState(sendBtn, stopping) {
+  const svg = stopping
+    ? '<svg width="15" height="15"><use href="#i-stop"/></svg>'
+    : '<svg width="15" height="15"><use href="#i-arrow"/></svg>';
+  sendBtn.innerHTML = svg;
+  sendBtn.setAttribute('aria-label', stopping ? '停止生成' : '发送问题');
+  sendBtn.title = stopping ? '停止生成' : '发送问题';
+}
+function addMsg(role, text) {
+  const empty = $('chat-empty');
+  if (empty) empty.remove();
+  const art = document.createElement('article');
+  art.className = `msg ${role}`;
+  if (role === 'assistant') {
+    art.innerHTML = `<div class="msg-avatar" aria-hidden="true">绎</div><div><div class="msg-text"></div></div>`;
+  } else {
+    art.innerHTML = `<div class="msg-text"></div>`;
+  }
+  art.querySelector('.msg-text').textContent = text;
+  $('chat-stream').append(art);
+  $('chat-messages').scrollTop = $('chat-messages').scrollHeight;
+  return art;
+}
+function startGenerate(sendBtn, prompt) {
+  st.generating = true;
+  $('chat-stop').hidden = false;
+  setSendState(sendBtn, true);
+  sendBtn.disabled = true;
+  $('chat-export').disabled = true;
+  const art = addMsg('assistant', '');
+  const box = art.querySelector('.msg-text');
+  box.innerHTML = '<span class="msg-thinking">正在思考…</span>';
+  genTimer = setTimeout(() => {
+    st.generating = false;
+    $('chat-stop').hidden = true;
+    setSendState(sendBtn, false);
+    sendBtn.disabled = !$('chat-input').value.trim();
+    $('chat-export').disabled = false;
+    box.textContent = `这是关于"${prompt}"的示例回答。正式版会依据已选文档生成回答，并在回答中提供可展开的原文、文件、页码与版本信息。`;
+    $('chat-messages').scrollTop = $('chat-messages').scrollHeight;
+  }, 1200);
+}
+$('chat-input').addEventListener('input', () => {
+  $('chat-send').disabled = !$('chat-input').value.trim() || st.generating;
+});
+$('chat-form').addEventListener('submit', e => {
+  e.preventDefault();
+  if (st.generating) {
+    clearTimeout(genTimer);
+    st.generating = false;
+    $('chat-stop').hidden = true;
+    setSendState($('chat-send'), false);
+    return;
+  }
+  const q = $('chat-input').value.trim();
+  if (!q) return;
+  addMsg('user', q);
+  $('chat-input').value = '';
+  $('chat-send').disabled = true;
+  startGenerate($('chat-send'), q);
+});
+$('chat-stop').addEventListener('click', () => {
+  clearTimeout(genTimer);
+  st.generating = false;
+  $('chat-stop').hidden = true;
+  setSendState($('chat-send'), false);
+  const last = $('chat-stream').querySelector('.msg.assistant:last-child .msg-text');
+  if (last && last.querySelector('.msg-thinking')) last.textContent = '已停止生成，问题和来源仍保留。';
+  $('chat-send').disabled = !$('chat-input').value.trim();
+});
+$('chat-back').addEventListener('click', () => setRoute('home'));
+$('chat-new').addEventListener('click', () => {
+  $('chat-stream').innerHTML = `<div class="chat-empty" id="chat-empty-reset"><h2>从一个问题开始</h2><p>可以自由对话，也可以选择文档后继续。</p><button class="btn" data-prompt="帮我总结这份文档">总结一份文档</button><button class="btn" data-prompt="帮我解释这段内容">解释一段内容</button></div>`;
+  document.querySelectorAll('[data-prompt]').forEach(b =>
+    b.addEventListener('click', () => {
+      setRoute('chat');
+      addMsg('user', b.dataset.prompt);
+      startGenerate($('chat-send'), b.dataset.prompt);
+    })
+  );
+  setRoute('home');
+  toast('新对话，旧会话已存入历史。');
+});
+$('chat-source-btn').addEventListener('click', () => toast('选择文档来源（原型演示）'));
+$('chat-export').addEventListener('click', () => toast('整理为 Markdown（原型演示）'));
+$('home-source-btn').addEventListener('click', () => toast('选择文档来源（原型演示）'));
+
+/* ═══ PDF 阅读 ═══ */
+['pdf-outline', 'pdf-find', 'pdf-zoom-out', 'pdf-zoom-in', 'pdf-prev', 'pdf-next', 'pdf-save'].forEach(id => {
+  if ($(id)) $(id).addEventListener('click', () => toast($(id).title));
+});
+['pdf-highlight', 'pdf-textnote', 'pdf-comment'].forEach(id => {
+  $(id).addEventListener('click', () => {
+    const on = $(id).getAttribute('aria-pressed') === 'true';
+    $(id).setAttribute('aria-pressed', String(!on));
+    toast((on ? '已关闭' : '已开启') + $(id).title);
+  });
+});
+
+/* ═══ 智能研读侧栏 ═══ */
+function showStudy(tab) {
+  st.studyOpen = true;
+  st.studyTab = tab || st.studyTab;
+  $('study-panel').hidden = false;
+  $('study-mask').hidden = innerWidth >= 1180;
+  $('study-toggle').setAttribute('aria-expanded', 'true');
+  selectStudyTab(st.studyTab);
+  $('study-close').focus();
+}
+function hideStudy() {
+  st.studyOpen = false;
+  $('study-panel').hidden = true;
+  $('study-mask').hidden = true;
+  $('study-toggle').setAttribute('aria-expanded', 'false');
+  $('study-toggle').focus({ preventScroll: true });
+}
+function selectStudyTab(tab) {
+  st.studyTab = tab;
+  ['guide', 'ask', 'cards', 'notes'].forEach(t => {
+    $(`tab-${t}`).setAttribute('aria-selected', String(t === tab));
+    $(`panel-${t}`).hidden = t !== tab;
+  });
+}
+$('study-toggle').addEventListener('click', () => (st.studyOpen ? hideStudy() : showStudy()));
+$('study-close').addEventListener('click', hideStudy);
+$('study-mask').addEventListener('click', hideStudy);
+['guide', 'ask', 'cards', 'notes'].forEach(t =>
+  $(`tab-${t}`).addEventListener('click', () => selectStudyTab(t))
+);
+$('study-panel').addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !e.defaultPrevented) {
+    e.preventDefault();
+    e.stopPropagation();
+    hideStudy();
+  }
+});
+$('study-export').addEventListener('click', () => toast('整理为 Markdown（原型演示）'));
+
+/* 导读准备 */
+let guideTimer;
+$('guide-start-btn').addEventListener('click', () => {
+  $('guide-result').hidden = false;
+  toast('导读准备完成（原型演示）');
+});
+
+/* 文档对话（问作品）*/
+$('ask-input').addEventListener('input', () => {
+  $('ask-send').disabled = !$('ask-input').value.trim() || st.askGenerating;
+  $('ask-send').className = 'study-send is-primary';
+});
+let askTimer;
+$('ask-send').addEventListener('click', () => {
+  if (st.askGenerating) {
+    clearTimeout(askTimer);
+    st.askGenerating = false;
+    $('ask-send').className = 'study-send is-primary';
+    $('ask-send').innerHTML = '<svg><use href="#i-arrow"/></svg>';
+    $('ask-send').disabled = !$('ask-input').value.trim();
+    return;
+  }
+  const q = $('ask-input').value.trim();
+  if (!q) return;
+  const empty = $('ask-empty');
+  if (empty) empty.remove();
+  const qEl = document.createElement('div');
+  qEl.className = 'study-chat';
+  qEl.innerHTML = `<h4>${q}</h4>`;
+  $('ask-messages').append(qEl);
+  $('ask-input').value = '';
+  $('ask-send').disabled = true;
+  st.askGenerating = true;
+  $('ask-send').innerHTML = '<svg><use href="#i-stop"/></svg>';
+  const aEl = document.createElement('div');
+  aEl.className = 'study-chat';
+  aEl.innerHTML = '<div class="study-thinking">正在思考…</div>';
+  $('ask-messages').append(aEl);
+  $('ask-messages').scrollTop = $('ask-messages').scrollHeight;
+  askTimer = setTimeout(() => {
+    st.askGenerating = false;
+    $('ask-send').className = 'study-send is-primary';
+    $('ask-send').innerHTML = '<svg><use href="#i-arrow"/></svg>';
+    aEl.innerHTML = `<div class="study-answer">这是关于"${q}"的示例回答。正式版基于所选页范围内的真实文档内容生成回答，来源定位到原文段落。</div>`;
+    $('ask-messages').scrollTop = $('ask-messages').scrollHeight;
+  }, 1200);
+});
+$('ask-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    $('ask-send').click();
+  }
+});
+
+/* ═══ 全局 Esc ═══ */
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || e.defaultPrevented) return;
+  if (st.studyOpen && $('study-panel').contains(document.activeElement)) {
+    return;
+  }
+  if (st.studyOpen) {
+    hideStudy();
+    e.preventDefault();
+  }
+});
+
+/* ═══ 状态栏 ═══ */
+$('sb-lab').addEventListener('click', () =>
+  toast('1.0.45 版本现有功能：主页、AI 对话、PDF 阅读、批注、智能研读')
+);
+
+/* ═══ 侧栏操作 ═══ */
+$('new-doc').addEventListener('click', () => toast('新建 Markdown 文档'));
+$('open-doc').addEventListener('click', () => toast('打开本地文档'));
+
+/* ═══ 初始化 ═══ */
+setRoute('home');
+</script>
+</head>
+</html>

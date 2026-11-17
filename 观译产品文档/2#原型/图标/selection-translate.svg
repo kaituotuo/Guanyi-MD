@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none" color="#2a2520" role="img" aria-labelledby="selection-translate-title">
+<title id="selection-translate-title">划词翻译</title>
+<style>.gicon__ink,.gicon__accent{fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.gicon__ink{stroke:currentColor}.gicon__accent{stroke:var(--gicon-accent,#bd391b)}</style>
+<path class="gicon__ink" d="M4.5 1.75H1.75V4.5m9.75 9.75h2.75V11.5M2.75 11 4.5 5.5 6.25 11M3.35 9.25h2.3"/>
+<path class="gicon__accent" d="M10.5 3.5v1.75M8 5.5h5.25M12 5.75c-.5 2.5-1.8 4.3-4 5.75m1-4.75c.7 2 1.95 3.4 4.25 4.75"/>
+</svg>

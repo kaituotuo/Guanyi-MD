@@ -456,7 +456,7 @@ class SemanticSearchService {
     if (this.modelVerified) return true;
     const bytes = await fs.promises.readFile(this.modelFile());
     const hash = crypto.createHash('sha256').update(bytes).digest('hex');
-    if (hash !== MODEL_SHA256) throw new Error('本地语义模型校验失败，请重新安装观绎 MD');
+    if (hash !== MODEL_SHA256) throw new Error('本地语义模型校验失败，请重新安装观译阅读器');
     this.modelVerified = true;
     return true;
   }
@@ -765,8 +765,8 @@ class SemanticSearchService {
       modelAvailable,
       engineAvailable,
       unavailableReason: !modelAvailable
-        ? '本地语义模型缺失，请重新安装观绎 MD'
-        : (!engineAvailable ? '本地搜索服务缺失，请重新安装观绎 MD' : ''),
+        ? '本地语义模型缺失，请重新安装观译阅读器'
+        : (!engineAvailable ? '本地搜索服务缺失，请重新安装观译阅读器' : ''),
       modelReady: !!this.extractor,
       engine: 'Meilisearch',
       engineReady: !!this.client,

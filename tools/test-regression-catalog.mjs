@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -69,10 +70,10 @@ assert.doesNotMatch(checklist, /## 9\. 本轮执行记录/, '不得保留旧的�
 assert.doesNotMatch(checklist, /1\.0\.18/, '当前基线不得回退到 1.0.18');
 
 const recentRows = checklist.split(/\r?\n/).filter((line) => /^\|\s*RX-\d{2}\s*\|/.test(line));
-assert.equal(recentRows.length, 38, '近期反馈锁定矩阵必须恰好包含 38 项');
+assert.equal(recentRows.length, 42, '近期反馈锁定矩阵必须恰好包含 42 项');
 const recentIds = recentRows.map((line) => parseMarkdownRow(line)[0]);
-const expectedRecentIds = Array.from({ length: 38 }, (_, index) => `RX-${String(index + 1).padStart(2, '0')}`);
-assert.deepEqual(recentIds, expectedRecentIds, '近期反馈编号必须从 RX-01 到 RX-38 连续且不重复');
+const expectedRecentIds = Array.from({ length: 42 }, (_, index) => `RX-${String(index + 1).padStart(2, '0')}`);
+assert.deepEqual(recentIds, expectedRecentIds, '近期反馈编号必须从 RX-01 到 RX-42 连续且不重复');
 recentRows.forEach((line, index) => {
   const cells = parseMarkdownRow(line);
   assert.equal(cells.length, 5, `${expectedRecentIds[index]} 必须保持五列表格结构`);
@@ -84,13 +85,43 @@ const searchRows = checklist.split(/\r?\n/).filter((line) => /^\|\s*SE-\d{2}\s*\
 assert.equal(searchRows.length, 23, '搜索矩阵必须包含 SE-01 到 SE-23');
 searchRows.forEach((line) => assert.equal(parseMarkdownRow(line).length, 4, `${parseMarkdownRow(line)[0]} 必须保持四列表格结构`));
 
+const workspaceRows = checklist.split(/\r?\n/).filter((line) => /^\|\s*HS-\d{2}\s*\|/.test(line));
+const workspaceIds = Array.from({ length: 26 }, (_, index) => `HS-${String(index + 1).padStart(2, '0')}`);
+assert.deepEqual(workspaceRows.map((line) => parseMarkdownRow(line)[0]), workspaceIds, '主页与研读矩阵必须从 HS-01 到 HS-26 连续且不重复');
+workspaceRows.forEach((line) => {
+  const cells = parseMarkdownRow(line);
+  assert.equal(cells.length, 5, `${cells[0]} 必须保持五列表格结构`);
+  assert.match(cells[3], /`test:[^`]+`/, `${cells[0]} 缺少自动化入口`);
+  assert.match(cells[4], /\bM\b/, `${cells[0]} 必须保留发布前人工复核`);
+});
+
 const expectedScripts = [
+  'test:source-scroll',
+  'test:epub-reader',
+  'test:epub-review-integration',
+  'test:pdf-reader',
+  'test:reader-integration',
+  'test:regression:readers',
+  'test:pdf-evidence',
+  'test:pdf-study',
+  'test:pdf-evidence-electron',
+  'test:pdf-evidence-browser',
+  'test:home-workspace',
+  'test:pdf-study-browser',
+  'test:home-study-integration',
+  'test:regression:workspace',
+  'test:workspace-edit-boundaries',
+  'test:workspace-navigation',
   'test:markdown-clipboard',
   'test:work-question',
     'test:desktop-ai-bridge',
+  'test:model-connection',
+  'test:model-connection-browser',
     'test:desktop-menu',
     'test:desktop-layout',
-    'test:desktop-layout-electron',
+  'test:desktop-layout-electron',
+  'test:desktop-file-actions',
+  'test:directory-binary-electron',
   'test:document-rename',
   'test:regression-catalog',
   'test:regression:editor',
@@ -102,7 +133,13 @@ const expectedScripts = [
 ];
 expectedScripts.forEach((name) => assert.equal(typeof packageJson.scripts?.[name], 'string', `package.json 缺少 ${name}`));
 
-const groupNames = ['editor', 'collaboration', 'directory', 'search', 'recent', 'all'];
+assert.equal(packageJson.scripts['test:pdf-evidence'], 'node --test tools/test-pdf-evidence.mjs');
+assert.equal(packageJson.scripts['test:pdf-study'], 'node tools/test-pdf-study.mjs');
+assert.equal(packageJson.scripts['test:pdf-evidence-electron'], 'node tools/run-electron-smoke.mjs tools/electron-pdf-evidence.cjs');
+assert.equal(packageJson.scripts['test:model-connection'], 'node tools/test-model-connection.mjs');
+assert.equal(packageJson.scripts['test:model-connection-browser'], 'node tools/test-model-connection-browser.cjs');
+assert.equal(packageJson.scripts['test:epub-review-integration'], 'node tools/test-epub-review-integration.cjs');
+const groupNames = ['readers', 'workspace', 'editor', 'collaboration', 'directory', 'search', 'recent', 'all'];
 groupNames.forEach((name) => {
   const declaration = ['recent', 'all'].includes(name)
     ? new RegExp(`groups\\.${name}\\s*=`)
@@ -110,6 +147,33 @@ groupNames.forEach((name) => {
   assert.match(runner, declaration, `回归运行器缺少 ${name} 分组`);
   assert.match(checklist, new RegExp(`test:regression:${name}\\b`), `验收清单缺少 test:regression:${name} 入口`);
 });
+
+const listedGroups = Object.fromEntries(execFileSync(process.execPath, ['tools/run-regression-matrix.mjs', '--list'], {
+  cwd: projectRoot, encoding: 'utf8'
+}).trim().split(/\r?\n/).map((line) => {
+  const [name, members] = line.split(': ');
+  return [name, members.split(', ')];
+}));
+for (const unit of ['pdf-evidence', 'pdf-study', 'paper-reader', 'paper-reader-session']) {
+  for (const group of ['readers', 'workspace', 'all']) {
+    assert.ok(listedGroups[group].includes(unit), `${group} 分组必须包含 ${unit} 单元测试`);
+  }
+}
+for (const group of ['collaboration', 'readers', 'workspace', 'recent', 'all']) {
+  assert.ok(listedGroups[group].includes('model-connection'), `${group} 必须覆盖模型端点与中文错误契约`);
+}
+for (const group of ['editor', 'workspace', 'recent', 'all']) {
+  assert.ok(listedGroups[group].includes('workspace-edit-boundaries'), `${group} 必须覆盖只读与异步编辑边界`);
+}
+for (const group of ['editor', 'directory', 'readers', 'workspace', 'recent', 'all']) {
+  assert.ok(listedGroups[group].includes('workspace-navigation'), `${group} 必须覆盖异步导航竞争与最近打开顺序`);
+}
+for (const browserCheck of ['home-workspace', 'pdf-evidence-browser', 'pdf-study-browser', 'paper-reader-browser', 'home-study-integration', 'epub-review-integration', 'model-connection-browser']) {
+  assert.ok(listedGroups.workspace.includes(browserCheck), `workspace 分组缺少 ${browserCheck}`);
+  for (const group of ['recent', 'all']) {
+    assert.ok(!listedGroups[group].includes(browserCheck), `${group} 不得强制引入额外 Playwright 依赖 ${browserCheck}`);
+  }
+}
 
 assert.match(appSource, /const COLLAB_TAB_IDS = \['comments', 'reading', 'works'\];/, '协作区必须保留三个独立标签');
 for (const tab of ['comments', 'reading', 'works']) {
@@ -134,4 +198,4 @@ assert.match(css, /\.app-collab-drawer\s*\{[^}]*top:\s*var\(--guanyi-workspace-t
 assert.match(css, /\.app-shell\.collab-open \.app-body\s*{\s*margin-right:\s*0;/, '侧栏展开时不得压缩顶部工具栏');
 assert.match(css, /\.app-shell\.collab-open \.app-main \.editor-container\s*{\s*margin-right:\s*372px;/, '侧栏展开时只为正文画布预留空间');
 
-process.stdout.write('regression catalog passed: 38 recent feedback cases and 12 execution gates verified\n');
+process.stdout.write('regression catalog passed: RX42, SE23, HS26, 12 sections and isolated workspace execution gates verified\n');

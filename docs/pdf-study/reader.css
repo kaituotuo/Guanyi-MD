@@ -1,0 +1,129 @@
+/* v0.4 additions: reading stages, term cards, numeric anchors.
+Reuses the design tokens from prototype.css. */
+
+/* ---------- 档位条 ---------- */
+.stage-bar {
+  display:flex;
+  align-items:stretch;
+  gap:0;
+  padding:0 18px;
+  background:var(--surface);
+  border-bottom:1px solid var(--line)
+}
+.stage-step {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:9px 16px 9px 0;
+  position:relative;
+  color:var(--faint);
+  text-align:left
+}
+.stage-step + .stage-step {
+  padding-left:20px
+}
+.stage-step + .stage-step::before {
+  content:"";
+  position:absolute;
+  left:4px;
+  top:50%;
+  width:8px;
+  height:8px;
+  border-right:1.5px solid var(--line);
+  border-top:1.5px solid var(--line);
+  transform:translateY(-50%) rotate(45deg)
+}
+.stage-index {
+  display:grid;
+  place-items:center;
+  width:19px;
+  height:19px;
+  border-radius:50%;
+  border:1.5px solid var(--line);
+  font-size:10.5px;
+  font-weight:650;
+  flex:none
+}
+.stage-text strong {
+  display:block;
+  font-size:12px;
+  font-weight:620;
+  line-height:1.35
+}
+.stage-text small {
+  display:block;
+  font-size:10.5px;
+  color:var(--faint);
+  line-height:1.35
+}
+.stage-step.done {
+  color:var(--muted)
+}
+.stage-step.done .stage-index {
+  border-color:var(--green);
+  color:var(--green)
+}
+.stage-step.active {
+  color:var(--ink)
+}
+.stage-step.active .stage-index {
+  border-color:var(--brand);
+  background:var(--brand);
+  color:#fff
+}
+.stage-step.locked .stage-index svg {
+  width:11px;
+  height:11px;
+  stroke:currentColor;
+  fill:none;
+  stroke-width:1.8
+}
+.stage-action {
+  margin-left:auto;
+  align-self:center;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:6px 13px;
+  border-radius:999px;
+  background:var(--brand);
+  color:#fff;
+  font-size:11.5px;
+  font-weight:600
+}
+.stage-action:hover {
+  background:var(--brand-hover)
+}
+.stage-action.ghost {
+  background:var(--soft);
+  color:var(--muted)
+}
+.stage-action svg {
+  width:13px;
+  height:13px;
+  stroke:currentColor;
+  fill:none;
+  stroke-width:1.9
+}
+.stage-progress {
+  margin-left:auto;
+  align-self:center;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-size:11px;
+  color:var(--faint)
+}
+.stage-track {
+  width:84px;
+  height:3px;
+  border-radius:2px;
+  background:var(--line);
+  overflow:hidden
+}
+.stage-track i {
+  display:block;
+  height:100%;
+  background:var(--brand);
+  transition:width .35s ease
+}

@@ -233,7 +233,7 @@ assert.match(appSource, /ensureSemanticIndexSynced\(\)[\s\S]+retrieveWorkHighRec
   'work questions should synchronize and reuse the existing semantic index');
 assert.match(appSource, /Promise\.all\(\[worker\(\), worker\(\)\]\)/,
   'expanded retrieval should use bounded concurrency');
-assert.match(appSource, /const localRetrievalPromise = retrieveWorkHighRecall[\s\S]+const modelPlanningPromise = modelReady\(\)[\s\S]+Promise\.all\(\[localRetrievalPromise, modelPlanningPromise\]\)/,
+assert.match(appSource, /const localRetrievalPromise = retrieveWorkHighRecall[\s\S]+const modelPlanningPromise = modelReady\(requestConfig\)[\s\S]+Promise\.all\(\[localRetrievalPromise, modelPlanningPromise\]\)/,
   'local retrieval and scope-aware model planning should run as independent parallel paths');
 assert.match(appSource, /availableDocumentScope 只说明本地可搜索的作品范围，不是原文证据/,
   'the model planner must treat the document scope as routing metadata rather than evidence');

@@ -12,6 +12,7 @@ const helperStart = appSource.indexOf('  function canRenameDocument(');
 const helperEnd = appSource.indexOf('\n\n  function createDocumentItem', helperStart);
 assert.ok(helperStart >= 0 && helperEnd > helperStart, 'inline rename helpers should be extractable');
 const helpers = vm.runInNewContext(`(() => {
+  ${appSource.match(/function isReaderDocument[^\n]+/)[0]}
   ${appSource.slice(helperStart, helperEnd)}
   return { canRenameDocument, shouldBeginInlineDocumentRename };
 })()`, {
@@ -55,3 +56,5 @@ assert.match(indexSource, /shouldBeginInlineDocumentRename/,
   'single-file HTML should include the synchronized name-click rename interaction');
 
 console.log('document rename interaction passed: select-first, name-click rename, permission guards and keyboard lifecycle verified');
+
+assert.equal(helpers.canRenameDocument({...desktopDoc,readerFormat:'pdf'}), false, 'binary documents should not enter text rename flow');
