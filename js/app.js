@@ -1016,7 +1016,6 @@
     if (!list) return;
     const conversations = homeWorkspace?.getConversations?.() || [];
     const focusedId = list.contains(document.activeElement) ? document.activeElement.closest('li[data-conversation-id]')?.dataset.conversationId : null;
-    const focusedMore = !!document.activeElement?.matches('.app-conversation-more');
     const scrollTop = list.scrollTop;
     const existing = new Map([...list.children].filter(item => item.dataset.conversationId).map(item => [item.dataset.conversationId, item]));
     const visibleIds = new Set(conversations.map(chat => chat.id));
@@ -1030,13 +1029,10 @@
         button.type = 'button';
         button.className = 'app-conversation-item';
         button.dataset.conversationId = chat.id;
+        button.setAttribute('aria-haspopup', 'menu'); button.setAttribute('aria-expanded', 'false'); button.setAttribute('aria-controls', 'conversation-action-menu');
+        button.setAttribute('aria-keyshortcuts', 'Shift+F10');
         button.innerHTML = '<span class="app-conversation-item__icon" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><path d="M13.5 7.5a5.5 5.5 0 0 1-5.5 5.5H3l-1 1V7.5a5.5 5.5 0 0 1 11 0ZM5 6.5h5M5 9h3"/></svg></span><span class="app-conversation-item__title"></span><span class="app-conversation-item__pending">生成中</span>';
-        const more = document.createElement('button');
-        more.type = 'button'; more.className = 'app-conversation-more';
-        more.dataset.conversationMenu = chat.id;
-        more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false'); more.setAttribute('aria-controls', 'conversation-action-menu');
-        more.innerHTML = iconTemplate('more');
-        item.append(button, more);
+        item.append(button);
       }
       const button = item.firstElementChild;
       const title = String(chat.title || '新的对话');
@@ -1044,9 +1040,6 @@
       button.querySelector('.app-conversation-item__pending').hidden = !chat.pending;
       button.title = title;
       button.setAttribute('aria-label', title + (chat.pending ? '，正在生成' : ''));
-      const more = item.querySelector('.app-conversation-more');
-      more.title = `「${title}」的更多操作`;
-      more.setAttribute('aria-label', more.title);
       if (chat.active) button.setAttribute('aria-current', 'true');
       else button.removeAttribute('aria-current');
       if (list.children[index] !== item) list.insertBefore(item, list.children[index] || null);
@@ -1055,7 +1048,7 @@
     list.scrollTop = scrollTop;
     if (focusedId && visibleIds.has(focusedId) && document.activeElement?.dataset.conversationId !== focusedId) {
       const item = [...list.children].find(item => item.dataset.conversationId === focusedId);
-      item?.querySelector(focusedMore ? '.app-conversation-more' : '.app-conversation-item')?.focus({ preventScroll: true });
+      item?.querySelector('.app-conversation-item')?.focus({ preventScroll: true });
     }
     if (conversationMenuId && !visibleIds.has(conversationMenuId)) closeConversationMenu(false);
   }
@@ -1103,20 +1096,21 @@
       if (homeWorkspace?.startNewConversation?.() !== false) closeHomeFolders();
     });
     els.conversationList.addEventListener('click', event => {
-      const more = event.target.closest('.app-conversation-more');
-      if (more) { event.stopPropagation(); openConversationMenu(more.dataset.conversationMenu, more); return; }
       const button = event.target.closest('button[data-conversation-id]');
+      if (button) closeConversationMenu(false);
       if (button && homeWorkspace?.selectConversation?.(button.dataset.conversationId) !== false) closeHomeFolders();
     });
     els.conversationList.addEventListener('contextmenu', event => {
       const item = event.target.closest('li[data-conversation-id]');
       if (!item) return;
       event.preventDefault(); event.stopPropagation();
-      openConversationMenu(item.dataset.conversationId, item.querySelector('.app-conversation-more'), event.clientX || event.clientY ? { x: event.clientX, y: event.clientY } : undefined);
+      openConversationMenu(item.dataset.conversationId, item.querySelector('.app-conversation-item'), event.clientX || event.clientY ? { x: event.clientX, y: event.clientY } : undefined);
     });
     els.conversationList.addEventListener('keydown', event => {
-      const more = event.target.closest('.app-conversation-more');
-      if (more && event.key === 'ArrowDown') { event.preventDefault(); openConversationMenu(more.dataset.conversationMenu, more); }
+      const button = event.target.closest('.app-conversation-item');
+      if (button && (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10'))) {
+        event.preventDefault(); event.stopPropagation(); openConversationMenu(button.dataset.conversationId, button);
+      }
     });
     els.conversationMenu = document.createElement('div');
     els.conversationMenu.id = 'conversation-action-menu'; els.conversationMenu.className = 'fmt-menu app-conversation-menu';
@@ -1179,7 +1173,7 @@
       button?.classList.toggle('is-active', outlineVisible);
     }
     if (els.editOutlineToggle) els.editOutlineToggle.hidden = !previewVisible;
-    if (els.documentEditToggle) els.documentEditToggle.textContent = state.documentMode === 'editing' ? '阅读' : (isPlainTextDocument() ? '编辑文本' : '编辑 Markdown');
+    if (els.documentEditToggle) els.documentEditToggle.textContent = state.documentMode === 'editing' ? '阅读' : (isPlainTextDocument(currentDoc()) ? '编辑文本' : '编辑 Markdown');
     if (els.sourceEditor) els.sourceEditor.readOnly = !documentView || state.documentMode !== 'editing';
     if (els.previewEditor) updatePreviewEditableState();
     if (!documentView && els.collabDrawer?.classList.contains('is-open')) closeCollabDrawer();
@@ -1247,7 +1241,9 @@
       if (new TextEncoder().encode(JSON.stringify(messages)).byteLength > (hasImages ? 12 * 1024 * 1024 - 65536 : 750000)) throw new Error('本批资料超过模型发送限制，请重新研读以分批处理全文');
       const maxTokens = Math.max(512, Math.min(12000, Number(options.maxTokens) || 6000));
       const timeout = Math.max(1000, Math.min(300000, Number(options.timeoutMs) || AI_GENERATION_TIMEOUT));
-      return requestModelWithRetry(messages, requestConfig, timeout, { signal, maxTokens, attempts: 2 });
+      return requestModelWithRetry(messages, requestConfig, timeout, {
+        signal, maxTokens, attempts: 2, requireCompleteOutput: options.requireCompleteOutput === true
+      });
     };
   }
 
@@ -1326,6 +1322,13 @@
     return createDoc({ name: value?.name, content: value?.content });
   }
 
+  function focusDocumentToolbarControl(button) {
+    if (!button?.getClientRects().length) return;
+    button.focus({ preventScroll: true });
+    const toolbar = button.closest('.app-fmtbar, .app-document-toolbar, .app-reader-toolbar');
+    if (toolbar && toolbar.scrollWidth > toolbar.clientWidth) button.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
   function initWorkspace() {
     els.epubReviewComments = document.createElement('div');
     els.epubReviewComments.id = 'epub-review-comments';
@@ -1342,7 +1345,7 @@
     els.documentToolbar.className = 'app-document-toolbar';
     els.documentToolbar.id = 'document-reading-toolbar';
     els.documentToolbar.hidden = true;
-    els.documentToolbar.innerHTML = '<button type="button" class="fmt-btn" id="document-outline-toggle" aria-label="切换文档目录" aria-expanded="true"><svg aria-hidden="true" viewBox="0 0 16 16" width="17" height="17"><path d="M2 4h12M2 8h12M2 12h12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button><span id="document-view-caption"></span><span class="app-document-toolbar__spacer"></span><button type="button" class="fmt-btn" id="document-edit-toggle">编辑 Markdown</button><button type="button" class="fmt-btn" id="document-ask">围绕本文提问</button>';
+    els.documentToolbar.innerHTML = '<button type="button" class="fmt-btn" id="document-outline-toggle" aria-label="切换文档目录" aria-expanded="true"><svg aria-hidden="true" viewBox="0 0 16 16" width="17" height="17"><path d="M2 4h12M2 8h12M2 12h12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button><span id="document-view-caption"></span><button type="button" class="fmt-btn" id="document-edit-toggle">编辑 Markdown</button><button type="button" class="fmt-btn" id="document-ask">围绕本文提问</button>';
     main.insertBefore(els.documentToolbar, els.fmtbar);
     els.documentCaption = $('document-view-caption');
     els.documentOutlineToggle = $('document-outline-toggle');
@@ -1375,7 +1378,7 @@
       const hideOutline = () => {
         documentOutlineOpen = false;
         syncWorkspaceView();
-        (state.documentMode === 'reading' ? els.documentOutlineToggle : els.editOutlineToggle)?.focus({ preventScroll: true });
+        focusDocumentToolbarControl(state.documentMode === 'reading' ? els.documentOutlineToggle : els.editOutlineToggle);
       };
       close.addEventListener('click', hideOutline);
       els.documentOutlineMask.addEventListener('click', hideOutline);
@@ -1412,7 +1415,7 @@
     returnToReading.textContent = '阅读';
     returnToReading.title = '返回只读阅读';
     returnToReading.addEventListener('click', toggleDocumentMode);
-    els.fmtbar.append(returnToReading);
+    els.viewSeg.parentElement.append(returnToReading);
     $('document-ask').addEventListener('click', async () => {
       const id = state.currentDocId;
       if (!await showHomeWorkspace('chat')) return;
@@ -7510,23 +7513,25 @@
     return [...els.exportMenu.querySelectorAll('.export-menu__item')];
   }
 
-  function positionExportMenu() {
-    if (!els.exportMenu || els.exportMenu.hidden) return;
-    const buttonRect = els.btnExport.getBoundingClientRect();
-    const menuRect = els.exportMenu.getBoundingClientRect();
+  function positionToolbarMenu(button, menu, alignEnd = false) {
+    if (!menu || menu.hidden) return;
+    const buttonRect = button.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
     const gap = 6;
     const viewportGap = 8;
     const left = Math.min(
-      Math.max(viewportGap, buttonRect.right - menuRect.width),
+      Math.max(viewportGap, alignEnd ? buttonRect.right - menuRect.width : buttonRect.left),
       Math.max(viewportGap, window.innerWidth - menuRect.width - viewportGap)
     );
     const below = buttonRect.bottom + gap;
     const top = below + menuRect.height <= window.innerHeight - viewportGap
       ? below
       : Math.max(viewportGap, buttonRect.top - menuRect.height - gap);
-    els.exportMenu.style.left = `${Math.round(left)}px`;
-    els.exportMenu.style.top = `${Math.round(top)}px`;
+    menu.style.left = `${Math.round(left)}px`;
+    menu.style.top = `${Math.round(top)}px`;
   }
+
+  function positionExportMenu() { positionToolbarMenu(els.btnExport, els.exportMenu, true); }
 
   function closeExportMenu(restoreFocus) {
     if (!els.exportMenu || els.exportMenu.hidden) return;
@@ -7537,7 +7542,7 @@
 
   function openExportMenu() {
     if (exportInProgress) return;
-    els.headingMenu.hidden = true;
+    closeHeadingMenu();
     closeTablePicker(false);
     closeImageMenu(false);
     els.exportMenu.hidden = false;
@@ -7592,23 +7597,7 @@
     return [...els.imageMenu.querySelectorAll('.image-menu__item')];
   }
 
-  function positionImageMenu() {
-    if (!els.imageMenu || els.imageMenu.hidden) return;
-    const buttonRect = els.imageBtn.getBoundingClientRect();
-    const menuRect = els.imageMenu.getBoundingClientRect();
-    const gap = 6;
-    const viewportGap = 8;
-    const left = Math.min(
-      Math.max(viewportGap, buttonRect.left),
-      Math.max(viewportGap, window.innerWidth - menuRect.width - viewportGap)
-    );
-    const below = buttonRect.bottom + gap;
-    const top = below + menuRect.height <= window.innerHeight - viewportGap
-      ? below
-      : Math.max(viewportGap, buttonRect.top - menuRect.height - gap);
-    els.imageMenu.style.left = `${Math.round(left)}px`;
-    els.imageMenu.style.top = `${Math.round(top)}px`;
-  }
+  function positionImageMenu() { positionToolbarMenu(els.imageBtn, els.imageMenu); }
 
   function closeImageMenu(restoreFocus) {
     if (!els.imageMenu || els.imageMenu.hidden) return;
@@ -7618,7 +7607,7 @@
   }
 
   function openImageMenu() {
-    els.headingMenu.hidden = true;
+    closeHeadingMenu();
     closeTablePicker(false);
     closeExportMenu(false);
     els.imageMenu.hidden = false;
@@ -7754,7 +7743,7 @@
 
   function openTablePicker() {
     resetTablePicker();
-    els.headingMenu.hidden = true;
+    closeHeadingMenu();
     closeExportMenu(false);
     closeImageMenu(false);
     els.tablePicker.hidden = false;
@@ -8139,8 +8128,12 @@
   function bindSaveActions() {
     els.btnSaveMore?.addEventListener('click', (event) => {
       event.stopPropagation();
-      if (els.saveMenu.hidden) { saveMenuPreviousFocus = document.activeElement; openPopupMenu(els.btnSaveMore, els.saveMenu); }
-      else closePopupMenu(els.btnSaveMore, els.saveMenu, true);
+      if (els.saveMenu.hidden) {
+        saveMenuPreviousFocus = document.activeElement;
+        closeHeadingMenu();
+        openPopupMenu(els.btnSaveMore, els.saveMenu);
+        positionToolbarMenu(els.btnSaveMore, els.saveMenu, true);
+      } else closePopupMenu(els.btnSaveMore, els.saveMenu, true);
     });
     els.saveMenu?.addEventListener('click', async (event) => {
       const command = event.target.closest('[data-file-command]')?.dataset.fileCommand;
@@ -8271,22 +8264,41 @@
     });
   }
 
+  function closeHeadingMenu(restoreFocus = false) {
+    closePopupMenu(els.headingBtn, els.headingMenu, restoreFocus);
+  }
+
   function bindFmtbar() {
     els.fmtbar.querySelectorAll('.fmt-btn[data-fmt]').forEach((btn) => {
       btn.addEventListener('click', () => formatFromActiveEditor(btn.dataset.fmt));
     });
     els.headingBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (!els.headingMenu.hidden) { closeHeadingMenu(true); return; }
       closeExportMenu(false);
       closeTablePicker(false);
       closeImageMenu(false);
-      els.headingMenu.hidden = !els.headingMenu.hidden;
+      closePopupMenu(els.btnSaveMore, els.saveMenu, false);
+      openPopupMenu(els.headingBtn, els.headingMenu);
+      positionToolbarMenu(els.headingBtn, els.headingMenu);
     });
-    document.addEventListener('click', () => { els.headingMenu.hidden = true; });
+    bindPopupMenuKeyboard(els.headingBtn, els.headingMenu);
+    document.addEventListener('click', () => closeHeadingMenu());
     els.headingMenu.addEventListener('click', (e) => e.stopPropagation());
     els.headingMenu.querySelectorAll('.fmt-menu__item').forEach((item) => {
-      item.addEventListener('click', () => { formatFromActiveEditor('heading', item.dataset.level); els.headingMenu.hidden = true; });
+      item.addEventListener('click', () => { formatFromActiveEditor('heading', item.dataset.level); closeHeadingMenu(); });
     });
+    const alignToolbarMenus = () => {
+      const toolbar = els.fmtbar.getBoundingClientRect();
+      for (const [button, menu, alignEnd] of [[els.headingBtn, els.headingMenu, false], [els.btnSaveMore, els.saveMenu, true]]) {
+        if (menu.hidden) continue;
+        const anchor = button.getBoundingClientRect();
+        if (anchor.right <= toolbar.left || anchor.left >= toolbar.right) closePopupMenu(button, menu, false);
+        else positionToolbarMenu(button, menu, alignEnd);
+      }
+    };
+    els.fmtbar.addEventListener('scroll', alignToolbarMenus, { passive: true });
+    window.addEventListener('resize', alignToolbarMenus);
     if (els.btnUndo) els.btnUndo.addEventListener('click', () => applyHistory(-1));
     if (els.btnRedo) els.btnRedo.addEventListener('click', () => applyHistory(1));
     if (els.btnSave) els.btnSave.addEventListener('click', () => { saveCurrentDocument(); });
@@ -13314,7 +13326,7 @@
     closeCommentComposer();
     reader?.setOpen(false);
     if (options.render !== false && !isReaderDocument()) renderPreview();
-    if (options.restoreFocus && trigger.getClientRects().length) trigger.focus({ preventScroll: true });
+    if (options.restoreFocus) focusDocumentToolbarControl(trigger);
   }
 
   function showCollabPanel(name) {
@@ -14386,7 +14398,95 @@
     return error;
   }
 
-  async function readModelResponse(response, kind = 'chat') {
+  function modelResponseBlocks(value) {
+    return Array.isArray(value) ? value.filter(item => item && typeof item === 'object') : [];
+  }
+
+  function modelAnswerText(content, type = 'text') {
+    if (typeof content === 'string') return content;
+    return modelResponseBlocks(content).filter(part => part.type === type && typeof part.text === 'string').map(part => part.text).join('\n');
+  }
+
+  const MODEL_REPLY_FORMATS = ['chat', 'responses', 'anthropic'];
+  const MODEL_OUTPUT_LIMIT_STOP_REASONS = ['length', 'max_tokens', 'max_output_tokens'];
+  const MODEL_STOP_REASONS = [...MODEL_OUTPUT_LIMIT_STOP_REASONS, 'content_filter', 'refusal', 'tool_calls', 'function_call',
+    'tool_use', 'stop', 'end_turn', 'stop_sequence', 'pause_turn'];
+  const MODEL_EMPTY_REPLY_MESSAGES = {
+    empty_body: '中转站返回了空内容，请检查接口地址或稍后重试',
+    protocol_mismatch: '接口返回的协议格式与当前配置不一致。请核对接口地址和协议后重试',
+    output_limit: '模型达到输出上限，未返回完整正文。请尝试支持更长输出的模型',
+    content_filtered: '模型服务报告内容被过滤，未返回正文',
+    refusal: '模型拒绝了这次请求，未返回正文',
+    tool_only: '模型只返回了工具调用，没有生成正文。请尝试能直接回答的模型',
+    reasoning_only: '模型只返回了推理过程，没有生成正文。请重试，或尝试能直接返回正文的模型',
+    empty_text: '模型没有返回可读取的回答。正文字段为空，服务未说明原因',
+    no_text: '模型没有返回可读取的回答。响应中未找到正文，服务未说明原因'
+  };
+
+  function normalizeModelDiagnostic(value) {
+    if (!value || typeof value.reason !== 'string' || !Object.hasOwn(MODEL_EMPTY_REPLY_MESSAGES, value.reason)) return null;
+    if (!MODEL_REPLY_FORMATS.includes(value.wireApi) || !(MODEL_REPLY_FORMATS.includes(value.responseShape) || value.responseShape === 'unknown')) return null;
+    const { reason, wireApi, responseShape, stopReason, httpStatus } = value;
+    return {
+      reason, wireApi, responseShape,
+      ...(MODEL_STOP_REASONS.includes(stopReason) ? { stopReason } : {}),
+      ...(Number.isInteger(httpStatus) && httpStatus >= 200 && httpStatus < 300 ? { httpStatus } : {})
+    };
+  }
+
+  function modelDiagnosticMessage(value) {
+    const diagnostic = normalizeModelDiagnostic(value);
+    return diagnostic ? MODEL_EMPTY_REPLY_MESSAGES[diagnostic.reason] : '';
+  }
+
+  function modelResponseStopReason(payload, wireApi) {
+    switch (wireApi) {
+      case 'chat': return payload?.choices?.[0]?.finish_reason;
+      case 'responses': return payload?.incomplete_details?.reason;
+      case 'anthropic': return payload?.stop_reason;
+      default: return undefined;
+    }
+  }
+
+  function modelEmptyResponseError(payload, wireApi, status) {
+    const choice = payload?.choices?.[0];
+    const message = choice?.message;
+    const output = modelResponseBlocks(payload?.output);
+    const chatBlocks = modelResponseBlocks(message?.content);
+    const anthropicBlocks = modelResponseBlocks(payload?.content);
+    const responseBlocks = output.filter(item => item.type === 'message').flatMap(item => modelResponseBlocks(item.content));
+    const shapes = [];
+    if (Array.isArray(payload?.choices) || payload?.object === 'chat.completion') shapes.push('chat');
+    if (Array.isArray(payload?.output) || typeof payload?.output_text === 'string' || payload?.object === 'response') shapes.push('responses');
+    if (Array.isArray(payload?.content) || payload?.type === 'message') shapes.push('anthropic');
+    const responseShape = shapes.includes(wireApi) ? wireApi : shapes.length === 1 ? shapes[0] : 'unknown';
+    const stop = modelResponseStopReason(payload, responseShape);
+    const stopReason = MODEL_STOP_REASONS.includes(stop) ? stop : undefined;
+    const blocks = { chat:chatBlocks, responses:[...output, ...responseBlocks], anthropic:anthropicBlocks }[responseShape] || [];
+    const hasBlock = types => blocks.some(block => types.includes(block.type));
+    const hasText = value => typeof value === 'string' && !!value.trim();
+    const explicitEmpty = responseShape === 'chat' ? message && Object.hasOwn(message, 'content')
+      : responseShape === 'responses' ? typeof payload?.output_text === 'string' || responseBlocks.some(part => part.type === 'output_text')
+        : anthropicBlocks.some(part => part.type === 'text');
+    let reason = 'no_text';
+    if (!payload) reason = 'empty_body';
+    else if (responseShape !== 'unknown' && responseShape !== wireApi) reason = 'protocol_mismatch';
+    else if (MODEL_OUTPUT_LIMIT_STOP_REASONS.includes(stopReason)) reason = 'output_limit';
+    else if (stopReason === 'content_filter') reason = 'content_filtered';
+    else if (stopReason === 'refusal' || hasText(message?.refusal) || hasBlock(['refusal'])) reason = 'refusal';
+    else if (['tool_calls','tool_use','function_call'].includes(stopReason) || modelResponseBlocks(message?.tool_calls).length
+      || (message?.function_call && typeof message.function_call === 'object')
+      || hasBlock(['tool_use','server_tool_use','function_call','custom_tool_call','web_search_call','file_search_call','code_interpreter_call','computer_call','mcp_call'])) reason = 'tool_only';
+    else if (hasText(message?.reasoning_content) || hasText(message?.reasoning) || modelResponseBlocks(message?.reasoning_details).length
+      || hasBlock(['thinking','redacted_thinking','reasoning','reasoning_content'])) reason = 'reasoning_only';
+    else if (explicitEmpty) reason = 'empty_text';
+
+    const error = modelResponseError(MODEL_EMPTY_REPLY_MESSAGES[reason], 'MODEL_EMPTY_RESPONSE', status);
+    error.modelDiagnostic = normalizeModelDiagnostic({ reason, wireApi, responseShape, stopReason, httpStatus:status });
+    return error;
+  }
+
+  async function readModelResponse(response, kind = 'chat', wireApi = 'chat') {
     let text;
     try { text = typeof response.text === 'function' ? await response.text() : JSON.stringify(await response.json()); }
     catch (error) {
@@ -14398,7 +14498,10 @@
     let payload;
     try { payload = raw ? JSON.parse(raw) : null; } catch (_error) { /* Classify below without exposing parser output. */ }
     if (!response.ok) throw modelServiceError(Number(response.status) || 0, payload);
-    if (!raw) throw modelResponseError('中转站返回了空内容，请确认接口地址和模型可用后重试', 'MODEL_EMPTY_RESPONSE');
+    if (!raw) {
+      if (kind === 'chat') throw modelEmptyResponseError(null, wireApi, response.status);
+      throw modelResponseError('中转站返回了空内容，请确认接口地址和模型可用后重试', 'MODEL_EMPTY_RESPONSE');
+    }
     if (/text\/html/i.test(contentType) || /^\s*</.test(raw)) {
       throw modelResponseError('中转站返回了网页，而不是模型结果。请检查兼容服务地址；若地址正确，可能被登录页或安全验证拦截，请联系中转站', 'MODEL_HTML_RESPONSE');
     }
@@ -14431,7 +14534,7 @@
     return '无法连接模型服务，请检查服务地址、网络或代理，并确认中转站正在运行';
   }
 
-  window.GuanyiModelErrors = { message: modelErrorMessage };
+  window.GuanyiModelErrors = { message: modelErrorMessage, diagnostic: normalizeModelDiagnostic, diagnosticMessage: modelDiagnosticMessage };
 
   function canUseLocalModelProxy() {
     return window.location.protocol === 'http:' && ['127.0.0.1', 'localhost', '::1'].includes(window.location.hostname);
@@ -14629,16 +14732,21 @@
       if (options.maxTokens) payload[responses ? 'max_output_tokens' : 'max_tokens'] = options.maxTokens;
       const { response, transport } = await modelFetch(modelRequestUrl(config), payload, config.apiKey, controller.signal, timeoutMs, { ...config, requestTimeoutMs: timeoutMs });
       requestModel.lastTransport = transport;
-      const responsePayload = await readModelResponse(response);
-      const content = responses
-        ? (responsePayload?.output_text || (responsePayload?.output || [])
-          .filter(item => item.type === 'message').flatMap(item => item.content || [])
-          .filter(item => item.type === 'output_text').map(item => item.text || '').join('\n'))
-        : (anthropic ? (responsePayload?.content || []).filter(item => item.type === 'text').map(item => item.text || '').join('\n')
-          : responsePayload?.choices?.[0]?.message?.content);
-      const result = typeof content === 'string' ? content : Array.isArray(content)
-        ? content.filter(part => part?.type === 'text' && typeof part.text === 'string').map(part => part.text).join('\n') : '';
-      if (!result.trim()) throw modelResponseError('模型已响应，但没有返回可读取的回答，请确认模型支持普通对话后重试', 'MODEL_EMPTY_RESPONSE');
+      const wireApi = responses ? 'responses' : anthropic ? 'anthropic' : 'chat';
+      const responsePayload = await readModelResponse(response, 'chat', wireApi);
+      let result;
+      if (responses) {
+        result = modelAnswerText(responsePayload.output_text);
+        if (!result.trim()) {
+          const parts = modelResponseBlocks(responsePayload.output).filter(item => item.type === 'message')
+            .flatMap(item => modelResponseBlocks(item.content));
+          result = modelAnswerText(parts, 'output_text');
+        }
+      } else if (anthropic) result = modelAnswerText(modelResponseBlocks(responsePayload.content));
+      else result = modelAnswerText(responsePayload.choices?.[0]?.message?.content);
+      const stoppedAtOutputLimit = options.requireCompleteOutput === true
+        && MODEL_OUTPUT_LIMIT_STOP_REASONS.includes(modelResponseStopReason(responsePayload, wireApi));
+      if (!result.trim() || stoppedAtOutputLimit) throw modelEmptyResponseError(responsePayload, wireApi, response.status);
       return result;
 
     } catch (error) {

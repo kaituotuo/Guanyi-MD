@@ -6,9 +6,10 @@
   const bytesView = (bytes) => bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   const copyBytes = (bytes) => bytesView(bytes).slice();
 
-  async function createStudyBridge({ viewer, frame, sourceHash, title }) {
+  async function createStudyBridge({ viewer, frame, sourceHash, title, onCitationPositionChange }) {
     const childDocument = frame.contentDocument;
     const eventBus = viewer.eventBus;
+    const pdfViewer = viewer.pdfViewer;
     const pageCache = new Map();
     const selectionSources = new Map();
     const subscribers = new Set();
@@ -20,6 +21,7 @@
     let disposed = false;
     let lastSelection = null;
     let returnPosition = null;
+    let citationPosition = null;
     let activeEvidence = null;
     let highlightTimer;
     let selectionTimer;
@@ -148,12 +150,35 @@
       }
     }
 
-    function position() {
-      const pdfViewer = viewer.pdfViewer;
+    function viewerPosition() {
       const scroll = pdfViewer.container;
       return { page: pdfViewer.currentPageNumber, zoom: pdfViewer.currentScaleValue, rotation: pdfViewer.pagesRotation,
         scrollLeft: scroll.scrollLeft, scrollTop: scroll.scrollTop };
     }
+
+    function atCitationPosition(current) {
+      return citationPosition && citationPosition.zoom === current.zoom && citationPosition.rotation === current.rotation &&
+        Math.abs(citationPosition.scrollLeft - current.scrollLeft) < 1 && Math.abs(citationPosition.scrollTop - current.scrollTop) < 1;
+    }
+
+    function position() {
+      const current = viewerPosition();
+      // PDF.js can report the following page when more of it is visible than
+      // the cited page. Keep scope on the citation until the reader moves.
+      if (atCitationPosition(current)) current.page = citationPosition.page;
+      return current;
+    }
+
+    function clearCitationPosition() {
+      if (!citationPosition) return;
+      citationPosition = null;
+      onCitationPositionChange();
+    }
+
+    function releaseMovedCitation() {
+      if (citationPosition && !atCitationPosition(viewerPosition())) clearCitationPosition();
+    }
+    eventBus.on('updateviewarea', releaseMovedCitation);
 
     function clearHighlight() {
       clearTimeout(highlightTimer);
@@ -189,6 +214,7 @@
     async function locate(evidence) {
       assertOpen();
       if (!evidence || evidence.sourceHash !== sourceHash) throw new Error('来源版本已变化，请保留原文快照并重新核验');
+      await afterLayout();
       const record = await page(evidence.page);
       const block = record.blocks.find(item => item.id === evidence.id);
       let contiguousGroup = null;
@@ -209,27 +235,37 @@
           .includes(evidenceTools().normalizedText(evidence.text).replace(/\s/g, ''));
       const trusted = contiguousGroup || block || selected || (frozenSelection && evidence.text?.trim() ? evidence : null);
       const rects = validRects(trusted?.rects);
-      if (!returnPosition) returnPosition = position();
+      const target = pdfViewer.getPageView(record.page - 1);
+      if (!target.pdfPage) {
+        const pdfPage = await viewer.pdfDocument.getPage(record.page);
+        assertOpen();
+        if (!target.pdfPage) target.setPdfPage(pdfPage);
+      }
+      const previousPosition = position();
+      if (!returnPosition) returnPosition = previousPosition;
+      citationPosition = null;
       clearHighlight();
       const top = rects.length ? Math.max(...rects.map(rect => rect[3])) : null;
       const left = rects.length ? Math.min(...rects.map(rect => rect[0])) : null;
-      viewer.pdfViewer.scrollPageIntoView({ pageNumber: record.page,
-        ...(rects.length ? { destArray: [null, { name: 'XYZ' }, left, top, null], ignoreDestinationZoom: true } : {}) });
+      pdfViewer.scrollPageIntoView({ pageNumber: record.page,
+        ...(rects.length ? { destArray: [null, { name: 'XYZ' }, left, top, null], ignoreDestinationZoom: true, center: 'vertical' } : {}) });
       await afterLayout();
       assertOpen();
+      citationPosition = { ...viewerPosition(), page: record.page };
+      onCitationPositionChange();
       if (rects.length) {
         activeEvidence = { page: record.page, rects };
         drawHighlight(true);
         highlightTimer = setTimeout(clearHighlight, 9000);
       }
-      return { precise: rects.length > 0 };
+      return { precise: rects.length > 0, previousPosition };
     }
 
     async function restore(saved = returnPosition) {
       assertOpen();
       if (!saved) return;
+      clearCitationPosition();
       clearHighlight();
-      const pdfViewer = viewer.pdfViewer;
       if (Number.isFinite(Number(saved.rotation))) pdfViewer.pagesRotation = ((Math.round(Number(saved.rotation) / 90) * 90 % 360) + 360) % 360;
       if (saved.zoom) pdfViewer.currentScaleValue = saved.zoom;
       pdfViewer.currentPageNumber = Math.max(1, Math.min(viewer.pdfDocument.numPages, Number(saved.page) || 1));
@@ -422,6 +458,7 @@
     return {
       info: { sourceHash, numPages: viewer.pdfDocument.numPages, title: String(title || '').trim(), textExtractionAllowed },
       page, renderVisual, outline, captureSelection, position, locate, restore, annotations,
+      clearCitationPosition,
       onSelection(callback) { if (typeof callback !== 'function') return () => {}; subscribers.add(callback); return () => subscribers.delete(callback); },
       onAnnotationsChanged(callback) { if (typeof callback !== 'function') return () => {}; annotationSubscribers.add(callback); return () => annotationSubscribers.delete(callback); },
       hideNavigation() { viewer.viewsManager?.close(); viewer.findBar?.close(); },
@@ -436,6 +473,7 @@
         subscribers.clear(); annotationSubscribers.clear(); pageCache.clear(); selectionSources.clear();
         for (const { owner, name, original, wrapped } of nativeMethods) if (owner[name] === wrapped) owner[name] = original;
         for (const event of annotationEvents) eventBus.off(event, emitAnnotationsChanged);
+        eventBus.off('updateviewarea', releaseMovedCitation);
         for (const event of ['scalechanging', 'rotationchanging', 'pagerendered']) eventBus.off(event, redraw);
       }
     };
@@ -557,8 +595,10 @@
       // The host already debounces persistence. Update its in-memory position
       // synchronously so an immediate tab switch cannot cancel the latest page
       // or zoom before hide() performs its final persist.
-      onPosition?.({ page: viewer.pdfViewer.currentPageNumber, zoom: zoomPreset || viewer.pdfViewer.currentScaleValue });
+      onPosition?.({ page: currentPageNumber(), zoom: zoomPreset || viewer.pdfViewer.currentScaleValue });
     }
+
+    const currentPageNumber = () => study?.position().page ?? viewer.pdfViewer.currentPageNumber;
 
     function applyFrameAppearance() {
       const root = frame.contentDocument.documentElement;
@@ -576,7 +616,9 @@
         if (event.detail?.source !== frame.contentWindow) return;
         const appOptions = frame.contentWindow.PDFViewerApplicationOptions;
         appOptions.setAll({
-          defaultUrl: '', disablePreferences: true, disableHistory: true,
+          // The host owns the saved page and zoom. PDF.js viewOnLoad 1 starts
+          // with the document's initial view instead of replaying its history.
+          defaultUrl: '', disablePreferences: true, disableHistory: true, viewOnLoad: 1,
           enableScripting: false, isEvalSupported: false,
           localeProperties: { lang: 'zh-CN' },
           enableComment: true, enableHighlightFloatingButton: true,
@@ -635,7 +677,19 @@
       if (!viewer.pdfViewer.pagesCount) {
         await new Promise(resolve => eventBus.on('pagesinit', resolve, { once: true }));
       }
-      const dispatch = (name, detail = {}) => eventBus.dispatch(name, { source: frame.contentWindow, ...detail });
+      const dispatch = (name, detail = {}) => {
+        if (study && (name === 'previouspage' || name === 'nextpage')) {
+          const page = currentPageNumber();
+          const target = page + (name === 'previouspage' ? -1 : 1);
+          if (target < 1 || target > viewer.pdfDocument.numPages) return;
+          study.clearCitationPosition();
+          if (page !== viewer.pdfViewer.currentPageNumber) {
+            viewer.pdfViewer.currentPageNumber = target;
+            return;
+          }
+        }
+        eventBus.dispatch(name, { source: frame.contentWindow, ...detail });
+      };
       // PDF.js interprets detail=0 as a keyboard action and immediately inserts
       // an editor at page centre. Host toolbar activation should only select the
       // tool; the following pointer click determines the annotation position.
@@ -719,6 +773,7 @@
       const commitPageInput = () => {
         const parsed = Math.round(Number(pageInput.value));
         const number = Math.max(1, Math.min(viewer.pdfDocument.numPages, Number.isFinite(parsed) ? parsed : 1));
+        study?.clearCitationPosition();
         viewer.pdfViewer.currentPageNumber = number;
         pageInput.value = String(number);
       };
@@ -730,7 +785,7 @@
           commitPageInput();
           pageInput.select();
         } else if (event.key === 'Escape') {
-          pageInput.value = String(viewer.pdfViewer.currentPageNumber);
+          pageInput.value = String(currentPageNumber());
           pageInput.blur();
         }
       }, { signal: listeners.signal });
@@ -801,7 +856,7 @@
         reportPosition();
       }
       function updatePage() {
-        const page = viewer.pdfViewer.currentPageNumber;
+        const page = currentPageNumber();
         pageInput.value = page;
         pageInput.setAttribute('aria-label', `PDF 页码，当前第 ${page} 页，共 ${viewer.pdfDocument.numPages} 页`);
         previous.disabled = page <= 1;
@@ -867,17 +922,22 @@
         updatePage();
         updateZoom();
       };
-      if (viewer.pdfViewer.pageViewsReady) restorePosition();
-      else eventBus.on('pagesloaded', restorePosition, { once: true });
+      const initialViewReady = viewer.isInitialViewSet ? Promise.resolve() : new Promise(resolve => {
+        eventBus.on('documentinit', resolve, { once: true, signal: listeners.signal });
+      });
       updatePage();
       updateZoom();
       try {
+        // Publish the study bridge only after the host's reading position is
+        // restored, so source jumps and detached previews see a settled view.
+        await Promise.all([initialViewReady, viewer.pdfViewer.pagesPromise]);
+        restorePosition();
         let sourceHash = options.sourceHash;
         if (!sourceHash) {
           const digest = await crypto.subtle.digest('SHA-256', bytesView(options.bytes));
           sourceHash = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
         }
-        study = await createStudyBridge({ viewer, frame, sourceHash, title: options.title });
+        study = await createStudyBridge({ viewer, frame, sourceHash, title: options.title, onCitationPositionChange: updatePage });
       } catch (error) {
         notify?.(`智能研读暂不可用，PDF 阅读仍可继续：${error.message || error}`);
       }

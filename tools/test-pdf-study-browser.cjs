@@ -58,6 +58,50 @@ async function assertSendIcon(name) {
   for (const key of ['inside', 'bottomRight', 'viewport', 'hit']) assert.equal(geometry[key], true, `${name}: ${key}`);
   assert.ok(geometry.padding >= geometry.height, 'last text line reserves space for its inset send/stop icon');
 }
+async function submitWithVisibleKeyboardIcon(name) {
+  await page.mouse.move(0, 0);
+  await question().press('Tab');
+  const control = button(name);
+  await page.keyboard.down('Space');
+  try {
+    const measured = await control.evaluate(node => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 1;
+      const pixel = canvas.getContext('2d', { willReadFrequently: true });
+      function composite(colors) {
+        pixel.clearRect(0, 0, 1, 1);
+        for (const color of colors) { pixel.fillStyle = color; pixel.fillRect(0, 0, 1, 1); }
+        return [...pixel.getImageData(0, 0, 1, 1).data].slice(0, 3);
+      }
+      function luminance(rgb) {
+        return rgb.map(channel => channel / 255)
+          .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+          .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+      }
+      function contrast(first, second) {
+        const a = luminance(first), b = luminance(second);
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      }
+      const surroundings = [];
+      for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+        surroundings.unshift(getComputedStyle(parent).backgroundColor);
+      }
+      surroundings.unshift('white');
+      const style = getComputedStyle(node);
+      const surface = [...surroundings, style.backgroundColor];
+      return {
+        keyboardActive: node.matches(':active:focus-visible:not(:hover)'),
+        icon: contrast(composite([...surface, getComputedStyle(node.querySelector('svg')).color]), composite(surface)),
+        outline: contrast(composite([...surroundings, style.outlineColor]), composite(surroundings))
+      };
+    });
+    assert.equal(measured.keyboardActive, true, `${name}: keyboard press without pointer hover`);
+    assert.ok(measured.icon >= 3, `${name}: pressed icon contrast ${measured.icon.toFixed(2)}:1`);
+    assert.ok(measured.outline >= 3, `${name}: keyboard focus contrast ${measured.outline.toFixed(2)}:1`);
+  } finally {
+    await page.keyboard.up('Space');
+  }
+}
 (async () => {
   browser = await chromium.launch({ headless: true, ...(process.env.GUANYI_CHROMIUM_EXECUTABLE ? { executablePath: process.env.GUANYI_CHROMIUM_EXECUTABLE } : {}) });
   page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
@@ -102,8 +146,12 @@ async function assertSendIcon(name) {
           if (fixture.mode === 'error') throw new Error('测试模型暂不可用');
           if (fixture.legacyRefresh) {
             const id = payload.evidence?.[0]?.id || payload.sourceIdRanges?.[0]?.first;
-            const response = JSON.stringify({ reading: { title: '本次全文研读', documentType: '测试论文',
-              summary: { body: '本次已结合全部页面文字与图像完成研读。', evidenceIds: [id] }, sections: [], terms: [], quotes: [], related: [] }, questions: [], cards: [] });
+            const summary = { body: '本次已结合全部页面文字与图像完成研读。', evidenceIds: [id] };
+            const final = payload.stage === 'prepare-document' || payload.coverage?.final;
+            const incomplete = fixture.mode === 'incomplete' && final;
+            const response = JSON.stringify({ reading: { title: incomplete ? '未完成的替代导读' : '本次全文研读', documentType: '测试论文', summary,
+              sections: incomplete ? [] : [{ kind: 'results', title: '主要结果', body: '请从原文核对结果。', evidenceIds: [id] }],
+              ...(incomplete ? {} : { wrapUp: { body: '结论以本次材料为限。', evidenceIds: [id] } }) }, questions: [], cards: [] });
             // An uncooperative transport deliberately ignores AbortSignal. Its
             // late result must never replace the record saved before stopping.
             if (fixture.mode === 'defer') return new Promise(resolve => { fixture.pendingReading.push(() => resolve(response)); });
@@ -111,9 +159,12 @@ async function assertSendIcon(name) {
           }
           if (fixture.mode === 'wait') return new Promise((resolve, reject) => { signal.addEventListener('abort', () => { fixture.aborted += 1; reject(new DOMException('已停止', 'AbortError')); }, { once: true }); });
           if (fixture.mode === 'invalid') return JSON.stringify({ answer: '伪造来源', evidenceIds: ['E999'], insufficient: false });
+          if (fixture.mode === 'insufficient') return JSON.stringify({ insufficient: true, answer: '无依据的事实断言', evidenceIds: ['E1'],
+            card: { question: '不保留的卡片', answer: '无依据的事实断言', evidenceIds: ['E1'] } });
           if ((!payload.stage && payload.task) || /prepare|read-batch|synthesize-reading/.test(payload.stage || '')) return JSON.stringify({
             reading: { title: '理解结论', documentType: '测试论文', summary: { body: '需要核对材料和条件。', evidenceIds: ['E1'] },
-              sections: [{ kind: 'methods', title: '方法', body: '依据原文核对材料。', basis: 'source', evidenceIds: ['E1'] }, { kind: 'results', title: '结果与边界', body: '结论需要结合材料与条件。', basis: 'author', evidenceIds: ['E1'] }],
+              sections: [{ kind: 'methods', title: '方法', body: '依据原文核对材料。', readingCue: '检查材料是否与被检验任务一致。', basis: 'source', evidenceIds: ['E1'] }, { kind: 'results', title: '结果与边界', body: '结论需要结合材料与条件。', basis: 'author', evidenceIds: ['E1'] }],
+              wrapUp: { body: '证据支持材料与条件一致的任务。', limits: '其他任务的效果需要另行核对。', evidenceIds: ['E1'] },
               terms: [{ term: '适用条件', explanation: '结论得到支持的条件。', evidenceIds: ['E1'] }],
               quotes: [{ quote: evidence(1).text, translation: '第1页说明了结论的适用条件。', evidenceIds: ['E1'] }], related: [] },
             guide: [{ title: '理解结论', body: '需要核对材料和条件。', evidenceIds: ['E1'] }], questions: [{ question: '适用条件是什么？', evidenceIds: ['E1'] }], cards: [{ question: '为何要核对条件？', answer: '结论需要结合材料与条件。', type: '边界', evidenceIds: ['E1'] }] });
@@ -129,6 +180,28 @@ async function assertSendIcon(name) {
   await page.waitForFunction(() => fixture.saved?.preparations[0]?.status === 'ready');
   assert.equal(await page.evaluate(() => fixture.saved.cards.length), 0);
   assert.equal(await page.locator('iframe.guanyi-pdf-frame').count(), 1);
+  const methods = panel().locator('.guanyi-study-chapter-toggle').filter({ hasText: '方法' });
+  const results = panel().locator('.guanyi-study-chapter-toggle').filter({ hasText: '结果与边界' });
+  const methodCue = panel().getByText('检查材料是否与被检验任务一致。', { exact: false });
+  assert.equal(await methods.getAttribute('aria-expanded'), 'false');
+  assert.equal(await methodCue.isVisible(), false, 'study cue is initially collapsed');
+  await button('开始精读').click();
+  assert.equal(await methods.getAttribute('aria-expanded'), 'true');
+  assert.equal(await methods.evaluate(node => node === document.activeElement), true);
+  assert.equal(await methodCue.isVisible(), true);
+  await results.press('Enter');
+  assert.equal(await methods.getAttribute('aria-expanded'), 'false');
+  assert.equal(await results.getAttribute('aria-expanded'), 'true');
+  assert.equal(await page.evaluate(() => fixture.located.length), 0, 'disclosure does not move the PDF');
+  await button('存为学习卡').click();
+  await assertDialogClose('预览学习卡', button('存为学习卡'), 'cancel');
+  assert.equal(await page.evaluate(() => fixture.saved.cards.length), 0);
+  const resizer = panel().getByRole('separator', { name: '调整智能研读面板宽度', exact: true });
+  await resizer.press('End');
+  assert.equal(await panel().evaluate(node => node.getBoundingClientRect().width), 720);
+  assert.equal(await results.getAttribute('aria-expanded'), 'true', 'resizing preserves the open chapter');
+  await resizer.press('Home');
+  assert.equal(await panel().evaluate(node => node.getBoundingClientRect().width), 360);
   await tab('文档对话');
   const scopeSelect = panel().getByRole('combobox', { name: '文档对话范围', exact: true });
   for (const method of ['icon', 'escape', 'cancel']) {
@@ -156,7 +229,7 @@ async function assertSendIcon(name) {
   await button('开始自测').click(); assert.equal(await panel().getByText('结论需要结合材料与条件。', { exact: true }).count(), 0);
   await button('显示答案').click(); await button('基本理解').click();
   await page.waitForFunction(() => fixture.saved.cards[0].reviews.length === 1);
-  console.log('PASS prepare, range/card dialog close icons, Escape/cancel focus, candidate edit/save failure, confirmed card and self-test');
+  console.log('PASS guide disclosure and stable width, explicit card creation, safe prompts, modal focus and self-test');
 
   stage('checking default native cards, escaping and automatic annotation refresh');
   await tab('批注'); assert.equal(await noteInput().count(), 0, 'notes starts with cards, without an open editor');
@@ -292,8 +365,23 @@ async function assertSendIcon(name) {
   assert.equal(await page.evaluate(() => fixture.saved.messages[0].context.sources[0].page), 1);
   assert.match(await page.evaluate(() => fixture.requests.at(-1).evidence[0].text), /第1页原文/);
   assert.doesNotMatch(await page.evaluate(() => JSON.stringify(fixture.requests.at(-1).evidence)), /sourceHash|rects|desktopPath/);
-  await panel().locator('.guanyi-study-chat').getByRole('button', { name: '第 1 页', exact: true }).click(); assert.equal(await page.evaluate(() => fixture.located.at(-1).page), 1);
+  const firstAnswer = panel().locator('.guanyi-study-chat').first();
+  assert.equal(await firstAnswer.locator('.guanyi-study-ask-question').count(), 1, 'question is grouped in a user bubble');
+  assert.match(await firstAnswer.locator('.guanyi-study-ask-scope').textContent(), /选区.*1 页/);
+  const firstDisclosure = firstAnswer.locator('.guanyi-study-source-preview');
+  const firstSource = firstDisclosure.getByRole('button', { name: '定位此摘录', exact: true });
+  assert.equal(await firstSource.isVisible(), false, 'an answer does not show raw sources until expanded');
+  await firstDisclosure.locator('summary').click();
+  await firstSource.click(); assert.equal(await page.evaluate(() => fixture.located.at(-1).page), 1);
   await page.locator('.guanyi-study-return').click(); assert.equal(await page.evaluate(() => fixture.restored.at(-1).page), 3);
+  assert.equal(await firstSource.evaluate(node => node === document.activeElement), true);
+  await page.setViewportSize({ width: 390, height: 844 }); await settle();
+  await firstSource.click(); assert.equal(await panel().isVisible(), false);
+  await page.locator('.guanyi-study-return').click(); assert.equal(await page.evaluate(() => fixture.restored.at(-1).page), 3);
+  assert.equal(await panel().isVisible(), false, 'returning to a narrow PDF leaves room to read');
+  await page.locator('.guanyi-study-resume').click(); await settle();
+  assert.equal(await firstSource.evaluate(node => node === document.activeElement), true, 'resume opens the same evidence and focuses the original action');
+  await page.setViewportSize({ width: 1440, height: 960 }); await settle();
   await page.evaluate(() => selectionHandler(fixture.selection)); await page.locator('.guanyi-study-selection').getByRole('button', { name: '生成学习卡', exact: true }).click();
   await page.locator('dialog').getByRole('textbox', { name: '学习卡问题', exact: true }).waitFor();
   assert.equal(await page.locator('dialog').getByRole('textbox', { name: '学习卡问题', exact: true }).inputValue(), '理解结论时应核对什么？');
@@ -308,7 +396,33 @@ async function assertSendIcon(name) {
   assert.match(await panel().textContent(), /未知来源/); assert.equal(await page.evaluate(() => fixture.saved.messages.at(-1).sources.length), 0);
   await page.evaluate(() => { fixture.mode = 'normal'; }); await button('重试这次问题').click();
   await page.waitForFunction(id => fixture.saved.messages.at(-1).id === id && fixture.saved.messages.at(-1).status === 'ready', failedId);
-  console.log('PASS frozen selection, private evidence, source/return, supplemental cards, IME and same-message retry');
+  await page.evaluate(() => { fixture.mode = 'insufficient'; fixture.page = 2; });
+  await scopeSelect.selectOption('page');
+  await page.waitForFunction(() => fixture.saved.scope.mode === 'page' && fixture.saved.scope.start === 2);
+  await page.evaluate(() => { fixture.page = 3; });
+  await question().fill('只按锁定的第 2 页回答');
+  await button('发送').click();
+  await page.waitForFunction(() => fixture.saved.messages.at(-1)?.insufficient === true);
+  const exhaustedId = await page.evaluate(() => fixture.saved.messages.at(-1).id);
+  assert.equal(await page.evaluate(() => fixture.saved.messages.at(-1).context.start), 2);
+  const exhausted = panel().locator(`[data-ask-id="${exhaustedId}"]`);
+  assert.match(await exhausted.innerText(), /没有足够原文/);
+  assert.doesNotMatch(await exhausted.innerText(), /无依据的事实断言/);
+  assert.equal(await exhausted.locator('.guanyi-study-source-preview, .guanyi-study-ask-card').count(), 0);
+  assert.deepEqual(await page.evaluate(() => fixture.saved.messages.at(-1).sources), []);
+  assert.ok(await page.evaluate(() => fixture.requests.at(-1).evidence.every(source => source.page === 2)));
+  assert.deepEqual(await page.evaluate(() => fixture.requests.at(-1).history), [],
+    'narrowing the scope excludes previous questions and answers about other pages');
+  await question().fill('保留这条尚未发送的新草稿');
+  await page.evaluate(() => { fixture.mode = 'normal'; });
+  await button('用全文重试').click();
+  await page.waitForFunction(id => fixture.saved.messages.at(-1)?.id === id && fixture.saved.messages.at(-1)?.context.mode === 'document' && fixture.saved.messages.at(-1)?.status === 'ready', exhaustedId);
+  assert.ok(await page.evaluate(() => fixture.requests.at(-1).history.length > 0),
+    'an explicit whole-document retry can include prior turns from the same PDF');
+  assert.equal(await question().inputValue(), '保留这条尚未发送的新草稿');
+  assert.equal(await scopeSelect.inputValue(), 'page', 'retry changes only the earlier turn range');
+  await scopeSelect.selectOption('document');
+  console.log('PASS frozen range and selection, private evidence, source/return and narrow resume, IME and isolated retries');
 
   stage('retaining a saved answer when its later draft-only persistence fails');
   await question().fill('已保存的回答不能因为随后草稿写入失败而改成错误');
@@ -337,9 +451,9 @@ async function assertSendIcon(name) {
     await tab('文档对话'); await question().fill('核对原文范围后再发送\n末行不能被右下角图标遮挡'); await settle(); await assertSendIcon('发送');
     await page.screenshot({ path: path.join(output, `chat-${theme}-${width}.png`) });
     await page.evaluate(() => { fixture.mode = 'wait'; }); const start = await page.evaluate(() => fixture.requests.length);
-    await button('发送').click(); await page.waitForFunction(count => fixture.requests.length > count && fixture.saved.messages.at(-1).status === 'pending', start);
+    await submitWithVisibleKeyboardIcon('发送'); await page.waitForFunction(count => fixture.requests.length > count && fixture.saved.messages.at(-1).status === 'pending', start);
     await assertSendIcon('停止'); await page.screenshot({ path: path.join(output, `chat-stopping-${theme}-${width}.png`) });
-    await button('停止').click(); await page.waitForFunction(() => fixture.saved.messages.at(-1).status === 'interrupted'); await assertSendIcon('发送');
+    await submitWithVisibleKeyboardIcon('停止'); await page.waitForFunction(() => fixture.saved.messages.at(-1).status === 'interrupted'); await assertSendIcon('发送');
     assert.equal(await question().inputValue(), '核对原文范围后再发送\n末行不能被右下角图标遮挡'); await page.evaluate(() => { fixture.mode = 'normal'; });
   }
   assert.equal(await page.evaluate(() => fixture.aborted), 4);
@@ -401,6 +515,13 @@ async function assertSendIcon(name) {
   const objectCoverageWithoutReading = JSON.parse(JSON.stringify(completeReading));
   delete objectCoverageWithoutReading.preparations[0].reading;
   await remount(objectCoverageWithoutReading); await tab('导读'); await assertPreviousClosed();
+  const summaryOnly = JSON.parse(JSON.stringify(completeReading));
+  summaryOnly.preparations[0].reading.sections = [];
+  delete summaryOnly.preparations[0].reading.wrapUp;
+  await remount(summaryOnly); await tab('导读'); await assertPreviousClosed();
+  await previous().locator(':scope > summary').click();
+  assert.match(await previous().innerText(), /此前保存的导读结构不完整/);
+  assert.equal(await panel().locator('.guanyi-study-current-result').count(), 0);
   for (const change of [{ key: 'legacy-sample' }, { sourceHash: 'old-source-hash' }, { start: 1, end: 20 }]) {
     const priorRecord = JSON.parse(JSON.stringify(completeReading));
     Object.assign(priorRecord.preparations[0], change);
@@ -448,6 +569,7 @@ async function assertSendIcon(name) {
   await assertPreviousClosed();
   await button('停止').click(); await page.waitForFunction(() => fixture.saved.preparations.at(-1).status === 'interrupted');
   await assertPreviousClosed(); assert.match(await panel().innerText(), /上次研读已中断/);
+  await page.evaluate(() => study.flush());
   const writesAfterCancel = await page.evaluate(() => fixture.writes.length);
   await page.evaluate(() => { fixture.mode = 'normal'; fixture.pendingReading.splice(0).forEach(resolve => resolve()); }); await settle();
   assert.equal(await page.evaluate(() => fixture.writes.length), writesAfterCancel, 'late response after stop cannot write a replacement reading');
@@ -456,17 +578,26 @@ async function assertSendIcon(name) {
 
   await page.evaluate(() => { fixture.mode = 'error'; }); await button('重试全文研读').click();
   await page.waitForFunction(() => fixture.saved.preparations.at(-1).status === 'error');
-  await assertPreviousClosed(); assert.match(await panel().innerText(), /本次研读失败.*测试模型暂不可用/s);
+  await assertPreviousClosed(); assert.match(await panel().innerText(), /第 1 \/ 8 批研读失败.*测试模型暂不可用/s);
   assert.equal(await page.evaluate(() => fixture.saved.preparations.filter(item => item.status === 'ready').length), 1);
   await page.evaluate(() => { fixture.mode = 'normal'; }); await button('重试全文研读').click();
   await page.waitForFunction(() => fixture.saved.preparations.at(-1).status === 'ready' && fixture.saved.preparations.at(-1).reading?.title === '本次全文研读');
   assert.equal(await previous().count(), 0, 'successful full reading becomes the primary result');
   assert.equal(await panel().getByRole('heading', { name: '本次全文研读', exact: true }).isVisible(), true);
   assert.match(await panel().locator('.guanyi-study-coverage').innerText(), /全文 24 页.*文字块 24\/24.*页面图像 24\/24/);
-  assert.doesNotMatch(await panel().innerText(), /80\/2411|旧版采样导读|本次研读失败|上次研读已中断/);
+  assert.doesNotMatch(await panel().innerText(), /80\/2411|旧版采样导读|研读失败|上次研读已中断/);
   assert.deepEqual(await page.evaluate(() => fixture.saved.messages), beforeLegacyDisplay.messages, 'legacy migration and replacement preserve saved conversations');
   assert.deepEqual(await page.evaluate(() => fixture.saved.preparations.find(item => item.id === 'legacy-sampled-reading').guide[0].sources), savedLegacySources, 'successful refresh retains historical source snapshots');
   const fullReading = await page.evaluate(() => fixture.saved.preparations.at(-1));
+
+  await page.evaluate(() => { fixture.mode = 'incomplete'; });
+  await button('重新研读').click();
+  await page.waitForFunction(() => fixture.saved.preparations.at(-1).status === 'error');
+  await panel().getByRole('heading', { name: '全文最终综合失败' }).waitFor();
+  assert.doesNotMatch(await panel().innerText(), /未完成的替代导读/);
+  assert.deepEqual(await page.evaluate(id => fixture.saved.preparations.find(item => item.id === id), fullReading.id), fullReading);
+  assert.equal(await button('开始精读').isVisible(), true);
+  assert.equal(await panel().locator('.guanyi-study-wrap-up').isVisible(), true);
 
   // A modern, complete result is also clearly separated while its replacement
   // is running; stopping brings that already saved result back into view.
@@ -526,13 +657,125 @@ async function assertSendIcon(name) {
   assert.equal(await page.evaluate(() => fixture.writes.length), disposedWrites); assert.equal(await page.evaluate(() => fixture.annotationReads), disposedReads, 'stale subscription callback cannot read again');
   assert.equal(await page.locator('iframe.guanyi-pdf-frame').count(), 1);
   assert.equal(await page.locator('.guanyi-pdf-study-shell,.guanyi-study-panel,.guanyi-study-toggle,.guanyi-study-dialog').count(), 0);
+  console.log('PASS export, interrupted draft, subscription cleanup and late annotation-read isolation');
+
+  stage('following original citations and saving optional research excerpts');
+  await page.evaluate(() => {
+    fixture.deferAnnotations = false;
+    fixture.mode = 'normal';
+    fixture.page = 1;
+    reader.renderVisual = async () => ({dataUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jVxkAAAAASUVORK5CYII=',
+      mimeType:'image/png', width:1, height:1});
+    const diagram = {kind:'page-image', id:'diagram-3', page:3, pageLabel:'73', sourceHash:'hash-a'};
+    const preparation = fixture.saved.preparations.find(prep => prep.reading?.wrapUp && prep.status === 'ready');
+    preparation.reading.sections = [{kind:'results', title:'核对测试图表', body:'这里用原文及图表核对结论。', sources:[evidence(2), diagram]}];
+    mountStudy({...fixture.saved, draft:'另一个尚未发送的想法', messages:[], notes:[], noteDraft:'', noteEditor:false,
+      noteContext:null, noteEditingId:null, scope:null, preparations:[preparation]});
+    study.show('guide');
+  });
+  await button('核对测试图表').click();
+  const chapter = panel().locator('[data-study-chapter]');
+  await chapter.locator('.guanyi-study-source-preview summary').first().click();
+  const visual = chapter.locator('.guanyi-study-source-excerpt--visual');
+  const visualAsk = visual.getByRole('button', { name:'基于此处追问', exact:true });
+  const requestStart = await page.evaluate(() => fixture.requests.length);
+  await visualAsk.click();
+  assert.equal(await scopeSelect.inputValue(), 'page');
+  assert.match(await panel().locator('.guanyi-study-scope-label').innerText(), /出处.*文件第 3 页.*已锁定/);
+  assert.equal(await question().inputValue(), '另一个尚未发送的想法');
+  assert.equal(await page.evaluate(() => fixture.requests.length), requestStart, 'entering ask never submits');
+  await panel().locator('.guanyi-study-ask-prompts button').first().click();
+  await page.waitForFunction(() => fixture.saved.messages.at(-1)?.status === 'ready');
+  assert.deepEqual(await page.evaluate(() => fixture.requests.at(-1).visuals.map(item => item.page)), [3]);
+  assert.equal(await question().inputValue(), '另一个尚未发送的想法');
+  await button('扩大到相邻页').click();
+  const rangeDialog = page.getByRole('dialog', {name:'锁定提问页段'});
+  assert.equal(await rangeDialog.getByRole('spinbutton', {name:'提问起始页'}).inputValue(), '2');
+  assert.equal(await rangeDialog.getByRole('spinbutton', {name:'提问结束页'}).inputValue(), '3');
+  await rangeDialog.getByRole('button', {name:'使用这个页段'}).click();
+  assert.equal(await scopeSelect.inputValue(), 'range');
+  assert.match(await panel().locator('.guanyi-study-scope-label').innerText(), /第 2–3 页/);
+  const scopeOfSavedTurn = await page.evaluate(() => fixture.saved.messages.at(-1).context);
+  assert.deepEqual([scopeOfSavedTurn.start, scopeOfSavedTurn.end], [3, 3], 'changing the next range preserves the completed turn');
+  await button('回到章节').click();
+  assert.equal(await visualAsk.evaluate(node => node === document.activeElement), true);
+  assert.equal(await chapter.getByRole('button', {name:'核对测试图表'}).getAttribute('aria-expanded'), 'true');
+
+  const textAsk = chapter.locator('.guanyi-study-source-excerpt:not(.guanyi-study-source-excerpt--visual)')
+    .getByRole('button', { name:'基于此处追问', exact:true });
+  await textAsk.click();
+  assert.equal(await scopeSelect.inputValue(), 'selection');
+  assert.match(await panel().locator('.guanyi-study-scope-label').innerText(), /已锁定摘录.*2 页/);
+  await panel().locator('.guanyi-study-ask-prompts button').first().click();
+  await page.waitForFunction(() => fixture.saved.messages.length === 2 && fixture.saved.messages.at(-1).status === 'ready');
+  assert.deepEqual(await page.evaluate(() => fixture.requests.at(-1).evidence.map(item => item.text)), [await page.evaluate(() => evidence(2).text)]);
+  assert.deepEqual(await page.evaluate(() => fixture.requests.at(-1).history), [], 'the earlier visual-page question stays outside the exact text scope');
+  await button('回到章节').click();
+  const excerpt = visual.getByRole('button', {name:'存为研究摘录', exact:true});
+  await excerpt.click();
+  const excerptDialog = page.getByRole('dialog', {name:'存为研究摘录'});
+  const excerptInput = excerptDialog.getByRole('textbox', {name:'研读笔记'});
+  await excerptInput.fill('稍后对照表注重新核对');
+  await assertDialogClose('存为研究摘录', excerpt);
+  assert.equal(await page.evaluate(() => fixture.saved.notes.length), 0, 'closing preview does not save an excerpt');
+  await excerpt.click();
+  assert.equal(await excerptInput.inputValue(), '稍后对照表注重新核对');
+  await page.evaluate(() => { fixture.failWrites = true; });
+  await excerptDialog.getByRole('button', {name:'保存摘录'}).click();
+  await excerptDialog.getByRole('alert').filter({hasText:'保存失败'}).waitFor();
+  assert.equal(await excerptInput.inputValue(), '稍后对照表注重新核对');
+  await page.evaluate(() => { fixture.failWrites = false; });
+  await excerptInput.fill('');
+  await excerptDialog.getByRole('button', {name:'保存摘录'}).click();
+  await page.waitForFunction(() => fixture.saved.notes[0]?.kind === 'research-excerpt');
+  const excerptRecord = await page.evaluate(() => fixture.saved.notes[0]);
+  assert.equal(excerptRecord.text, '');
+  assert.deepEqual(excerptRecord.sources.map(item => [item.kind, item.page, item.text]), [['page-image', 3, '']]);
+  await panel().getByText(/第 3 页.*研究摘录/).waitFor();
+  const markdown = await page.evaluate(() => GuanyiPdfStudy._test.exportMarkdown(fixture.saved, '测试资料'));
+  assert.match(markdown, /研究摘录.*页面图像，图表依据.*文件第 3 页/s);
+  await page.evaluate(async () => { await study.dispose(); delete reader.renderVisual; });
+  console.log('PASS citation focus, scope isolation and research excerpt confirmation, preservation and export');
+
+  stage('submitting a suggested question with the locked scope and keeping the draft');
+  await page.evaluate(() => {
+    fixture.deferAnnotations = false;
+    fixture.mode = 'error';
+    fixture.page = 2;
+    mountStudy({ ...fixture.saved, draft: '', messages: [], scope: null });
+    study.show('ask');
+  });
+  await scopeSelect.selectOption('page');
+  await page.waitForFunction(() => fixture.saved.scope?.start === 2);
+  await page.evaluate(() => { fixture.page = 3; });
+  const prompt = panel().locator('.guanyi-study-ask-prompts button').first();
+  const promptText = (await prompt.innerText()).trim();
+  const customDraft = '留在输入框中的独立问题草稿';
+  await question().fill(customDraft);
+  const beforePrompt = await page.evaluate(() => fixture.requests.length);
+  await prompt.press('Enter');
+  await page.waitForFunction(() => fixture.saved.messages.at(-1)?.status === 'error');
+  const failedPrompt = await page.evaluate(() => fixture.saved.messages.at(-1));
+  const promptRequests = await page.evaluate(start => fixture.requests.slice(start), beforePrompt);
+  assert.equal(promptRequests.length, 1, 'one activation directly submits exactly one request');
+  assert.equal(promptRequests[0].question, promptText);
+  assert.deepEqual(promptRequests[0].evidence.map(source => source.page), [2], 'the question uses the locked page after the reader advances');
+  assert.equal(failedPrompt.question, promptText);
+  assert.equal(await question().inputValue(), customDraft, 'a suggested question does not replace a custom draft');
+  await page.evaluate(() => { fixture.mode = 'normal'; });
+  await button('重试这次问题').click();
+  await page.waitForFunction(id => fixture.saved.messages.length === 1 && fixture.saved.messages[0].id === id && fixture.saved.messages[0].status === 'ready', failedPrompt.id);
+  assert.equal(await question().inputValue(), customDraft);
+  assert.equal(await page.evaluate(() => fixture.saved.draft), customDraft);
+  await page.evaluate(() => study.dispose());
   assert.deepEqual(errors, []);
-  fs.writeFileSync(path.join(output, 'report.json'), `${JSON.stringify({ originalCanvasRetained: true, explicitCardConfirmation: true, defaultNoteCards: true, transactionalNoteWrites: true, sameIdNoteEditing: true,
+  fs.writeFileSync(path.join(output, 'report.json'), `${JSON.stringify({ originalCanvasRetained: true, progressiveGuide: true, narrowSourceResume: true,
+    halfWindowWidth: true, promptDirectSubmitPreservesDraft: true, isolatedFullScopeRetry: true, explicitCardConfirmation: true, defaultNoteCards: true, transactionalNoteWrites: true, sameIdNoteEditing: true, citationFollowup: true, citationFocusReturn: true, excerptDraftPreserved: true, pageOnlyExcerptExport: true,
     deleteIsolation: true, secondCardDeleteFocus: true, draftOnlySaveDoesNotDelete: true, explicitDeleteAfterDraftSave: true, editorPersistence: true, legacyDraftRestoration: true, selectionOpensEditor: true, nativeAutoRefresh: true, nativeContentEscaped: true, nativeNoFakeCrud: true, nativeSourceLocation: true,
     frozenChatEvidence: true, invalidSourcesBlocked: true, sameMessageRetry: true, savedAnswerSurvivesDraftFailure: true, imeSafe: true, sendStopInsideInput: true, themeWidths: ['light/1440', 'light/390', 'dark/1440', 'dark/390'], dialogCloseIcons: true, dialogCloseFocus: true, dialogEscapeCancel: true, dialogSaveFailureRetainsInput: true,
     legacyGuideCollapsed: true, legacyGuideSourcePreserved: true, legacyGuideRecordShapes: true, currentFullDocumentScope: true, priorResultNotCurrentProgress: true, priorDisclosureSurvivesProgress: true,
     resolvedFailureNotShown: true, latestFailureShown: true, questionDoesNotMimicReading: true, lateReadingIgnoredAfterCancel: true, failedReadingKeepsPrevious: true, successfulReadingReplacesDisplay: true, savedConversationsPreserved: true, export: true, disposalRace: true, errors }, null, 2)}\n`);
-  console.log('PASS export, interrupted draft, subscription cleanup and late annotation-read isolation; no page errors');
+  console.log('PASS suggested question directly sends once with the locked scope, retains the draft and retries the same turn; no page errors');
 })().catch(async error => {
   console.error(`PDF study browser failed during ${phase}:`, error); fs.writeFileSync(path.join(output, 'failure.txt'), `${error.stack || error}\n`);
   if (page && !page.isClosed()) {

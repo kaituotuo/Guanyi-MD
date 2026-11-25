@@ -27,6 +27,52 @@ test('model results can only refer to locally supplied evidence; pages and quote
  assert.equal(insufficient.insufficient,true);assert.equal(insufficient.sources.length,0);
 });
 
+test('reloading and exporting older insufficient turns suppresses the model conclusion and sources',()=>{
+ const data=initial();
+ const context={mode:'page',start:3,end:3,sourceHash:'version-a'};
+ data.messages=[{id:'old-answer',status:'ready',question:'有测量疼痛吗？',insufficient:true,answer:'无依据的结论',
+  sources:[evidence('old-citation',3,'推断所附摘录')],card:{answer:'无依据的结论'},context}];
+ const restored=api.normalizeRecord(data,{sourceHash:'version-a'});
+ assert.equal(restored.messages[0].id,'old-answer');
+ assert.deepEqual(plain(restored.messages[0].context),context);
+ assert.match(restored.messages[0].answer,/没有足够原文/);
+ assert.equal(restored.messages[0].sources.length,0);
+ assert.equal(restored.messages[0].card,undefined);
+ for (const record of [data,restored]) {
+  const markdown=api.exportMarkdown(record,'旧研读记录');
+  assert.match(markdown,/有测量疼痛吗.*没有足够原文/s);
+  assert.doesNotMatch(markdown,/无依据的结论|推断所附摘录/);
+ }
+});
+
+test('abstract quick reading restores and exports separately with its verified sources',()=>{
+ const data=initial();
+ data.quickPurpose='核对试验方法';
+ data.quickReading={sourceHash:'version-a',purpose:data.quickPurpose,takeaway:'两组结果随阶段变化。',question:'比较两组结果',
+  method:'摘要仅说明比较两种鞋垫条件下正常行走的下肢关节运动学指标（髋、膝、踝屈伸角及峰值角速度），受试者人数、年龄、足型纳入标准、测试设备与统计方法均为缺项。',
+  finding:'阶段差异',boundary:'摘要未说明样本数',sources:[evidence('abstract',1,'原文摘要'),
+   evidence('other-version',2,'外部来源','version-b'),{...evidence('visual',1),kind:'page-image'}]};
+ const restored=api.normalizeRecord(data,{sourceHash:'version-a'});
+ assert.equal(restored.quickPurpose,data.quickPurpose);
+ assert.deepEqual(plain(restored.quickReading.sources.map(source=>source.id)),['abstract']);
+ assert.ok(!restored.quickReading.boundary);
+ for (const record of [data,restored]) {
+  const markdown=api.exportMarkdown(record,'论文');
+  assert.match(markdown,/## 摘要快读.*基于原文摘要/);
+  assert.match(markdown,/阅读目的：核对试验方法/);
+  assert.match(markdown,/比较两种鞋垫条件下正常行走的下肢关节运动学指标（髋、膝、踝屈伸角及峰值角速度）/);
+  assert.match(markdown,/原文摘要.*文件第 1 页/s);
+  assert.doesNotMatch(markdown,/## 全文研读|外部来源|页面图像|适用边界|样本数|受试者人数|缺项/);
+ }
+ const {sourceHash,takeaway,finding,sources}=data.quickReading;
+ const sparse=api.normalizeRecord({...data,quickReading:{sourceHash,takeaway,finding,sources}});
+ assert.equal(sparse.quickReading.finding,finding);
+ assert.doesNotMatch(api.exportMarkdown(sparse,'论文'),/研究问题|对象与方法|适用边界/);
+ const bounded=api.normalizeRecord({...data,quickReading:{sourceHash,takeaway,finding,sources,boundary:'研究只比较正常行走时的关节运动学。'}});
+ assert.match(api.exportMarkdown(bounded,'论文'),/适用边界.*只比较正常行走时的关节运动学/);
+ assert.equal(api.normalizeRecord({...data,quickReading:{sourceHash,takeaway,sources}}).quickReading,null);
+});
+
 test('legacy evidence packing keeps every native block even when a former budget is supplied',()=>{
  const blocks=Array.from({length:100},(_,index)=>evidence(`block-${index}`,1+Math.floor(index/10),`第${index}段`+'材料'.repeat(150)));
  const pack=api.evidencePack(blocks,6500);

@@ -23,6 +23,7 @@ fs.mkdirSync(outputRoot, { recursive: true });
 const output = fs.mkdtempSync(path.join(outputRoot, 'run-'));
 const profile = path.join(output, 'profile');
 const sourcePath = path.join(output, 'Packaged study source.pdf');
+const noAbstractPath = path.join(output, 'Packaged PDF without abstract.pdf');
 const markdownPath = path.join(output, '旧版工具栏验收.md');
 const textPath = path.join(output, '纯文本工具栏验收.txt');
 const epubPath = path.join(output, 'EPUB 智能审阅验收.epub');
@@ -32,6 +33,9 @@ const hashFile = file => createHash('sha256').update(fs.readFileSync(file)).dige
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const calls = [];
 const errors = [];
+const quickTakeaway = '摘要以方法、结果以及适用条件串起阅读过程。';
+const studySummary = '原文三页分别说明核对出处、检验条件和回顾依据。';
+const assistantReply = '这是本地验收模型的直接对话回复，可以开始阅读或写一篇 Markdown。';
 let application;
 let browser;
 let page;
@@ -60,13 +64,16 @@ async function freePort() {
 
 function generatedPdf() {
   const pdf = new jsPDF();
-  pdf.text('Evidence remains linked to the original source.', 20, 30);
-  pdf.text('Reading is followed by a personal Markdown note.', 20, 50);
+  pdf.text('Abstract: Reading uses source evidence and stated conditions.', 20, 30);
+  pdf.text('The reading process ends with a personal review of the evidence.', 20, 40);
+  pdf.text('Keywords: evidence, reading', 20, 50);
+  pdf.text('Evidence remains linked to the original source.', 20, 65);
   pdf.addPage();
   pdf.text('A conclusion is valid only under stated conditions.', 20, 30);
   pdf.text('Learning cards support review and self assessment.', 20, 50);
   pdf.addPage();
-  pdf.text('UNSELECTED_PAGE_THREE_MUST_NOT_BE_SENT', 20, 30);
+  pdf.text('Review the evidence only after reading the original source.', 20, 30);
+  pdf.text('LAST_PAGE_STUDY_MARKER', 20, 45);
   return Buffer.from(pdf.output('arraybuffer'));
 }
 
@@ -91,10 +98,13 @@ async function startModelFixture() {
       assert.equal(request.headers.authorization, 'Bearer packaged-fixture-only');
       assert.equal(payload.model, 'packaged-study-fixture');
       const messages = payload.messages || [];
+      const requestContent = messages.at(-1)?.content;
+      const images = Array.isArray(requestContent) ? requestContent.filter(part => part.type === 'image_url') : [];
+      const requestText = Array.isArray(requestContent) ? requestContent.find(part => part.type === 'text' && part.text.startsWith('{'))?.text : requestContent;
       let study;
-      try { study = JSON.parse(messages.at(-1)?.content); } catch (_) { /* free conversation */ }
+      try { study = JSON.parse(requestText); } catch (_) { /* free conversation */ }
       let kind = 'home-direct';
-      let content = '这是本地验收模型的直接对话回复，可以开始阅读或写一篇 Markdown。';
+      let content = assistantReply;
       const system = messages[0]?.content || '';
       if (messages.length === 1 && messages[0].content === '只回复 OK。') {
         kind = 'connection-test'; content = 'OK';
@@ -111,24 +121,56 @@ async function startModelFixture() {
         assert.ok(study.evidence.every(item => /^W\d+$/.test(item.id) && typeof item.quote === 'string'), 'EPUB work gets Wn and quote, not PDF text');
         assert.doesNotMatch(JSON.stringify(study), /epubcfi\(|OPS\/|chapter[12]\.xhtml|sourceHash|sectionIndex|[a-f0-9]{64}/i);
         content = JSON.stringify({ answer: '阅读需要核对证据与条件，并保留原文来源。', evidence: [{ id: study.evidence[0].id, explanation: '这是提供的章节原文。' }], supported: true, confidence: 'high' });
-      } else if (study?.evidence) {
+      } else if (study?.stage) {
         assert.ok(study.evidence.length > 0, 'the native PDF must provide real evidence');
         assert.ok(study.evidence.every(item => typeof item.id === 'string' && item.text));
-        assert.ok(!JSON.stringify(study.evidence).includes('UNSELECTED_PAGE_THREE'), 'unselected page must stay local');
-        const evidenceIds = study.evidence.slice(0, 2).map(item => item.id);
-        if (study.task) {
+        const text = study.evidence.map(item => item.text).join('\n');
+        const textPages = [...new Set(study.evidence.map(item => item.page))];
+        const imagePages = (study.visuals || []).map(item => item.page);
+        assert.equal(images.length, imagePages.length);
+        const evidenceIds = [study.evidence[0].id];
+        if (study.stage === 'quick-abstract') {
+          kind = 'study-abstract';
+          assert.deepEqual(textPages, [1]);
+          assert.deepEqual(imagePages, []);
+          assert.match(text, /Reading uses source evidence/);
+          assert.doesNotMatch(text, /Keywords|Evidence remains linked|LAST_PAGE_STUDY_MARKER/);
+          assert.doesNotMatch(system, /摘要没有交代的对象、样本或指标标明缺项/);
+          content = JSON.stringify({ takeaway: quickTakeaway,
+            method: '摘要说明了如何依据来源阅读，受试者人数、年龄及统计方法均为缺项。',
+            finding: '阅读后对照原文做一次回顾。', boundary: '摘要未说明样本数。', evidenceIds });
+        } else if (study.stage === 'prepare-document') {
           kind = 'study-guide';
+          assert.deepEqual(textPages, [1, 2, 3]);
+          assert.deepEqual(imagePages, [1, 2, 3]);
+          assert.match(text, /Evidence remains linked/);
+          assert.match(text, /A conclusion is valid only/);
+          assert.match(text, /LAST_PAGE_STUDY_MARKER/);
+          const pageTwoImage = study.visuals.find(item => item.page === 2).id;
           content = JSON.stringify({
-            guide: [{ title: '从原文到自己的理解', body: '阅读依据需要保留原文来源，再形成自己的 Markdown 笔记。', evidenceIds }],
-            questions: [{ question: '如何保留阅读依据？', evidenceIds }],
+            reading: { title: '从原文到自己的理解', documentType: '研究资料',
+              summary: { body: studySummary, evidenceIds },
+              sections: [{ kind: 'method', title: '查阅第二页的条件', body: '回到第二页核对适用条件。',
+                readingCue: '对照原页中的限定条件。', basis: 'source', evidenceIds: [pageTwoImage] }],
+              wrapUp: { body: '阅读后回顾证据的适用条件。', basis: 'source', evidenceIds: [pageTwoImage] } },
             cards: [{ type: '方法', question: '阅读后如何形成自己的理解？', answer: '核对原文来源，并写下自己的 Markdown 笔记。', evidenceIds }]
           });
         } else {
+          assert.equal(study.stage, 'answer-document');
           kind = 'study-question';
-          content = JSON.stringify({ answer: '依据所选原文，阅读后应保留来源并写下自己的 Markdown 笔记。', evidenceIds, insufficient: false });
+          const linked = study.question === '阅读后应该如何保留依据？';
+          assert.deepEqual(textPages, linked ? [2] : [1, 2, 3]);
+          assert.deepEqual(imagePages, textPages);
+          if (linked) assert.doesNotMatch(text, /LAST_PAGE_STUDY_MARKER/);
+          const imageIds = [study.visuals.find(item => item.page === 2).id];
+          content = JSON.stringify({ answer: '依据所选原文，阅读后应保留来源并写下自己的 Markdown 笔记。',
+            evidenceIds: imageIds, insufficient: false,
+            ...(linked ? { card: { type: '方法', question: '为什么需要核对原文条件？', answer: '不同条件决定结论适用范围。', evidenceIds: imageIds } } : {}) });
         }
       }
-      calls.push({ kind, path: request.url, payload });
+      calls.push({ kind, path: request.url, stage: study?.stage, question: study?.question,
+        pages: study?.evidence?.map(entry => entry.page).filter(page => Number.isInteger(page)),
+        imagePages: study?.visuals?.map(entry => entry.page), imageCount: images.length });
       const body = JSON.stringify({ id: `local-fixture-${calls.length}`, object: 'chat.completion', choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }] });
       response.writeHead(200, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) });
       response.end(body);
@@ -274,14 +316,14 @@ async function verifyStudyComposer(panel,label) {
   return {iconOnly:true,bottomRight:true,noSeparateRow:true};
 }
 
-async function verifyStudyNoteCard(panel,text,label) {
+async function verifyStudyNoteCard(panel,text,label,expectedPage) {
   assert.equal(await panel.getByRole('textbox',{name:'研读笔记',exact:true}).count(),0,`${label}: notes defaults to cards`);
   assert.equal(await panel.getByRole('button',{name:'新建笔记',exact:true}).isVisible(),true,`${label}: new note remains available`);
   const card=panel.locator('.guanyi-study-note-card[data-note-kind="study"]').filter({has:page.getByText(text,{exact:true})});
   await card.waitFor({state:'visible'});
   assert.equal(await card.count(),1,`${label}: note appears once`);
   assert.equal(await card.locator('button.app-comment-card__quote').count(),1,`${label}: source is clickable`);
-  assert.match(await card.locator('button.app-comment-card__quote').textContent(),/第\s*1\s*页/,`${label}: page-only source is explicit`);
+  assert.match(await card.locator('button.app-comment-card__quote').textContent(), new RegExp(`第\\s*${expectedPage}\\s*页`),`${label}: page-only source matches the active PDF page`);
   assert.equal(await card.getByRole('button',{name:'编辑笔记',exact:true}).count(),1,`${label}: edit action`);
   assert.equal(await card.getByRole('button',{name:'删除笔记',exact:true}).count(),1,`${label}: remove action`);
   assert.ok((await card.locator('small').textContent()).trim(),`${label}: metadata present`);
@@ -614,12 +656,116 @@ async function getStudy(id) {
   return page.evaluate(docId => window.__MD_EDITOR_TEST__.getState().docs.find(doc => doc.id === docId)?.readerStudy, id);
 }
 
+async function verifyConversationLifecycle(documentId) {
+  const draftText = '档案里应保留尚未发送的草稿';
+  const tabs = page.locator('.app-workspace-chat-tab');
+  await tabs.click();
+  const originalId = await page.evaluate(() => window.__MD_EDITOR_TEST__.getState().homeWorkspace.activeConversationId);
+  const input = page.locator('[data-chat-input]');
+  const original = page.locator(`button.app-conversation-item[data-conversation-id="${originalId}"]`);
+  const actionMenu = page.locator('#conversation-action-menu');
+  const newChat = page.locator('.app-conversation-new');
+  await input.fill(draftText);
+  assert.equal(await original.locator('[data-conversation-action]').count(), 0, 'no end-of-row menu button');
+  for (const edge of ['x', 'width']) {
+    assert.ok(Math.abs((await original.boundingBox())[edge] - (await newChat.boundingBox())[edge]) < 1, 'conversation row aligns with new conversation');
+  }
+  await original.press('Shift+F10');
+  await actionMenu.waitFor({ state: 'visible' });
+  await page.keyboard.press('Escape');
+  await actionMenu.waitFor({ state: 'hidden' });
+  assert.equal(await original.evaluate(row => row === document.activeElement), true);
+  await newChat.click();
+  const otherId = await page.evaluate(() => window.__MD_EDITOR_TEST__.getState().homeWorkspace.activeConversationId);
+  assert.notEqual(otherId, originalId);
+  const other = page.locator(`button.app-conversation-item[data-conversation-id="${otherId}"]`);
+  await other.click({ button: 'right' });
+  await actionMenu.locator('[data-conversation-action="delete"]').click();
+  await other.waitFor({ state: 'detached' });
+  assert.equal(await input.inputValue(), draftText, 'when active chat is deleted, fallback restores the previous draft');
+  await original.click({ button: 'right' });
+  await actionMenu.locator('[data-conversation-action="delete"]').click();
+  await original.waitFor({ state: 'detached' });
+  await page.locator(`.app-document-tab[data-doc-id="${documentId}"]`).click();
+  const originalMarkdown = await page.evaluate(() => window.__MD_EDITOR_TEST__.getCurrentMarkdown());
+  await page.locator('#btn-app-menu').click();
+  await page.locator('[data-app-command="conversation-history"]').click();
+  const history = page.locator('[data-home-history-dialog]');
+  await history.locator('[data-history-filter="deleted"]').click();
+  await history.locator(`[data-history-open="${originalId}"]`).click();
+  assert.match(await history.innerText(), new RegExp(draftText));
+  await history.getByText(assistantReply, { exact: true }).waitFor();
+  assert.equal(await history.locator('textarea').count(), 0);
+  await history.locator(`[data-history-restore="${originalId}"]`).click();
+  await page.waitForFunction(id => !window.__MD_EDITOR_TEST__.getState().homeWorkspace.conversations.find(chat => chat.id === id)?.deletedAt, originalId);
+  await page.keyboard.press('Escape');
+  await history.waitFor({ state: 'hidden' });
+  await page.waitForFunction(() => document.activeElement?.id === 'btn-app-menu');
+  assert.equal(await page.evaluate(() => window.__MD_EDITOR_TEST__.getCurrentMarkdown()), originalMarkdown);
+  await tabs.click();
+  await original.click();
+  assert.equal(await input.inputValue(), draftText);
+  await page.locator('[data-chat-messages]').getByText(assistantReply, { exact: true }).waitFor();
+  return { originalId, otherId, draftText, alignedRows: true, keyboardMenu: true, rightClick: true, softDelete: true, restore: true, documentStayedOpen: true };
+}
+
+async function verifyRecentSearch(documentId) {
+  await page.locator('.app-workspace-home-tab').click();
+  const recent = page.locator('.app-home-recent');
+  const search = recent.getByRole('searchbox', { name: '搜索最近打开的文档' });
+  await search.waitFor();
+  assert.equal(await search.evaluate(input => Boolean(input.closest('.app-home-section-heading'))), true);
+  const results = recent.locator('.app-home-document-open');
+  const originalCount = await results.count();
+  assert.ok(originalCount > 1);
+  await page.keyboard.press('Meta+k');
+  assert.equal(await search.evaluate(input => input === document.activeElement), true);
+  await search.fill('不存在的验收文档-492');
+  assert.equal(await results.count(), 0);
+  await search.press('Escape');
+  assert.equal(await search.inputValue(), '');
+  assert.equal(await results.count(), originalCount);
+  await search.fill('旧版工具栏验收');
+  assert.equal(await results.count(), 1);
+  assert.equal(await results.first().getAttribute('data-home-open'), documentId);
+  await search.press('Enter');
+  await page.waitForFunction(id => window.__MD_EDITOR_TEST__.getState().currentDocId === id && window.__MD_EDITOR_TEST__.getState().workspaceView === 'document', documentId);
+  return { adjacentToRecents: true, shortcutFocus: true, emptyAndEscape: true, enterOpen: true };
+}
+
+async function verifyStudyResize(panel) {
+  const resizer = panel.getByRole('separator', { name: '调整智能研读面板宽度' });
+  const width = () => panel.evaluate(element => Math.round(element.getBoundingClientRect().width));
+  const minimum = Number(await resizer.getAttribute('aria-valuemin'));
+  const maximum = Number(await resizer.getAttribute('aria-valuemax'));
+  const halfWidth = await page.evaluate(() => Math.floor(innerWidth / 2));
+  assert.equal(minimum, 360);
+  assert.equal(maximum, halfWidth);
+  await resizer.press('End');
+  assert.equal(await width(), maximum);
+  assert.equal(await panel.getByRole('tab').count(), 4);
+  await resizer.press('Home');
+  assert.equal(await width(), minimum);
+  const handle = await resizer.boundingBox();
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + handle.width / 2 - 165, handle.y + 60, { steps: 5 });
+  await page.mouse.up();
+  assert.equal(await width(), minimum + 165);
+  await resizer.dblclick();
+  assert.equal(await width(), minimum);
+  return { drag: true, keyboardBounds: true, halfWidth, reset: true };
+}
+
 async function main() {
   assert.equal(process.platform, 'darwin', 'this test targets the macOS application');
   assert.ok(fs.existsSync(executable), `missing packaged application: ${executable}`);
   assert.ok(fs.existsSync(asarPath), 'run a packaged .app, not a development Electron checkout');
   const packageHash = hashFile(asarPath);
   fs.writeFileSync(sourcePath, generatedPdf());
+  const noAbstract = new jsPDF();
+  noAbstract.text('An ordinary chapter without a recognized abstract.', 20, 30);
+  fs.writeFileSync(noAbstractPath, Buffer.from(noAbstract.output('arraybuffer')));
   fs.writeFileSync(epubPath, await generatedEpub());
   const originalHash = hashFile(sourcePath);
   const originalEpubHash = hashFile(epubPath);
@@ -636,8 +782,9 @@ async function main() {
   await openGlobalModelSettings('home direct conversation');
   await page.locator('#model-provider').selectOption('custom');
   await page.locator('#model-base-url').fill(`http://127.0.0.1:${modelPort}`);
-  await page.locator('#model-name-custom').fill('packaged-study-fixture');
   await page.locator('#model-api-key').fill('packaged-fixture-only');
+  await page.locator('#model-name-custom').fill('packaged-study-fixture');
+  await page.locator('#btn-model-add').click();
   await page.locator('#remember-api-key').check();
   await page.locator('#btn-model-test').click();
   await page.locator('#model-connection-status').filter({ hasText: '模型连接成功' }).waitFor({ state: 'visible' });
@@ -649,6 +796,8 @@ async function main() {
   await page.screenshot({ path: path.join(output, '02-home-direct-chat.png') });
 
   const restoredToolbar = await verifyRestoredToolbar();
+  const conversations = await verifyConversationLifecycle(restoredToolbar.markdownId);
+  const recentSearch = await verifyRecentSearch(restoredToolbar.markdownId);
   console.log('PASS packaged Home conversation, model connection and restored Markdown/TXT toolbar');
   const epubReview = await verifyEpubReview(originalEpubHash);
   console.log('PASS packaged EPUB native annotations, shared review and sourced AI/work transport');
@@ -669,28 +818,39 @@ async function main() {
   const panel = page.locator('.app-reader-container:not([hidden]) .guanyi-study-panel');
   await panel.waitFor({ state: 'visible' });
   const studySidebar = await verifySidebarChrome('pdf');
+  const studyResize = await verifyStudyResize(panel);
   await panel.locator('[data-study-tab="guide"]').click();
-  await panel.getByRole('spinbutton', { name: '研读起始页' }).fill('1');
-  await panel.getByRole('spinbutton', { name: '研读结束页' }).fill('2');
-  await panel.getByRole('button', { name: '准备这段研读', exact: true }).click();
+  const modelCallsBeforeQuick = calls.length;
+  await panel.getByRole('button', { name: '摘要快读', exact: true }).click();
+  await panel.getByText(quickTakeaway, { exact: true }).waitFor();
+  const quick = panel.locator('.guanyi-study-quick');
+  assert.deepEqual(await quick.locator('dt').allTextContents(), ['对象与方法', '主要发现']);
+  assert.doesNotMatch(await quick.innerText(), /缺项|样本数/);
+  assert.equal(calls.length, modelCallsBeforeQuick + 1);
+  assert.equal(calls.at(-1).kind, 'study-abstract');
+  assert.equal((await getStudy(pdfId)).preparations.length, 0);
+  await panel.getByRole('button', { name: '研读全文', exact: true }).click();
+  await panel.getByText(studySummary, { exact: true }).waitFor();
   await page.waitForFunction(id => window.__MD_EDITOR_TEST__.getState().docs.find(doc => doc.id === id)?.readerStudy?.preparations.some(prep => prep.status === 'ready'), pdfId);
   const prepared = (await getStudy(pdfId)).preparations.find(prep => prep.status === 'ready');
   assert.equal(prepared.start, 1);
-  assert.equal(prepared.end, 2);
+  assert.equal(prepared.end, 3);
   assert.equal(prepared.sourceHash, originalHash);
-  assert.match(prepared.coverage, /已提取 2 页/);
-  assert.ok(prepared.guide[0].sources.every(source => source.sourceHash === originalHash && source.page <= 2));
+  assert.ok(prepared.reading.summary.sources.every(source => source.sourceHash === originalHash && source.page === 1));
+  assert.equal(prepared.reading.sections[0].sources[0].page, 2);
+  assert.match(prepared.reading.wrapUp.body, /阅读后回顾证据/);
   const guideRequest = calls.find(call => call.kind === 'study-guide');
-  assert.ok(guideRequest.payload.messages.some(message => message.content.includes('Evidence remains linked')));
-  assert.ok(guideRequest.payload.messages.some(message => message.content.includes('A conclusion is valid only')), 'both selected PDF pages must be parsed');
+  assert.deepEqual([...new Set(guideRequest.pages)], [1, 2, 3]);
+  assert.deepEqual(guideRequest.imagePages, [1, 2, 3]);
+  assert.equal((await getStudy(pdfId)).cards.length, 0);
   await page.screenshot({ path: path.join(output, '03-pdf-study-guide.png') });
 
-  await panel.locator('[data-study-tab="cards"]').click();
-  await panel.getByRole('button', { name: '预览与编辑', exact: true }).click();
+  await panel.getByRole('button', { name: '存为学习卡', exact: true }).click();
   const dialog = page.locator('.guanyi-study-dialog[open]');
   await dialog.getByRole('textbox', { name: '学习卡问题' }).fill('如何把阅读转化为自己的理解？');
   await dialog.getByRole('button', { name: '确认保留', exact: true }).click();
   await page.waitForFunction(id => window.__MD_EDITOR_TEST__.getState().docs.find(doc => doc.id === id)?.readerStudy?.cards.length === 1, pdfId);
+  await panel.locator('[data-study-tab="cards"]').click();
   await panel.getByRole('button', { name: '开始自测', exact: true }).click();
   await panel.getByRole('button', { name: '显示答案', exact: true }).click();
   await panel.getByRole('button', { name: '基本理解', exact: true }).click();
@@ -698,13 +858,61 @@ async function main() {
   await page.screenshot({ path: path.join(output, '04-study-card.png') });
 
   await panel.locator('[data-study-tab="ask"]').click();
-  await panel.getByRole('textbox', { name: '研读问题' }).fill('阅读后应该如何保留依据？');
+  const questionInput = panel.getByRole('textbox', { name: '研读问题' });
+  const draft = '切换证据时还没有发送的草稿';
+  await questionInput.fill(draft);
+  const modelCallsBeforeShortcut = calls.length;
+  const shortcut = panel.getByRole('button', { name: '这份文档主要回答什么问题？', exact: true });
+  await shortcut.click();
+  await panel.getByText('依据所选原文，阅读后应保留来源并写下自己的 Markdown 笔记。', { exact: true }).waitFor();
+  assert.equal(calls.length, modelCallsBeforeShortcut + 1);
+  assert.equal(calls.at(-1).question, '这份文档主要回答什么问题？');
+  assert.equal(await questionInput.inputValue(), draft, 'shortcut sends without replacing the unsent draft');
+  await panel.locator('[data-study-tab="guide"]').click();
+  const chapter = panel.locator('.guanyi-study-chapter').filter({ has: page.getByRole('button', { name: '查阅第二页的条件', exact: true }) });
+  await chapter.getByRole('button', { name: '查阅第二页的条件', exact: true }).click();
+  await chapter.locator('.guanyi-study-source-preview > summary').click();
+  const pageSource = chapter.locator('.guanyi-study-source-excerpt').filter({ hasText: '文件第 2 页' });
+  const modelCallsBeforeSource = calls.length;
+  await pageSource.getByRole('button', { name: '基于此处追问', exact: true }).click();
+  assert.equal(calls.length, modelCallsBeforeSource);
+  assert.equal(await questionInput.inputValue(), draft);
+  await questionInput.fill('阅读后应该如何保留依据？');
   const studyComposer=await verifyStudyComposer(panel,'packaged PDF question');
   await panel.getByRole('button', { name: '发送', exact: true }).click();
-  await page.waitForFunction(id => window.__MD_EDITOR_TEST__.getState().docs.find(doc => doc.id === id)?.readerStudy?.messages.some(message => message.status === 'ready'), pdfId);
-  assert.ok((await getStudy(pdfId)).messages[0].sources.every(source => source.sourceHash === originalHash));
+  await page.waitForFunction(id => window.__MD_EDITOR_TEST__.getState().docs.find(doc => doc.id === id)?.readerStudy?.messages.some(message => message.status === 'ready' && message.question === '阅读后应该如何保留依据？'), pdfId);
+  const linkedAnswer = (await getStudy(pdfId)).messages.at(-1);
+  assert.equal(linkedAnswer.context.start, 2);
+  assert.ok(linkedAnswer.sources.every(source => source.sourceHash === originalHash && source.page === 2));
+  assert.deepEqual(calls.at(-1).imagePages, [2]);
+  const linkedTurn = panel.locator('.guanyi-study-chat').filter({ hasText: '阅读后应该如何保留依据？' });
+  await linkedTurn.getByRole('button', { name: '预览建议学习卡', exact: true }).waitFor();
+  assert.equal((await getStudy(pdfId)).cards.length, 1);
   await page.screenshot({ path: path.join(output, '05-study-question.png') });
 
+  await linkedTurn.locator('.guanyi-study-source-preview > summary').click();
+  const saveExcerpt = linkedTurn.getByRole('button', { name: '存为研究摘录', exact: true });
+  await saveExcerpt.click();
+  const excerpt = page.getByRole('dialog', { name: '存为研究摘录', exact: true });
+  const researchText = '用第二页的限定条件核对论点。';
+  await excerpt.getByText('文件第 2 页', { exact: true }).waitFor();
+  await excerpt.getByRole('textbox', { name: '研读笔记', exact: true }).fill(researchText);
+  await excerpt.getByRole('button', { name: '关闭存为研究摘录', exact: true }).click();
+  await excerpt.waitFor({ state: 'hidden' });
+  assert.equal((await getStudy(pdfId)).notes.length, 0);
+  await saveExcerpt.click();
+  assert.equal(await excerpt.getByRole('textbox', { name: '研读笔记', exact: true }).inputValue(), researchText);
+  await excerpt.getByRole('button', { name: '保存摘录', exact: true }).click();
+  await excerpt.waitFor({ state: 'hidden' });
+  await page.waitForFunction(id => window.__MD_EDITOR_TEST__.getState().docs.find(doc => doc.id === id)?.readerStudy?.notes.length === 1, pdfId);
+  const researchNote = (await getStudy(pdfId)).notes[0];
+  assert.equal(researchNote.kind, 'research-excerpt');
+  assert.equal(researchNote.sources[0].page, 2);
+  assert.equal(researchNote.sources[0].kind, 'page-image');
+  assert.equal(researchNote.text, researchText);
+
+  await panel.locator('button.app-comment-card__quote').first().click();
+  await page.waitForFunction(() => document.querySelector('.guanyi-pdf-page-number')?.value === '2');
   await panel.locator('[data-study-tab="notes"]').click();
   assert.equal(await panel.getByRole('textbox',{name:'研读笔记',exact:true}).count(),0,'PDF notes starts as a list without an open editor');
   await panel.getByRole('button',{name:'新建笔记',exact:true}).click();
@@ -712,19 +920,24 @@ async function main() {
   const studyNoteText='我的理解：先核对原文，再写自己的 Markdown 笔记。';
   await panel.getByRole('textbox', { name: '研读笔记' }).fill(studyNoteText);
   await panel.getByRole('button', { name: '保存研读笔记', exact: true }).click();
-  await page.waitForFunction(id => window.__MD_EDITOR_TEST__.getState().docs.find(doc => doc.id === id)?.readerStudy?.notes.length === 1, pdfId);
-  const noteCards=await verifyStudyNoteCard(panel,studyNoteText,'new packaged PDF note');
+  await page.waitForFunction(id => window.__MD_EDITOR_TEST__.getState().docs.find(doc => doc.id === id)?.readerStudy?.notes.length === 2, pdfId);
+  const noteCards=await verifyStudyNoteCard(panel,studyNoteText,'new packaged PDF note',2);
   await panel.locator('[data-study-tab="ask"]').click();await panel.locator('[data-study-tab="notes"]').click();
-  await verifyStudyNoteCard(panel,studyNoteText,'PDF note after tab roundtrip');
+  await verifyStudyNoteCard(panel,studyNoteText,'PDF note after tab roundtrip',2);
   await page.screenshot({path:path.join(output,'19-pdf-note-cards.png')});
   await panel.getByRole('button', { name: '整理为 Markdown', exact: true }).click();
-  await page.locator('.guanyi-study-dialog[open] .guanyi-study-check input').nth(2).check();
+  const markdownDialog = page.getByRole('dialog', { name: '整理为 Markdown', exact: true });
+  await markdownDialog.getByRole('checkbox', { name: /摘要快读与原文依据/ }).check();
+  await markdownDialog.getByRole('checkbox', { name: /已完成的文档对话/ }).check();
   await page.locator('.guanyi-study-dialog[open]').getByRole('button', { name: '创建 Markdown 笔记', exact: true }).click();
   await page.waitForFunction(() => window.__MD_EDITOR_TEST__.getState().docs.some(doc => doc.name.includes('研读笔记') && doc.content.includes('我的理解：先核对原文')));
   const markdownDoc = await page.evaluate(() => window.__MD_EDITOR_TEST__.getState().docs.find(doc => doc.name.includes('研读笔记') && doc.content.includes('我的理解：先核对原文')));
   assert.match(markdownDoc.content, /我的批注/);
   assert.match(markdownDoc.content, /学习卡/);
   assert.match(markdownDoc.content, /文档对话（AI）/);
+  assert.match(markdownDoc.content, /摘要快读/);
+  assert.ok(markdownDoc.content.includes(researchText));
+  assert.doesNotMatch(markdownDoc.content, /缺项|摘要未说明样本数|data:image/);
   assert.ok(markdownDoc.content.includes(originalHash));
   assert.equal(markdownDoc.storageKind, 'managed');
   assert.ok(markdownDoc.desktopPath.startsWith(profile), 'created Markdown belongs to the isolated test profile');
@@ -732,10 +945,20 @@ async function main() {
   await page.screenshot({ path: path.join(output, '06-created-markdown.png') });
 
   await page.evaluate(() => window.__MD_EDITOR_TEST__.showHome());
+  await page.locator('[data-home-search]').fill('');
   const recents = await page.locator('[data-home-recent-list] .app-home-document-open').evaluateAll(nodes => nodes.map(node => node.dataset.homeOpen));
   assert.equal(recents[0], markdownDoc.id);
   assert.ok(recents.includes(pdfId));
   await page.screenshot({ path: path.join(output, '07-home-recent-documents.png') });
+  await openNativeFile(noAbstractPath);
+  const negativePanel = page.locator('.app-reader-container:not([hidden]) .guanyi-study-panel');
+  await page.locator('.app-reader-toolbar:not([hidden]) .guanyi-study-toggle').click();
+  const modelCallsBeforeNegative = calls.length;
+  await negativePanel.getByRole('button', { name: '摘要快读', exact: true }).click();
+  await negativePanel.getByText(/(?:未找到|无法确定|未识别|无法识别|没有找到|没有识别).*摘要/).first().waitFor();
+  assert.equal(calls.length, modelCallsBeforeNegative, 'opening body text is not sent as an abstract');
+  assert.ok(await negativePanel.getByRole('button', { name: '研读全文', exact: true }).isEnabled());
+
   await stopApplication();
   await startApplication();
   assert.equal(await page.evaluate(() => window.__MD_EDITOR_TEST__.getState().workspaceView), 'home');
@@ -754,12 +977,18 @@ async function main() {
   assert.equal(persisted.cards.length, 1);
   assert.equal(persisted.cards[0].reviews.length, 1);
   assert.equal(persisted.messages[0].status, 'ready');
-  assert.equal(persisted.notes.length, 1);
-  assert.ok(persisted.notes[0].text.includes('我的理解'));
+  assert.equal(persisted.notes.length, 2);
+  assert.ok(persisted.notes.some(note => note.text.includes('我的理解')));
+  assert.ok(persisted.notes.some(note => note.id === researchNote.id && note.sources[0].page === 2));
+  assert.equal(persisted.quickReading.takeaway, quickTakeaway);
+  assert.equal(persisted.quickReading.boundary, undefined);
   await page.locator('.app-reader-container:not([hidden]) .guanyi-study-panel [data-study-tab="notes"]').click();
-  await verifyStudyNoteCard(page.locator('.app-reader-container:not([hidden]) .guanyi-study-panel'),studyNoteText,'restarted PDF note');
+  await verifyStudyNoteCard(page.locator('.app-reader-container:not([hidden]) .guanyi-study-panel'),studyNoteText,'restarted PDF note',2);
   assert.equal(await page.evaluate(id => window.__MD_EDITOR_TEST__.getState().docs.find(doc => doc.id === id)?.content, markdownDoc.id), markdownDoc.content);
-  assert.equal(await page.evaluate(() => window.__MD_EDITOR_TEST__.getState().homeWorkspace.conversations[0].turns[0].status), 'complete');
+  const persistedConversations = await page.evaluate(() => window.__MD_EDITOR_TEST__.getState().homeWorkspace.conversations);
+  assert.equal(persistedConversations.find(chat => chat.id === conversations.originalId).turns[0].status, 'complete');
+  assert.equal(persistedConversations.find(chat => chat.id === conversations.originalId).draft, conversations.draftText);
+  assert.ok(persistedConversations.find(chat => chat.id === conversations.otherId).deletedAt);
   await page.screenshot({ path: path.join(output, '08-restarted-study.png') });
   const persistedEpubReview = await verifyPersistedEpubReview(epubReview);
   assert.equal(hashFile(sourcePath), originalHash, 'intelligent study must preserve the source PDF bytes');
@@ -770,11 +999,15 @@ async function main() {
   fs.writeFileSync(path.join(output, 'fixture-requests.json'), `${JSON.stringify(calls, null, 2)}\n`);
   const report = { version: expectedVersion, executable, profile, appAsarSha256: packageHash, sourcePdfSha256: originalHash, sourceEpubSha256: originalEpubHash,
     sourcePdfUnchanged: true, applicationUnchanged: true, nativeImport: true, coldHome: true, directHomeConversation: true,
-    parsedPages: [1, 2], guide: true, savedCards: persisted.cards.length, cardReviews: persisted.cards[0].reviews.length,
+    parsedPages: [1, 2, 3], guide: true, savedCards: persisted.cards.length, cardReviews: persisted.cards[0].reviews.length,
     sourcedAnswers: persisted.messages.filter(message => message.status === 'ready').length, savedNotes: persisted.notes.length,
     createdMarkdown: { id: markdownDoc.id, path: markdownDoc.desktopPath }, restartPersistence: true,
     restoredToolbar: { ...restoredToolbar, pdfSwitchSessionRestored: true, restartDefaultEditing: true },
-    studySidebar, studyComposer, noteCards:{...noteCards,restartPersistence:true}, pdfLayout, epubReview: persistedEpubReview,
+    studySidebar, studyResize, studyComposer, noteCards:{...noteCards,restartPersistence:true}, pdfLayout, epubReview: persistedEpubReview,
+    recentSearch, conversations: { ...conversations, restartPersistence: true },
+    abstractQuickRead: { oneTextOnlyRequest: true, omittedMissingItems: true, noAbstractNoRequest: true, restartPersistence: true },
+    researchFlow: { shortcutSentDirectly: true, sourceLockedPage: linkedAnswer.context.start, suggestedCardUnconfirmed: true,
+      researchExcerptPage: researchNote.sources[0].page, exportedMarkdown: true, restartPersistence: true },
     bareModelOriginConnection: true, normalizedModelPath: '/v1/chat/completions',
     modelTransport: 'shipping desktop IPC to localhost fixture', modelCalls: calls.map(call => call.kind), errors };
   fs.writeFileSync(path.join(output, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
@@ -785,6 +1018,7 @@ async function main() {
 main().catch(async error => {
   console.error(error);
   fs.writeFileSync(path.join(output, 'failure.txt'), `${error.stack || error}\n`);
+  fs.writeFileSync(path.join(output, 'fixture-errors.json'), `${JSON.stringify(errors, null, 2)}\n`);
   fs.writeFileSync(path.join(output, 'fixture-requests.json'), `${JSON.stringify(calls, null, 2)}\n`);
   if (page && !page.isClosed()) await page.evaluate(() => ({ state: window.__MD_EDITOR_TEST__?.getState(), review: window.__MD_EDITOR_TEST__?.getReviewState() }))
     .then(value => fs.writeFileSync(path.join(output, 'failure-state.json'), `${JSON.stringify(value, null, 2)}\n`)).catch(() => {});

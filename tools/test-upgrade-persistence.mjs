@@ -10,6 +10,10 @@ const [main, preload, app, manifest] = await Promise.all([
 
 assert.equal(manifest.name, 'guanyi-md', 'package identity must stay stable across upgrades');
 assert.equal(manifest.build?.appId, 'com.guanyi.md', 'bundle identity must stay stable across upgrades');
+assert.equal(manifest.build?.productName, '观译阅读器', 'Mac upgrades must replace the same app bundle name');
+assert.equal(manifest.build?.mac?.executableName ?? manifest.build?.productName, '观译阅读器', 'Mac launch path must stay stable');
+assert.ok(manifest.build?.dmg?.contents?.some(item => item.type === 'link' && item.path === '/Applications'),
+  'the DMG must offer installation into the existing Applications folder');
 assert.match(main, /testUserDataPath \|\| path\.join\(app\.getPath\('appData'\), 'guanyi-md'\)/, 'desktop profile must use a fixed upgrade-safe path');
 assert.match(main, /process\.env\.NODE_ENV === 'test'[\s\S]+GUANYI_TEST_USER_DATA/,
   'isolated UI tests may override userData only in an explicit test environment');

@@ -7,6 +7,7 @@
   <title>观译阅读器 · 设计系统 V1.0</title>
   <link rel="stylesheet" href="../../css/app.css">
   <link rel="stylesheet" href="../../css/home-workspace.css">
+  <link rel="stylesheet" href="../../css/pdf-study.css">
   <style>
     /* The guide uses product tokens live. Its own classes are isolated from app components. */
     body.ds-page {
@@ -172,8 +173,10 @@
     .ds-window-sidebar > div { margin: 0 0 8px; padding: 6px; border: 1px solid var(--ui-color-line-regular); border-radius: 5px; background: var(--ui-color-background-top); color: var(--ui-color-text-secondary); font-size: 9px; }
     .ds-window-sidebar > div.ds-window-sidebar-current { border: 0; border-radius: 3px; background: var(--ui-color-state-pressed-brand); box-shadow: inset 2px 0 var(--ui-color-public-normal); color: var(--ui-color-text-primary); }
     .ds-window-main { display: grid; grid-template-rows: 34px 1fr 20px; min-width: 0; }
-    .ds-window-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 7px; padding: 0 9px; border-bottom: 1px solid var(--ui-color-line-light); background: var(--ui-color-background-top); color: var(--ui-color-text-secondary); font-size: 9px; white-space: nowrap; overflow-x: auto; }
+    .ds-window-toolbar { display: flex; align-items: center; gap: 9px; padding: 0 9px; border-bottom: 1px solid var(--ui-color-line-light); background: var(--ui-color-background-top); color: var(--ui-color-text-secondary); font-size: 9px; white-space: nowrap; overflow-x: auto; }
     .ds-window-toolbar > span { flex: 0 0 auto; }
+    .ds-window-toolbar > span:first-child { margin-inline-start: auto; }
+    .ds-window-toolbar > span:last-child { margin-inline-end: auto; }
     .ds-window-editor { display: grid; grid-template-columns: 1fr 8px 1fr; min-height: 0; margin: 7px 7px 0; border: 1px solid var(--ui-color-line-light); border-bottom: 0; border-radius: 6px 6px 0 0; overflow: hidden; }
     .ds-window-source { padding: 17px 12px; background: var(--ui-color-background-container); color: var(--ui-color-text-secondary); font: 9px/1.7 "SF Mono", Menlo, Consolas, monospace; overflow: hidden; }
     .ds-window-divider { position: relative; background: var(--ui-color-background-base); }
@@ -254,20 +257,20 @@
     .ds-flow-sidebar { padding: 12px 9px; border-right: 1px solid var(--ui-color-line-light); background: var(--ui-color-background-container); color: var(--ui-color-text-secondary); font-size: 10px; line-height: 2.4; }
     .ds-flow-main { min-width: 0; padding: 14px; }
     .ds-flow-main h4 { margin: 0 0 10px; font-size: 12px; }
-    .ds-home-search { width: min(100%,340px); height: 34px; margin: 0 0 22px auto; }
+    .ds-home-recent-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 24px 0 8px; }
+    .ds-home-recent-heading h4 { margin: 0; }
+    .ds-home-search { flex: 1 1 240px; width: min(100%,340px); min-width: 0; height: 34px; margin: 0; }
     .ds-home-search span { font-size: 11px; }
     .ds-flow-composer { margin-bottom: 23px; padding: 13px; border: 1px solid var(--ui-color-line-regular); border-radius: 8px; background: var(--ui-color-background-top); }
     .ds-study-compact { margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
     .ds-study-compact article { padding:12px; border:1px solid var(--ui-color-line-regular); border-radius:6px; background:var(--ui-color-background-top); font-size:12px; }
     .ds-study-compact p { margin:8px 0; line-height:1.55; }
     .ds-study-compact small { color:var(--ui-color-text-tertiary); font-size:10px; }
+    .ds-ask-sample { padding:8px 0; }
     .ds-study-input { position:relative; min-height:108px; margin-top:8px; padding:12px 12px 44px; border:1px solid var(--ui-color-line-regular); border-radius:8px; background:var(--ui-color-background-container); color:var(--ui-color-text-secondary); }
     .ds-study-input svg { position:absolute; bottom:8px; right:8px; width:30px; height:30px; padding:7px; border-radius:6px; color:white; background:var(--ui-color-public-pressed); fill:none; stroke:currentColor; stroke-width:1.5; }
     @media(max-width:600px) { .ds-study-compact { grid-template-columns:1fr; } }
     .ds-flow-composer p { margin: 0 0 18px; color: var(--ui-color-text-tertiary); font-size: 11px; line-height: 1.7; }
-    .ds-flow-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-    .ds-flow-actions small { color: var(--ui-color-text-tertiary); font-size: 10px; }
-    .ds-flow-actions .ds-button { min-height: 28px; padding: 0 9px; font-size: 10px; }
     .ds-recent-example { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--ui-color-line-light); font-size: 11px; }
     .ds-recent-example small { color: var(--ui-color-text-tertiary); font-size: 10px; white-space: nowrap; }
     .ds-study-example { display: grid; grid-template-columns: minmax(0,1fr) minmax(145px,.9fr); min-height: 330px; }
@@ -275,10 +278,10 @@
     .ds-study-paper h4 { margin: 0 0 15px; font: 650 14px "Noto Serif SC","Songti SC",serif; }
     .ds-study-paper p { font-size: 11px; line-height: 1.9; color: var(--ui-color-text-secondary); }
     .ds-study-paper mark { color: inherit; background: var(--ui-color-state-pressed-brand); }
-    .ds-study-example-panel { min-width: 0; padding: 12px; border-left: 1px solid var(--ui-color-line-regular); background: var(--ui-color-background-top); }
+    .ds-study-example-panel { position: relative; min-width: 0; padding: 12px; border-left: 1px solid var(--ui-color-line-regular); background: var(--ui-color-background-top); }
+    .ds-study-example-panel .guanyi-study-resizer { pointer-events: none; }
     .ds-study-example-panel h4 { margin: 13px 0 8px; font-size: 12px; }
     .ds-study-example-panel p { margin: 7px 0; font-size: 10px; line-height: 1.7; color: var(--ui-color-text-secondary); }
-    .ds-study-evidence { border-left: 2px solid var(--ui-color-public-normal); padding: 7px 8px; background: var(--ui-color-state-pressed-brand); }
     .ds-study-example-panel .ds-state-strip { margin-top: 0; }
     @media(max-width:420px) { .ds-flow-body { grid-template-columns:1fr; } .ds-flow-sidebar { display:none; } .ds-study-example { grid-template-columns:1fr; } .ds-study-example-panel { border-left:0; border-top:1px solid var(--ui-color-line-regular); } }
   </style>
@@ -293,6 +296,7 @@
     <symbol id="ds-icon-study" viewBox="0 0 16 16"><path class="ds-icon-ink" d="M8 5.5C6.4 4.4 4.3 4.1 2 4.6v7.7c2.3-.5 4.4-.2 6 1 1.6-1.2 3.7-1.5 6-1V6M8 5.5v7.8M4 7.1l2 .4M4 9.4l2 .4"/><path class="ds-icon-accent" d="m12 1.5.6 1.8 1.9.7-1.9.7-.6 1.8-.6-1.8L9.5 4l1.9-.7Z"/></symbol>
     <symbol id="ds-icon-more" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1" fill="currentColor"/><circle cx="8" cy="8" r="1" fill="currentColor"/><circle cx="13" cy="8" r="1" fill="currentColor"/></symbol>
     <symbol id="ds-icon-close" viewBox="0 0 16 16"><path class="ds-icon-ink" d="m4 4 8 8M12 4l-8 8"/></symbol>
+    <symbol id="ds-icon-guide-chevron" viewBox="0 0 16 16"><path d="m6.25 4.25 3.5 3.75-3.5 3.75" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ds-icon-folder" viewBox="0 0 16 16"><path class="ds-icon-accent" d="M1.7 5.9V3a1.3 1.3 0 0 1 1.3-1.3h3l1.6 1.8H13"/><path class="ds-icon-ink" d="M1.7 5.9h12.6V13a1.3 1.3 0 0 1-1.3 1.3H3A1.3 1.3 0 0 1 1.7 13V5.9Z"/></symbol>
     <symbol id="ds-format-md" viewBox="0 0 16 16"><path fill="currentColor" d="M2.55 11.35v-6.7h1.62L6 7.09l1.83-2.44h1.62v6.7H8.02V6.94L6 9.54 3.98 6.94v4.41H2.55Z"/><path d="M12.15 4.65v4.08m-1.47-1.45 1.47 1.47 1.47-1.47m-2.98 3.22h3.02" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ds-format-txt" viewBox="0 0 16 16"><path d="M2.75 4.55h4.7M5.1 4.55v6.9M8.7 5.1h4.55M8.7 8h4.55m-4.55 2.9h3.25" fill="none" stroke="currentColor" stroke-width="1.18" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -358,13 +362,13 @@
           </div></article>
         </div></section>
 
-      <section class="ds-section" id="ds-workspace" aria-labelledby="ds-workspace-title"><div class="ds-section-heading"><span>07</span><div><h2 id="ds-workspace-title">文稿工作区</h2><p>打开文档后收起主页文件夹栏。Markdown/TXT 默认直接进入编辑并显示完整旧工具栏与智能审阅入口；此图展示 Markdown 默认编辑分栏；大纲默认关闭，打开后位于预览页左侧，编辑/阅读工具栏和大纲标题 X 可控制。用户主动选择“阅读”后进入只读。</p></div></div><div class="ds-layout-stage"><div class="ds-window" role="img" aria-label="观译阅读器 Markdown 默认编辑布局示意：不显示主页文件夹列表，正文为源码和预览，上方常驻主页及文档页签和完整编辑工具栏，底部状态栏"><div class="ds-window-top"><div class="ds-window-brand">观译</div><div class="ds-window-tab"><span class="ds-file-type" title="Markdown"><svg aria-hidden="true"><use href="#ds-format-md"/></svg></span><span>阅读笔记.md</span></div></div><div class="ds-window-body"><div class="ds-window-main"><div class="ds-window-toolbar"><span>撤销　恢复　正文　加粗　斜体　大纲　智能审阅</span><span>源码 · 预览 · 分栏　保存　导出　主题</span></div><div class="ds-window-editor"><div class="ds-window-source"># 阅读笔记<br><br>打开一段文字，<br>记录自己的想法。<br><br>&gt; 保留原文依据。<br><br>- [ ] 继续阅读</div><div class="ds-window-divider"></div><div class="ds-window-preview"><h4>阅读笔记</h4><p>打开一段文字，记录自己的想法。</p><blockquote>保留原文依据。</blockquote><p>□ 继续阅读</p></div></div><div class="ds-window-status"><span>就绪</span><span>已保存</span></div></div></div></div><div class="ds-layout-legend"><span>大纲内联 220px · 可隐藏</span><span>预览 ≤560px：min(240px, 85%) 覆盖</span><span>桌面顶栏 42px</span><span>格式栏 49px</span><span>状态栏 26px</span><span>阅读宽度 ≤820px</span><span>审阅抽屉 360px</span></div></div><div class="ds-grid" style="margin-top:12px"><div class="ds-card"><div class="ds-card-head"><strong>分栏行为</strong><small>现行产品</small></div><div class="ds-card-body"><p class="ds-card-note" style="margin:0">默认 50 / 50；12px 拖动区；左右比例在 25–75% 之间，并保障单栏至少 280px。双击分隔器复位；键盘方向键 3%，Shift 加方向键 10%。1.0.43 大纲结构为“源码 | 分隔器 | [大纲 | 预览]”；源码模式暂藏，返回预览/分栏保留开关。宽预览大纲内联 220px；预览容器宽 ≤560px 时改为 min(240px, 85%) 覆盖式，遮罩仅预览区，定位标题后自动收起。</p></div></div><div class="ds-card"><div class="ds-card-head"><strong>审阅边界</strong><small>现行产品</small></div><div class="ds-card-body"><p class="ds-card-note" style="margin:0">Markdown 的批注、AI 辅助阅读和问作品使用审阅抽屉；PDF 使用独立研读面板。1.0.44 的 EPUB 也复用同一三页签抽屉，原生高亮/笔记/CFI 与导出保留；当前章或选区的真实原文由本地校验引用与定位，跨书首次定位等待目标阅读器就绪；取消和保存按文档隔离，生成期间新输入的下一条问题在取消/重开/重载后仍保留。都说明来源与生成状态，模型动作由用户主动触发。模型连接的裸域补全 /v1/chat/completions，明确前缀保留；网页、无效响应、鉴权、额度与网络错误用中文说明，不泄露响应正文或密钥。1.0.43 修订：模型配置只在顶部“…”常驻，面板头部统一 54px，X/遮罩/Esc 关闭后焦点归还、草稿保留；菜单在面板和遮罩上方可操作。</p></div></div></div></section>
+      <section class="ds-section" id="ds-workspace" aria-labelledby="ds-workspace-title"><div class="ds-section-heading"><span>07</span><div><h2 id="ds-workspace-title">文稿工作区</h2><p>打开文档后收起主页文件夹栏。Markdown/TXT 默认直接进入编辑并显示完整旧工具栏与智能审阅入口；此图展示 Markdown 默认编辑分栏；大纲默认关闭，打开后位于预览页左侧，编辑/阅读工具栏和大纲标题 X 可控制。用户主动选择“阅读”后进入只读。Web 与 Mac 1.0.47 把格式、视图与文件操作整排居中，两侧留白等宽。工具栏空间不足时可横向滚动。</p></div></div><div class="ds-layout-stage"><div class="ds-window" role="img" aria-label="观译阅读器 Markdown 默认编辑布局示意：不显示主页文件夹列表，正文为源码和预览，上方常驻主页及文档页签和完整编辑工具栏，底部状态栏"><div class="ds-window-top"><div class="ds-window-brand">观译</div><div class="ds-window-tab"><span class="ds-file-type" title="Markdown"><svg aria-hidden="true"><use href="#ds-format-md"/></svg></span><span>阅读笔记.md</span></div></div><div class="ds-window-body"><div class="ds-window-main"><div class="ds-window-toolbar"><span>撤销　恢复　正文　加粗　斜体　列表　智能审阅</span><span>大纲　源码 · 预览 · 分栏　保存　导出　主题　阅读</span></div><div class="ds-window-editor"><div class="ds-window-source"># 阅读笔记<br><br>打开一段文字，<br>记录自己的想法。<br><br>&gt; 保留原文依据。<br><br>- [ ] 继续阅读</div><div class="ds-window-divider"></div><div class="ds-window-preview"><h4>阅读笔记</h4><p>打开一段文字，记录自己的想法。</p><blockquote>保留原文依据。</blockquote><p>□ 继续阅读</p></div></div><div class="ds-window-status"><span>就绪</span><span>已保存</span></div></div></div></div><div class="ds-layout-legend"><span>大纲内联 220px · 可隐藏</span><span>预览 ≤560px：min(240px, 85%) 覆盖</span><span>桌面顶栏 42px</span><span>格式栏 49px</span><span>状态栏 26px</span><span>阅读宽度 ≤820px</span><span>审阅抽屉 360px</span></div></div><div class="ds-grid" style="margin-top:12px"><div class="ds-card"><div class="ds-card-head"><strong>分栏行为</strong><small>现行产品</small></div><div class="ds-card-body"><p class="ds-card-note" style="margin:0">默认 50 / 50；12px 拖动区；左右比例在 25–75% 之间，并保障单栏至少 280px。双击分隔器复位；键盘方向键 3%，Shift 加方向键 10%。1.0.43 大纲结构为“源码 | 分隔器 | [大纲 | 预览]”；源码模式暂藏，返回预览/分栏保留开关。宽预览大纲内联 220px；预览容器宽 ≤560px 时改为 min(240px, 85%) 覆盖式，遮罩仅预览区，定位标题后自动收起。</p></div></div><div class="ds-card"><div class="ds-card-head"><strong>审阅边界</strong><small>现行产品</small></div><div class="ds-card-body"><p class="ds-card-note" style="margin:0">Markdown 的批注、AI 辅助阅读和问作品使用审阅抽屉；PDF 使用独立研读面板。1.0.44 的 EPUB 也复用同一三页签抽屉，原生高亮/笔记/CFI 与导出保留；当前章或选区的真实原文由本地校验引用与定位，跨书首次定位等待目标阅读器就绪；取消和保存按文档隔离，生成期间新输入的下一条问题在取消/重开/重载后仍保留。都说明来源与生成状态，模型动作由用户主动触发。模型连接的裸域补全 /v1/chat/completions，明确前缀保留；网页、无效响应、鉴权、额度与网络错误用中文说明，不泄露响应正文或密钥。1.0.43 修订：模型配置只在顶部“…”常驻，面板头部统一 54px，X/遮罩/Esc 关闭后焦点归还、草稿保留；菜单在面板和遮罩上方可操作。</p></div></div></div></section>
 
       <section class="ds-section" id="ds-home-study" aria-labelledby="ds-home-study-title">
         <div class="ds-section-heading"><span>08</span><div><h2 id="ds-home-study-title">主页与 PDF 智能研读</h2><p>主页与研读于 1.0.41 接入，以下示例加入 1.0.43 的纯图标与统一面板规则（本地体验包构建与实包验收已完成）。静态结构不发送数据；真实操作、状态与范围以应用为准。</p></div></div>
         <div class="ds-subhead"><h3>Web 对话 · 2026-11-16 修订</h3><small>实际组件 CSS · 静态演示内容</small></div>
         <div class="ds-chat-live-example" aria-label="AI 对话静态样例，消息为演示内容">
-          <nav aria-label="会话列表静态样例"><strong>＋ 新对话</strong><p class="ds-chat-selected">梳理阅读笔记的思路　…</p><p>理解一份研究文档　…</p><p>开始写作前的问题　…</p></nav>
+          <nav aria-label="会话列表静态样例"><strong>＋ 新对话</strong><p class="ds-chat-selected">梳理阅读笔记的思路</p><p>理解一份研究文档</p><p>开始写作前的问题</p></nav>
           <div class="app-home-workspace">
             <section class="app-home-chat" aria-label="AI 对话样例">
               <header class="app-home-chat-heading"><div class="app-home-chat-title"><h1>AI 对话</h1></div><button type="button" class="app-home-icon-button" aria-label="整理为 Markdown（静态样例）" title="整理为 Markdown（静态样例）" disabled><svg viewBox="0 0 16 16"><path d="M3 2h6l4 4v8H3ZM9 2v4h4M5 9h6M5 11h4"/></svg></button></header>
@@ -376,7 +380,7 @@
             </section>
           </div>
         </div>
-        <p class="ds-card-note">此样例直接引用 home-workspace.css：用户气泡靠右，助手无外卡片，消息居中，输入框自适应高度，来源“+”与发送/停止在框内。会话侧栏替代对话中的文件树；回主页恢复文件列表。顶部“AI 对话”入口从阅读/编辑返回时恢复原活动消息与草稿。会话“…”和右键菜单可软删除，记录可在全局菜单恢复。历史、来源、复制与整理能力由真实应用提供，样例按钮不发送请求。所有可关闭弹框统一右上角 X 图标，具有 title、可访问名称与键盘焦点；X 沿用取消语义。</p>
+        <p class="ds-card-note">此样例直接引用 home-workspace.css：用户气泡靠右，助手无外卡片，消息居中，输入框自适应高度，来源“+”与发送/停止在框内。会话侧栏替代对话中的文件树；回主页恢复文件列表。顶部“AI 对话”入口从阅读/编辑返回时恢复原活动消息与草稿。会话行不显示末尾“…”按钮，左右边缘与“新对话”对齐；右键或 Shift+F10 / 菜单键呼出删除菜单，Esc 关闭后焦点回到该行。软删除记录可在全局菜单恢复。历史、来源、复制与整理能力由真实应用提供，样例按钮不发送请求。所有可关闭弹框统一右上角 X 图标，具有 title、可访问名称与键盘焦点；X 沿用取消语义。</p>
         <div class="ds-subhead"><h3>历史对话记录</h3><small>顶部 … → 历史对话记录 · 静态结构示例</small></div>
         <div class="ds-grid">
           <div class="app-home-history-dialog ds-history-example" role="region" aria-label="历史对话列表静态示例">
@@ -394,25 +398,54 @@
         <div class="ds-subhead"><h3>主页与文档研读</h3><small>既有工作区与阅读规则保留</small></div>
         <div class="ds-grid">
           <article class="ds-card"><div class="ds-card-head"><strong>常驻工作台</strong><small>最近使用按实际打开时间降序</small></div><div class="ds-card-body">
-            <div class="ds-flow-stage" role="img" aria-label="主页静态示例：文档夹列表、独立搜索、可选文档的 AI 对话和最近打开文档。没有宣传首屏或重复主页标题。">
+            <div class="ds-flow-stage" role="img" aria-label="主页静态示例：文档夹列表、可选文档的 AI 对话，以及就近搜索的最近打开文档列表。">
               <div class="ds-flow-tabs"><svg class="ds-icon" aria-hidden="true" viewBox="0 0 16 16"><path class="ds-icon-ink" d="m2 7 6-5 6 5v7H9.5V9h-3v5H2V7Z"/></svg><span>阅读笔记.md</span><button type="button" class="ds-example-icon-button" title="全局菜单（静态样例）" aria-label="全局菜单（静态样例）"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-more"/></svg></button></div>
               <div class="ds-flow-body"><div class="ds-flow-sidebar">新建 Markdown<br>打开文档<br><br>文档夹<br>研究资料<br>我的写作</div><div class="ds-flow-main">
-                <div class="ds-search-input ds-home-search"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-search"/></svg><span>搜索文档…</span><kbd>⌘ K</kbd></div>
                 <div class="app-home-workspace ds-home-live-example"><section class="app-home-ai"><div class="app-home-ai-heading"><h1>你想读懂什么，或写点什么？</h1></div><div class="app-home-prompt-composer"><textarea rows="1" data-home-prompt aria-label="主页输入静态样例" placeholder="问一个问题…" readonly></textarea><div class="app-home-composer-bottom"><button type="button" class="app-home-source-button" title="选择文档来源（静态样例）" aria-label="选择文档来源（静态样例）" disabled><svg viewBox="0 0 16 16"><path d="M8 2.5v11M2.5 8h11"/></svg></button><button type="button" class="app-home-send" title="发送（静态样例）" aria-label="发送（静态样例）" disabled><svg viewBox="0 0 16 16"><path d="M8 13V3m-4 4 4-4 4 4"/></svg></button></div></div></section></div>
-                <h4>最近使用</h4><div class="ds-recent-example"><span>论文.pdf</span><small>2 分钟前</small></div><div class="ds-recent-example"><span>阅读笔记.md</span><small>1 小时前</small></div><div class="ds-recent-example"><span>摘录.txt</span><small>昨天</small></div>
+                <div class="ds-home-recent-heading"><h4>最近打开</h4><div class="ds-search-input ds-home-search"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-search"/></svg><span>搜索最近打开的文档…</span><kbd>⌘ K</kbd></div></div><div class="ds-recent-example"><span>论文.pdf</span><small>2 分钟前</small></div><div class="ds-recent-example"><span>阅读笔记.md</span><small>1 小时前</small></div><div class="ds-recent-example"><span>摘录.txt</span><small>昨天</small></div>
               </div></div>
-            </div><p class="ds-card-note">独立搜索 34px 高，外层不加背景框。选择文档、预填问题不触发发送；保存和后台扫描不改变最近打开排序。窄屏文档夹按需覆盖展开。模型配置统一从“顶部 … > 模型配置”进入；缺模型保留输入并说明路径，主页与侧栏无独立配置按钮。</p>
+            </div><p class="ds-card-note">最近文档搜索放在“最近打开”标题旁，窄屏在标题下独占一行；输入高 34px，明确仅搜索最近打开的文档，外层不加背景框。选择文档、预填问题不触发发送；保存和后台扫描不改变最近打开排序。窄屏文档夹按需覆盖展开。模型配置统一从“顶部 … > 模型配置”进入；缺模型保留输入并说明路径，主页与侧栏无独立配置按钮。</p>
           </div></article>
           <article class="ds-card"><div class="ds-card-head"><strong>阅读与研读</strong><small>默认纯阅读，主动打开研读</small></div><div class="ds-card-body">
-            <div class="ds-flow-stage" role="img" aria-label="PDF 智能研读静态示例：无主页文件夹栏，左侧原文，右侧全文概览、方法结果和来源卡；显示全文覆盖和来源版本。">
-              <div class="ds-flow-tabs"><span>论文.pdf</span><span>文件页 8 / 24</span><button type="button" class="ds-example-icon-button" title="智能研读（静态样例）" aria-label="智能研读（静态样例）" aria-expanded="true" aria-controls="ds-study-example-panel"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-study"/></svg></button><button type="button" class="ds-example-icon-button" title="全局菜单（静态样例）" aria-label="全局菜单（静态样例）"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-more"/></svg></button></div>
+            <div class="ds-flow-stage" role="img" aria-label="PDF 智能研读静态示例。左侧为原文，中间为宽度分隔线，右侧依次为全文概览、按原文脉络精读、读完总结卡片。">
+              <div class="ds-flow-tabs"><span>论文.pdf</span><button type="button" class="ds-example-icon-button" title="全局菜单（静态样例）" aria-label="全局菜单（静态样例）"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-more"/></svg></button></div>
+              <div class="ds-window-toolbar"><span>目录　查找　缩放　文件页 8 / 24</span><span><button type="button" class="ds-example-icon-button" title="智能研读（静态样例）" aria-label="智能研读（静态样例）" aria-expanded="true" aria-controls="ds-study-example-panel"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-study"/></svg></button>　另存为</span></div>
               <div class="ds-study-example"><div class="ds-study-paper"><h4>方法与结果</h4><p>结合上下文阅读，先分清作者的判断和支撑判断的证据。</p><p><mark>原文定位高亮</mark>只用于核验来源，AI 解释另行标识。</p><p>返回阅读位置</p></div><div class="ds-study-example-panel" id="ds-study-example-panel">
+                <span class="guanyi-study-resizer" aria-hidden="true"></span>
                 <div class="ds-study-example-heading"><strong>智能研读</strong><button type="button" class="ds-example-icon-button" title="关闭智能研读（静态样例）" aria-label="关闭智能研读（静态样例）"><svg class="ds-icon" aria-hidden="true"><use href="#ds-icon-close"/></svg></button></div>
                 <div class="ds-state-strip"><span class="ds-state-chip ds-current">导读</span><span class="ds-state-chip">对话</span><span class="ds-state-chip">学习卡</span><span class="ds-state-chip">批注</span></div>
-                <h4>全文概览（AI）</h4><p>全文 24 页 · 文字块与页面图像全量研读</p><div class="ds-flow-actions"><span class="ds-button ds-button-secondary">重新研读</span></div><h4>核心方法与结果</h4><p>原文事实 / 作者观点 / 辅助解释</p><div class="ds-study-evidence"><p>文件第 8 页图像 · 查看原图<br>定位图表所在页后可返回阅读位置</p></div><details><summary>研究过程、术语与原文摘引</summary><p>按需展开细节与逐字原文；译文单独标注。</p></details>
+                <p>全文 24 页 · 文字及页面图像</p>
+                <article class="guanyi-study-reading-card guanyi-study-overview">
+                  <p class="guanyi-study-eyebrow">全文概览 · AI 辅助</p>
+                  <h4>训练效果能否迁移？</h4>
+                  <p>作者比较练习前后的表现，并用另一项任务检验迁移。</p>
+                  <button type="button" class="guanyi-study-action is-primary" disabled>开始精读</button>
+                </article>
+                <section class="guanyi-study-reading-route">
+                  <h4>按原文脉络精读</h4>
+                  <ol class="guanyi-study-reading-steps">
+                    <li><article class="guanyi-study-reading-card guanyi-study-chapter"><h4 class="guanyi-study-chapter-heading"><button type="button" class="guanyi-study-chapter-toggle" aria-expanded="false" disabled><span class="guanyi-study-chapter-title">背景与问题</span><span class="guanyi-study-chapter-pages">第 2 页</span><span class="guanyi-study-chapter-chevron"><svg aria-hidden="true"><use href="#ds-icon-guide-chevron"/></svg></span></button></h4><p class="guanyi-study-chapter-preview">作者想知道练习效果能否迁移。</p></article></li>
+                    <li><article class="guanyi-study-reading-card guanyi-study-chapter"><h4 class="guanyi-study-chapter-heading"><button type="button" class="guanyi-study-chapter-toggle" aria-expanded="true" disabled><span class="guanyi-study-chapter-title">实验设计</span><span class="guanyi-study-chapter-pages">第 8 页</span><span class="guanyi-study-chapter-chevron"><svg aria-hidden="true"><use href="#ds-icon-guide-chevron"/></svg></span></button></h4><div class="guanyi-study-chapter-detail"><p class="guanyi-study-reading-cue"><strong>精读提示</strong>核对训练和测试使用的任务是否相同。</p><p>作者用不同任务区分练习效果和迁移效果。</p></div></article></li>
+                  </ol>
+                </section>
+                <article class="guanyi-study-reading-card guanyi-study-wrap-up">
+                  <h4>读完总结</h4>
+                  <p>结果支持练习任务上的表现改善。</p>
+                  <p class="guanyi-study-reading-cue"><strong>适用边界</strong>其他任务上的改善仍需更多证据。</p>
+                  <button type="button" class="guanyi-study-action" disabled>存为学习卡</button>
+                </article>
               </div></div>
-            </div><p class="ds-card-note">研读面板 360px、头部 54px；X/遮罩/Esc 关闭与 Markdown 审阅一致，焦点回到研读图标且草稿保留。顶部“…”菜单在面板和遮罩之上；宽度不足 1180px 时面板覆盖显示。全文导读不采样文字块或页面图像，覆盖信息分别显示发送数；扫描页按图像研读。图像来源支持本地“查看原图”和定位图表所在页，图片不写入研读记录。提问默认全文，可主动锁定选区、当前页或页段；选区会发送所在整页图像，发送前披露。翻页不改变范围。一次任务冻结同一模型，重新研读成功才替换同版本缓存；当前全文范围和进度独立展示，旧采样或旧引擎结果默认折叠在“查看此前的研读结果”，范围说明与引用留在历史内。重新研读时上次结果也暂时折叠，失败或停止保留；成功后不再展示更早的失败提示。关闭面板取消在途任务并保留已有结果。来源变化时保留快照并提示重新核验，不假定位到新版。1.0.44 清零隐藏 PDF.js 工具栏的 padding/border/shadow，移除第二条灰线，保留正文高倍缩放的真实水平滚动。</p>
-            <div class="ds-study-compact" aria-label="本轮PDF批注与对话静态结构样例"><article><strong>批注卡片</strong><p style="color:var(--ui-color-text-brand)">结论需要结合材料与条件来理解。</p><p>这里的适用条件需要再核对。</p><small>第 2 页 · PDF 高亮 · 11/14 23:20</small></article><article><strong>文档对话</strong><p>全文　·　24 页</p><div class="ds-study-input">围绕原文提问…<svg viewBox="0 0 16 16" aria-label="发送图标样例"><path d="M8 12.5v-9m-3.5 3.5L8 3.5l3.5 3.5"/></svg></div></article></div><p class="ds-card-note">1.0.45 实现修订，体验包已验收：批注默认采用 MD 式卡片，“新建笔记”才展开表单，编辑草稿保留原 ID。原生评论直接读取 PDF.js，新增、修改、删除、撤销自动刷新。范围压成一行，发送/停止图标置于输入框右下角；精简重复说明，保留必要范围、配置路径与错误。</p>
+            </div><p class="ds-card-note">研读面板默认 360px，拖动左边界可扩展到可用窗口的一半，双击复位。页签与内容按面板宽度重排，长段落保留阅读宽度。视口 ≤760px 时沿用覆盖面板。头部 54px，X、遮罩或 Esc 关闭，焦点回到研读图标且草稿保留。顶部“…”菜单在面板和遮罩之上；宽度不足 1180px 时面板覆盖显示。全文导读不采样文字块或页面图像，覆盖信息分别显示发送数；扫描页按图像研读。图像来源支持本地“查看原图”和定位图表所在页，图片不写入研读记录。提问默认全文，可主动锁定选区、当前页或页段；选区会发送所在整页图像，发送前披露。翻页不改变范围。一次任务冻结同一模型，概览、章节精读和读完总结均有依据且保存成功时，才替换同版本缓存；当前全文范围和进度独立展示，旧采样或旧引擎结果默认折叠在“查看此前的研读结果”，范围说明与引用留在历史内。重新研读时上次结果也暂时折叠，失败或停止保留；成功后不再展示更早的失败提示。关闭面板取消在途任务并保留已有结果。来源变化时保留快照并提示重新核验，不假定位到新版。1.0.44 清零隐藏 PDF.js 工具栏的 padding/border/shadow，移除第二条灰线，保留正文高倍缩放的真实水平滚动。</p>
+            <p class="ds-card-note">Web 与 Mac 1.0.47 的 PDF、EPUB 和 Markdown/TXT 只读工具栏整排居中。目录、审阅与研读在工具栏下方展开，工具栏对齐在侧栏切换时保持稳定。窄窗口可横向滚动工具栏。</p>
+            <div class="guanyi-study-notice" aria-label="PDF 导读失败静态样例">
+              <h4 class="guanyi-study-error">第 2 / 8 批研读失败</h4>
+              <p>模型达到输出上限，未返回完整正文。请尝试支持更长输出的模型</p>
+              <details class="guanyi-study-detail-group"><summary>查看诊断信息</summary><p class="guanyi-study-muted">请求协议：Chat Completions · 响应结构：Chat Completions · HTTP 200</p><p class="guanyi-study-muted">服务结束原因：length</p></details>
+              <button type="button" class="guanyi-study-action" disabled>重试全文研读</button>
+            </div>
+            <div class="ds-study-compact" aria-label="本轮PDF批注与对话静态结构样例"><article><strong>批注卡片</strong><p style="color:var(--ui-color-text-brand)">结论需要结合材料与条件来理解。</p><p>这里的适用条件需要再核对。</p><small>第 2 页 · PDF 高亮 · 11/14 23:20</small></article><article><strong>文档对话</strong><div class="guanyi-study-body ds-ask-sample"><p class="guanyi-study-ask-question">训练效果能迁移吗？</p><p class="guanyi-study-muted guanyi-study-ask-scope">全文 · 24 页</p><div class="guanyi-study-ask-answer"><p>原文报告了练习任务上的表现改善。其他任务的结果需要分别核对。</p><details class="guanyi-study-source-preview"><summary>查看原文依据（1）</summary><p>文件第 8 页 · 实验设计</p></details></div></div><p>全文 · 24 页</p><div class="ds-study-input">围绕原文提问…<svg viewBox="0 0 16 16" aria-label="发送图标样例"><path d="M8 12.5v-9m-3.5 3.5L8 3.5l3.5 3.5"/></svg></div></article></div><p class="ds-card-note">1.0.45 实现修订，体验包已验收：批注默认采用 MD 式卡片，“新建笔记”才展开表单，编辑草稿保留原 ID。原生评论直接读取 PDF.js，新增、修改、删除、撤销自动刷新。范围压成一行，发送/停止图标置于输入框右下角；精简重复说明，保留必要范围、配置路径与错误。</p>
+            <p class="ds-card-note">摘要快读卡标明「基于原文摘要」，简述要点与主要发现，按需展示有原文依据的研究问题、方法及影响理解的结论范围。未交代的项目直接略过。依据下方使用文字动作「基于此处追问」与「存为研究摘录」。打开追问带出页码或原文摘录，调整范围仅用于下一轮。研究摘录确认后保存到「批注」。导读和有依据的回答可展示「建议学习卡」，读者预览确认后入库。</p>
+            <p class="ds-card-note">文档对话空态中的「试试这样问」是发送入口。点击任一问题即按当前范围发起问答，未发送草稿保留在输入框。定位引用后，新选的「当前页」与引用页一致。证据不足时显示固定提示，保留问题和提问范围。</p>
           </div></article>
         </div>
       </section>

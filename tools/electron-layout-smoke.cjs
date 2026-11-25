@@ -36,6 +36,27 @@ function assertClose(actual, expected, label, tolerance = 1) {
   }
 }
 
+async function inspectToolbar(window, toolbarSelector, firstSelector, lastSelector, label, expectScroll) {
+  const layout = await window.webContents.executeJavaScript(`(() => {
+    const toolbar = document.querySelector(${JSON.stringify(toolbarSelector)});
+    const first = toolbar.querySelector(${JSON.stringify(firstSelector)});
+    const last = toolbar.querySelector(${JSON.stringify(lastSelector)});
+    const bar = toolbar.getBoundingClientRect();
+    toolbar.scrollLeft = 0;
+    const left = first.getBoundingClientRect().left - bar.left;
+    const right = bar.right - last.getBoundingClientRect().right;
+    const scroll = toolbar.scrollWidth > toolbar.clientWidth + 1;
+    toolbar.scrollLeft = toolbar.scrollWidth;
+    const endVisible = last.getBoundingClientRect().right <= bar.right + 1;
+    toolbar.scrollLeft = 0;
+    return { left, right, scroll, endVisible };
+  })()`);
+  if (layout.scroll !== expectScroll || layout.left < 0 || !layout.endVisible) {
+    throw new Error(`${label}: toolbar must keep both ends reachable: ${JSON.stringify(layout)}`);
+  }
+  if (!layout.scroll) assertClose(layout.left, layout.right, `${label}: whole toolbar row must be centered`);
+}
+
 async function inspectTabArc(window, index) {
   const targetId = await window.webContents.executeJavaScript(`(() => {
     const tabs = [...document.querySelectorAll('#document-tabs .app-document-tab')];
@@ -161,6 +182,7 @@ async function inspectLayout(window, name, dimensions, theme, minimumTabs) {
   assertClose(layout.topbar.bottom, layout.formatbar.top, `${name}: formatbar must follow topbar`);
   assertClose(layout.formatbar.bottom, layout.drawer.top, `${name}: drawer must start below formatbar`);
   assertClose(layout.drawer.bottom, layout.statusbar.top, `${name}: drawer must stop above statusbar`);
+  await inspectToolbar(window, '#fmtbar', '#btn-undo', '#document-return-reading', name, dimensions.width <= 920);
   assertClose(layout.tabsBar.left, layout.identity.right, `${name}: tabs must start after brand region`);
   if (layout.selectedRadius !== '10px 10px 0px 0px') throw new Error(`${name}: selected tab radius is ${layout.selectedRadius}`);
   for (const arc of tabArcStates) {
@@ -254,6 +276,7 @@ async function inspectWorkspace(window, name, dimensions, theme, view) {
     assertClose(layout.topbar.bottom, layout.toolbar.top, `${name}: reading toolbar must follow topbar`);
     assertClose(layout.toolbar.bottom, layout.editor.top, `${name}: document must follow reading toolbar`);
     assertClose(layout.editor.bottom, layout.statusbar.top, `${name}: document must stop above statusbar`);
+    await inspectToolbar(window, '#document-reading-toolbar', '#document-outline-toggle', '#document-ask', name, false);
   }
   const image = await window.webContents.capturePage();
   if (image.isEmpty()) throw new Error(`${name}: captured screenshot is empty`);

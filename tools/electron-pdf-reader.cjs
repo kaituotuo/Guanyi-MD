@@ -135,7 +135,9 @@ async function main() {
   // Use upstream FreeText editor through the adapter's public toolbar.
   await evaluate(`document.querySelector('[aria-label="文字笔记"]').click()`);
   await until(() => evaluate(`${child}.PDFViewerApplication.pdfViewer.annotationEditorMode===3`), 'FreeText mode');
-  const point = await evaluate(`(()=>{const f=document.querySelector('iframe').getBoundingClientRect();const l=${childDoc}.querySelector('.annotationEditorLayer').getBoundingClientRect();return {x:Math.round(f.x+l.x+120),y:Math.round(f.y+l.y+180)}})()`);
+  const firstEditorLayer = `${childDoc}.querySelector('.page[data-page-number="1"] .annotationEditorLayer')`;
+  await until(() => evaluate(`${firstEditorLayer}?.checkVisibility()`), 'visible first-page annotation layer');
+  const point = await evaluate(`(()=>{const f=document.querySelector('iframe').getBoundingClientRect();const l=${firstEditorLayer}.getBoundingClientRect();return {x:Math.round(f.x+l.x+120),y:Math.round(f.y+l.y+180)}})()`);
   window.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...point });
   window.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...point });
   await until(() => evaluate(`!!${childDoc}.querySelector('.freeTextEditor [contenteditable="true"]')`), 'FreeText field');
@@ -151,10 +153,22 @@ async function main() {
   assert.ok(originalRect.every((value, index) => Math.abs(value - reopenedRect[index]) < 0.01), 'Note position must survive reopening');
   assert.ok(annotations.some(annotation => annotation.subtype === 'FreeText' && (annotation.contents?.includes('中文阅读笔记') || annotation.text?.join('').includes('中文阅读笔记'))), JSON.stringify(annotations));
   assert.equal(await evaluate(`${child}.PDFViewerApplication.pdfDocument.numPages`), 2);
-  await until(() => evaluate(`${childDoc}.querySelectorAll('.textLayer span').length>0`), 'reopened text layer');
-  await evaluate(`(()=>{const d=${childDoc};const span=[...d.querySelectorAll('.textLayer span')].find(s=>s.textContent.includes('Readable'));const range=d.createRange();range.selectNodeContents(span);const s=d.getSelection();s.removeAllRanges();s.addRange(range);})()`);
-  await evaluate(`document.querySelector('[aria-label="高亮批注"]').click()`);
-  await delay(500);
+  const selectFirstPagePhrase = action => evaluate(`(()=>{
+    const doc=${childDoc};
+    if (!${firstEditorLayer}) return false;
+    const span=[...doc.querySelectorAll('.page[data-page-number="1"] .textLayer span')].find(node=>node.textContent.includes('Readable') && node.checkVisibility());
+    if (!span) return false;
+    const range=doc.createRange();
+    range.selectNodeContents(span);
+    if (!Array.from(range.getClientRects()).some(rect=>rect.width>0 && rect.height>0)) return false;
+    const selection=doc.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.querySelector('[aria-label="${action}"]').click();
+    return true;
+  })()`);
+  await until(() => selectFirstPagePhrase('高亮批注'), 'reopened first-page text and annotation editor layers');
+  await until(() => evaluate(`[...(${child}.PDFViewerApplication.pdfDocument.annotationStorage.serializable.map?.values() || [])].some(item=>item.annotationType===9)`), 'registered native highlight');
   saved = await evaluate(`Array.from(await session.serialize())`);
   const highlightCheck = await evaluate(`(async()=>{const lib=await import('./vendor/pdfjs/build/pdf.mjs');lib.GlobalWorkerOptions.workerSrc=new URL('vendor/pdfjs/build/pdf.worker.mjs',document.baseURI).href;const task=lib.getDocument({data:new Uint8Array(${JSON.stringify(saved)}),isEvalSupported:false});const pdf=await task.promise;const ann=await(await pdf.getPage(1)).getAnnotations();await task.destroy();return ann.map(a=>a.subtype)})()`);
   assert.ok(highlightCheck.includes('Highlight'), JSON.stringify(highlightCheck));
@@ -162,8 +176,7 @@ async function main() {
   await fs.writeFile(path.join(output, 'highlight.png'), await window.webContents.capturePage().then(image => image.toPNG()));
   await evaluate(`document.querySelector('[aria-label="高亮批注"]').click()`);
   await until(() => evaluate(`${child}.PDFViewerApplication.pdfViewer.annotationEditorMode===0`), 'reading mode');
-  await until(() => evaluate(`${childDoc}.querySelector('.textLayer span')?.checkVisibility()`), 'visible text layer after mode change');
-  await evaluate(`(()=>{const d=${childDoc};const span=[...d.querySelectorAll('.textLayer span')].find(s=>s.textContent.includes('Readable'));const range=d.createRange();range.selectNodeContents(span);const s=d.getSelection();s.removeAllRanges();s.addRange(range);document.querySelector('[aria-label="评论笔记"]').click()})()`);
+  await until(() => selectFirstPagePhrase('评论笔记'), 'first-page text and annotation layers after mode change');
   await until(() => evaluate(`${childDoc}.getElementById('commentManagerDialog').open`), 'comment dialog');
   await evaluate(`(()=>{const el=${childDoc}.getElementById('commentManagerTextInput');el.value='评论笔记保存测试';el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   // Do not blur or click Save: the close/save bridge must commit native dialog input.

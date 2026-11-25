@@ -34,9 +34,10 @@ function modelResponse(payload) {
   if (/answer/.test(payload.stage || '')) return { answer: body, evidenceIds: [id], insufficient: false,
     card: { question: 'What does the final-page conclusion establish?', answer: body, type: 'Evidence boundary', evidenceIds: [id] } };
   return { reading: { title: 'Long full-document fixture', documentType: 'Research paper', summary: { body, evidenceIds: [id] },
-    sections: [{ kind: 'methods', title: 'Methods', body: 'The full document describes the methods and their limits.', basis: 'source', evidenceIds: [id] },
+    sections: [{ kind: 'methods', title: 'Methods', body: 'The full document describes the methods and their limits.', readingCue: 'Compare the trained task with the transfer task.', basis: 'source', evidenceIds: [id] },
       { kind: 'results', title: 'Results and limits', body, basis: 'author', evidenceIds: [id] },
       { kind: 'process', title: 'Detailed study process', body: 'The study process is available for a closer reading.', basis: 'source', evidenceIds: [id] }],
+    wrapUp: { body, limits: 'Check whether any result extends beyond the measured task.', basis: 'explanation', evidenceIds: [id] },
     terms: [{ term: 'Task-specific learning', explanation: 'An improvement tied to the trained task.', evidenceIds: [id] }],
     quotes: hasLate ? [{ quote: conclusion, translation: '末页结论：证据支持任务特异性学习，但尚不能确立广泛迁移。', evidenceIds: [id] }] : [], related: [] },
     questions: [{ question: 'What limits are stated in the final conclusion?', evidenceIds: [id] }],
@@ -149,7 +150,14 @@ const watchdog = setTimeout(() => { console.error(`Paper reader browser exceeded
   assert.ok(await overview.evaluate(node => node.getBoundingClientRect().top < innerHeight - 100), 'core summary starts in the initial viewport');
   assert.equal(await panel().getByRole('heading', { name: 'Methods', exact: true }).isVisible(), true);
   assert.equal(await panel().getByRole('heading', { name: 'Results and limits', exact: true }).isVisible(), true);
-  for (const label of ['研究过程与细节', '术语与概念', '原文摘引与译文']) {
+  assert.equal(await panel().getByRole('heading', { name: 'Detailed study process', exact: true }).isVisible(), true);
+  const firstChapter = panel().locator('.guanyi-study-reading-entry').first();
+  assert.equal(await firstChapter.locator('.guanyi-study-chapter-toggle').getAttribute('aria-expanded'), 'false');
+  await panel().getByRole('button', { name: '开始精读', exact: true }).click();
+  assert.equal(await firstChapter.locator('.guanyi-study-chapter-toggle').getAttribute('aria-expanded'), 'true');
+  assert.match(await firstChapter.innerText(), /Compare the trained task with the transfer task/);
+  assert.match(await panel().locator('.guanyi-study-wrap-up').innerText(), /Check whether any result extends beyond the measured task/);
+  for (const label of ['术语与概念', '原文摘引与译文']) {
     const group = panel().locator('.guanyi-study-detail-group').filter({ has: page.locator('summary', { hasText: label }) });
     assert.equal(await group.evaluate(node => node.open), false, `${label} starts collapsed`);
     await group.locator(':scope > summary').click(); assert.equal(await group.evaluate(node => node.open), true);

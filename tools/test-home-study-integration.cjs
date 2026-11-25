@@ -41,7 +41,7 @@ const watchdog=setTimeout(()=>{console.error('Home/study integration exceeded 18
       if(mode==='wait'){await new Promise(resolve=>setTimeout(resolve,600));if(mode==='wait')return route.abort();}
       let input;try{const content=payload.messages.at(-1).content;input=JSON.parse(Array.isArray(content)?content.filter(part=>part.type==='text').map(part=>part.text).find(text=>text.trim().startsWith('{')):content);}catch(_){input={};}
       const system=payload.messages[0].content;let answer;
-      if((!input.stage&&input.task)||/prepare|read-batch|synthesize-reading/.test(input.stage||''))answer={reading:{title:'理解资料的边界',documentType:'研究资料',summary:{body:'这是测试资料提出的条件。',evidenceIds:['E1']},sections:[{kind:'methods',title:'研究方法',body:'从原文核对证据。',basis:'source',evidenceIds:['E1']},{kind:'results',title:'研究结论',body:'需要核对证据及其条件。',basis:'author',evidenceIds:['E1']}],terms:[],quotes:[],related:[]},guide:[{title:'理解资料的边界',body:'这是测试资料提出的条件。',evidenceIds:['E1']}],questions:[{question:'材料的条件是什么？',evidenceIds:['E1']}],cards:[{question:'理解结论前需要核对什么？',answer:'需要核对证据及其条件。',type:'方法',evidenceIds:['E1']}]};
+      if((!input.stage&&input.task)||/prepare|read-batch|synthesize-reading/.test(input.stage||''))answer={reading:{title:'理解资料的边界',documentType:'研究资料',summary:{body:'这是测试资料提出的条件。',evidenceIds:['E1']},sections:[{kind:'methods',title:'研究方法',body:'从原文核对证据。',basis:'source',evidenceIds:['E1']},{kind:'results',title:'研究结论',body:'需要核对证据及其条件。',basis:'author',evidenceIds:['E1']}],wrapUp:{body:'结论仅适用于原文描述的条件。',basis:'explanation',evidenceIds:['E1']},terms:[],quotes:[],related:[]},guide:[{title:'理解资料的边界',body:'这是测试资料提出的条件。',evidenceIds:['E1']}],questions:[{question:'材料的条件是什么？',evidenceIds:['E1']}],cards:[{question:'理解结论前需要核对什么？',answer:'需要核对证据及其条件。',type:'方法',evidenceIds:['E1']}]};
       else if(/evidenceIds/.test(system))answer={answer:'需要根据提供的原文核对证据及其条件。',evidenceIds:[mode==='invalid'?'E999':'E1'],insufficient:false};
       else if(/citations/.test(system))answer={answer:'所选文档说明需要核对证据及其条件。',citations:[mode==='invalid'?'unknown':JSON.parse(system.split('已提供的原文证据：\n')[1])[0].id],insufficient:false};
       else answer='可以从阅读问题开始组织自己的笔记。';
@@ -153,7 +153,7 @@ const watchdog=setTimeout(()=>{console.error('Home/study integration exceeded 18
   assert.equal(await page.locator('.app-workspace-home-tab').count(),1);
   assert.equal(await page.locator('.app-workspace-chat-tab').count(),1,'AI chat is a persistent destination alongside home');
   assert.equal(await page.locator('.app-home-document-open').count(),0,'seeded examples have never been opened');
-  assert.equal(await page.locator('.app-home-search-row').evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
+  assert.equal(await page.locator('.app-home-section-heading').evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
   await assertGlobalModelEntry('home');
   const pdf=new jsPDF();
   for(let i=1;i<=3;i++){if(i>1)pdf.addPage();pdf.text(`Evidence and conditions on page ${i}.`,20,30);pdf.text('A conclusion depends on evidence and its conditions.',20,50);}
@@ -430,7 +430,7 @@ const watchdog=setTimeout(()=>{console.error('Home/study integration exceeded 18
   assert.equal(await page.evaluate(()=>__MD_EDITOR_TEST__.getCurrentMarkdown()),exportedMarkdown);
   await page.locator('.app-workspace-chat-tab').click();
   const otherChatId=await page.evaluate(original=>__MD_EDITOR_TEST__.getState().homeWorkspace.conversations.find(chat=>chat.id!==original&&!chat.deletedAt).id,originalChatId);
-  await page.locator(`.app-conversation-more[data-conversation-menu="${otherChatId}"]`).click();
+  await page.locator(`.app-conversation-item[data-conversation-id="${otherChatId}"]`).click({button:'right'});
   await page.locator('#conversation-action-menu [data-conversation-action="delete"]').click();
   await page.waitForFunction(id=>!!__MD_EDITOR_TEST__.getState().homeWorkspace.conversations.find(chat=>chat.id===id)?.deletedAt,otherChatId);
   assert.equal(await page.locator(`button.app-conversation-item[data-conversation-id="${otherChatId}"]`).count(),0);
@@ -546,7 +546,12 @@ const watchdog=setTimeout(()=>{console.error('Home/study integration exceeded 18
   await panel.getByRole('button',{name:'显示答案',exact:true}).click();await panel.getByRole('button',{name:'基本理解',exact:true}).click();
   await panel.getByRole('tab',{name:'文档对话',exact:true}).click();await panel.getByRole('textbox',{name:'研读问题',exact:true}).fill('结论为什么需要证据？');await assertStudyComposer(panel,'PDF ready question');await panel.getByRole('button',{name:'发送',exact:true}).click();
   await page.waitForFunction(()=>__MD_EDITOR_TEST__.getState().docs.find(d=>d.readerFormat==='pdf').readerStudy.messages.at(-1)?.status==='ready');
-  await panel.locator('.guanyi-study-chat').getByRole('button',{name:'第 1 页',exact:true}).first().click();await page.locator('.guanyi-study-return').click();
+  const evidence = panel.locator('.guanyi-study-chat').last().locator('.guanyi-study-source-preview');
+  assert.equal(await evidence.evaluate(node => node.open), false, 'answer evidence starts collapsed');
+  await evidence.locator('summary').click();
+  await evidence.locator('.guanyi-study-source-locate').first().click();
+  await page.locator('.guanyi-study-return').click();
+  await page.locator('.guanyi-study-return').waitFor({state:'hidden'});
   await panel.getByRole('tab',{name:'批注',exact:true}).click();
   assert.equal(await panel.getByRole('textbox',{name:'研读笔记',exact:true}).count(),0,'notes starts with the card list');
   await panel.getByRole('button',{name:'新建笔记',exact:true}).click();

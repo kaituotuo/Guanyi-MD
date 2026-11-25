@@ -26,7 +26,6 @@
   padding: 3px 6px;
 }
 .app-reader-toolbar :focus-visible { outline: 2px solid var(--ui-color-text-brand, #da4d27); outline-offset: 2px; }
-.app-reader-toolbar .app-reader-save { margin-left: auto; }
 .app-reader-container { flex: 1 1 0; min-height: 0; min-width: 0; overflow: auto; position: relative; }
 .app-reader-error { margin: 32px; color: var(--ui-color-text-primary, #302b27); }
 .app-reader-error + button { margin: 0 32px; }

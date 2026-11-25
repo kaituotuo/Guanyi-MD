@@ -24,7 +24,8 @@ function helpers(transport = 'direct', fetchImpl = fetch) {
     validateModelConnection: config => { assert.ok(config.baseUrl && (config.apiKey || config.managedToken)); },
     AI_GENERATION_TIMEOUT: 2000, AI_CONNECTION_TIMEOUT: 1000, WORK_MODEL_MAX_ATTEMPTS: 2 };
   return vm.runInNewContext(`(() => {${source.slice(start, end)}; return { chatCompletionUrl, modelRequestUrl, modelCatalogUrl,
-    readModelResponse, modelErrorMessage, requestModel, requestModelWithRetry, testModelConnection, isRetryableModelError }; })()`, context);
+    readModelResponse, modelErrorMessage, requestModel, requestModelWithRetry, testModelConnection, isRetryableModelError,
+    modelErrors: window.GuanyiModelErrors }; })()`, context);
 }
 const h = helpers();
 const endpoints = [
@@ -82,6 +83,59 @@ for (const [legacy, expected] of [
   ['已停止。本次输入和已有结果已保留，可以重试。', /已停止/],
 ]) assert.match(h.modelErrorMessage(legacy), expected);
 console.log('PASS Chinese response errors, provider status semantics, hidden raw diagnostics and historical parser errors');
+
+const sensitive = 'sk-fixture-secret https://private.example/signed file.pdf';
+for (const [wireApi, payload, reason, responseShape, stopReason, expected] of [
+  ['chat', { choices: [{ finish_reason: 'length', message: { content: null, reasoning_content: sensitive } }] }, 'output_limit', 'chat', 'length', /达到输出上限/],
+  ['responses', { status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' }, output: [{ type: 'reasoning' }] }, 'output_limit', 'responses', 'max_output_tokens', /达到输出上限/],
+  ['chat', { output: [{ type: 'message', content: [{ type: 'output_text', text: sensitive }] }] }, 'protocol_mismatch', 'responses', undefined, /协议格式与当前配置不一致/],
+  ['chat', { choices: [{ finish_reason: 'content_filter', message: { content: '' } }] }, 'content_filtered', 'chat', 'content_filter', /内容被过滤/],
+  ['responses', { output: [{ type: 'message', content: [{ type: 'refusal', refusal: sensitive }] }] }, 'refusal', 'responses', undefined, /拒绝了这次请求/],
+  ['chat', { choices: [{ finish_reason: 'tool_calls', message: { tool_calls: [{ function: { arguments: sensitive } }] } }] }, 'tool_only', 'chat', 'tool_calls', /只返回了工具调用/],
+  ['anthropic', { content: [{ type: 'thinking', thinking: sensitive }] }, 'reasoning_only', 'anthropic', undefined, /只返回了推理过程/],
+  ['chat', { choices: [{ finish_reason: sensitive, message: { content: '  ' } }] }, 'empty_text', 'chat', undefined, /正文字段为空，服务未说明原因/],
+  ['chat', { arbitrary: sensitive }, 'no_text', 'unknown', undefined, /响应中未找到正文/],
+  ['responses', null, 'empty_body', 'unknown', undefined, /返回了空内容/]
+]) {
+  const fake = helpers('direct', async () => response(200, payload === null ? '' : JSON.stringify(payload)));
+  await assert.rejects(fake.requestModel([], { wireApi, baseUrl: 'https://gateway.example', model: sensitive, apiKey: sensitive }, 1000), error => {
+    assert.equal(error.code, 'MODEL_EMPTY_RESPONSE');
+    assert.equal(error.retryable, false);
+    assert.match(error.userMessage, expected);
+    assert.deepEqual(structuredClone(error.modelDiagnostic), { reason, wireApi, responseShape, ...(stopReason ? { stopReason } : {}), httpStatus: 200 });
+    assert.equal(fake.modelErrors.diagnosticMessage(error.modelDiagnostic), error.userMessage);
+    assert.doesNotMatch(`${error.message} ${JSON.stringify(error.modelDiagnostic)}`, /sk-fixture-secret|private\.example|file\.pdf/);
+    return true;
+  });
+}
+assert.deepEqual(structuredClone(h.modelErrors.diagnostic({ reason: 'no_text', wireApi: 'chat', responseShape: 'unknown',
+  stopReason: sensitive, httpStatus: sensitive, body: sensitive })), { reason: 'no_text', wireApi: 'chat', responseShape: 'unknown' });
+assert.equal(h.modelErrors.diagnostic({ reason: 'constructor', wireApi: 'chat', responseShape: 'chat' }), null);
+console.log('PASS reason diagnostics across model protocols omit raw provider strings and preserve recognized stop reasons');
+
+const truncated = `{"reading":{"text":"${sensitive}`;
+for (const [wireApi, stopReason, payload] of [
+  ['chat', 'length', { choices: [{ finish_reason: 'length', message: { content: truncated } }] }],
+  ['responses', 'max_output_tokens', { status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' },
+    output: [{ type: 'message', content: [{ type: 'output_text', text: truncated }] }] }],
+  ['anthropic', 'max_tokens', { stop_reason: 'max_tokens', content: [{ type: 'text', text: truncated }] }]
+]) {
+  let calls = 0;
+  const fake = helpers('direct', async () => { calls++; return response(200, JSON.stringify(payload)); });
+  const config = { wireApi, baseUrl: 'https://gateway.example', model: 'fixture', apiKey: 'fixture-key' };
+  await assert.rejects(fake.requestModelWithRetry([], config, 1000, { requireCompleteOutput: true, maxTokens: 6000, attempts: 2 }), error => {
+    assert.equal(error.code, 'MODEL_EMPTY_RESPONSE');
+    assert.deepEqual(structuredClone(error.modelDiagnostic), { reason: 'output_limit', wireApi, responseShape: wireApi, stopReason, httpStatus: 200 });
+    assert.doesNotMatch(`${error.message} ${JSON.stringify(error)}`, /sk-fixture-secret|private\.example|file\.pdf/);
+    return true;
+  });
+  assert.equal(calls, 1, 'Transport leaves the higher-budget retry to the reading workflow');
+  assert.equal(await fake.requestModel([], config, 1000), truncated, 'Unstructured callers retain available reply text');
+}
+const complete = '{"reading":[]}';
+const finished = helpers('direct', async () => response(200, JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: complete } }] })));
+assert.equal(await finished.requestModel([], { baseUrl: 'https://gateway.example', model: 'fixture', apiKey: 'fixture-key' }, 1000, { requireCompleteOutput: true }), complete);
+console.log('PASS structured guides classify explicitly truncated text as output-limit across all supported model protocols');
 
 let behavior = { status: 200, body: JSON.stringify({ choices: [{ message: { content: 'OK' } }] }) };
 const received = [];
@@ -143,6 +197,6 @@ assert.match(source, /showModelConnectionResult\(message\)/);
 assert.match(source, /复制中转站提供的模型标识/);
 const pdf = await readFile(new URL('../js/pdf-study.js', import.meta.url), 'utf8');
 assert.match(pdf, /errorText\(ui\.error\)/);
-assert.match(pdf, /errorText\(interrupted\.error\)/);
+assert.match(pdf, /errorText\(attempt\.error\)/);
 assert.match(pdf, /errorText\(item\.error\)/);
 console.log('PASS persistent connection feedback, precise model guidance and historical PDF error presentation');

@@ -287,9 +287,21 @@ function assertClose(actual, expected, label, tolerance = 0.75) {
   // Close the real application window with a PDF comment still being typed.
   await evaluate(`document.querySelector('[data-doc-id="${pdfId}"] .app-document-tab__activate').click()`);
   await until(() => evaluate('Boolean(document.querySelector(".app-reader-toolbar:not([hidden]) .app-reader-save"))'), 'PDF before native close');
-  await until(() => evaluate(`${child}.document.querySelectorAll('.textLayer span').length>0`), 'PDF before comment');
-  await evaluate(`(()=>{const d=${child}.document;const span=[...d.querySelectorAll('.textLayer span')].find(s=>s.textContent.includes('reading'));const range=d.createRange();range.selectNodeContents(span);const selection=d.getSelection();selection.removeAllRanges();selection.addRange(range);})()`);
-  await evaluate(`document.querySelector('[aria-label="评论笔记"]').click()`);
+  await until(() => evaluate(`(()=>{
+    const doc=${child}.document;
+    const firstPage=doc.querySelector('.page[data-page-number="1"]');
+    if (!firstPage?.querySelector('.annotationEditorLayer')) return false;
+    const span=[...firstPage.querySelectorAll('.textLayer span')].find(node=>node.textContent.includes('reading') && node.checkVisibility());
+    if (!span) return false;
+    const range=doc.createRange();
+    range.selectNodeContents(span);
+    if (!Array.from(range.getClientRects()).some(rect=>rect.width>0 && rect.height>0)) return false;
+    const selection=doc.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.querySelector('[aria-label="评论笔记"]').click();
+    return true;
+  })()`), 'PDF text and annotation layers before comment');
   await until(() => evaluate(`${child}.document.getElementById('commentManagerDialog').open`), 'native PDF comment dialog');
   await evaluate(`(()=>{const d=${child}.document;const field=d.getElementById('commentManagerTextInput');field.value='退出时最后输入的评论';field.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   window.close();

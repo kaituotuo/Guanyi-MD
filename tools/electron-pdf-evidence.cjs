@@ -11,7 +11,7 @@ app.on('window-all-closed', () => {});
 
 function fixture() {
   const streams = [
-    ['BT /F1 18 Tf 40 720 Td (Repeated evidence sentence.) Tj ET', 'BT /F1 18 Tf 40 650 Td (Repeated evidence sentence.) Tj ET', 'BT /F1 18 Tf 40 580 Td (First page context is local.) Tj ET'].join('\n'),
+    ['BT /F1 18 Tf 40 720 Td (Repeated evidence sentence.) Tj ET', 'BT /F1 18 Tf 40 650 Td (Repeated evidence sentence.) Tj ET', 'BT /F1 18 Tf 40 580 Td (First page context is local.) Tj ET', 'BT /F1 18 Tf 40 25 Td (Cited sentence at the end of page one.) Tj ET'].join('\n'),
     'BT /F1 18 Tf 40 720 Td (Second page evidence permits a cross-page selection.) Tj ET'
   ];
   const objects = [
@@ -59,11 +59,25 @@ async function main() {
   const evaluate = expression => window.webContents.executeJavaScript(`(async()=>(${expression}))()`);
   const run = source => window.webContents.executeJavaScript(`(async()=>{${source}})()`);
   await window.loadFile(path.join(output, 'fixture.html'));
-  await run(`window.bytes=new Uint8Array(${JSON.stringify([...bytes])});window.changes=[];window.notices=[];window.reader=await GuanyiPdfReader.open({bytes,sourceHash:${JSON.stringify(sourceHash)},title:'Evidence fixture',container:document.getElementById('container'),toolbar:document.getElementById('toolbar'),icon:()=>'<span>•</span>',notify:m=>notices.push(m),onChange:e=>changes.push(e),edits:{},position:{page:1,zoom:'1'}});window.child=document.querySelector('iframe').contentWindow;window.pdf=child.PDFViewerApplication;`);
+  await run(`window.bytes=new Uint8Array(${JSON.stringify([...bytes])});window.changes=[];window.notices=[];window.reader=await GuanyiPdfReader.open({bytes,sourceHash:${JSON.stringify(sourceHash)},title:'Evidence fixture',container:document.getElementById('container'),toolbar:document.getElementById('toolbar'),icon:()=>'<span>•</span>',notify:m=>notices.push(m),onChange:e=>changes.push(e),edits:{},position:{page:2,zoom:'1'}});window.child=document.querySelector('iframe').contentWindow;window.pdf=child.PDFViewerApplication;window.initialCitation=await reader.study.locate((await reader.study.page(1)).blocks.at(-1));`);
+  await delay(120);
+  assert.equal(await evaluate('initialCitation.previousPosition.page'), 2, 'locating after opening captures the settled saved reading page');
+  assert.equal(await evaluate('reader.study.position().page'), 1, 'opening a citation at the end of the page keeps the cited page for a follow-up');
+  assert.equal(await evaluate('pdf.pdfViewer.currentPageNumber'), 1, 'a centered end-of-page source also keeps the PDF toolbar on the source page');
+  assert.equal(await evaluate(`(()=>{const box=child.document.querySelector('.guanyi-evidence-layer span').getBoundingClientRect();const viewport=pdf.pdfViewer.container.getBoundingClientRect();return box.bottom>viewport.top&&box.top<viewport.bottom&&box.right>viewport.left&&box.left<viewport.right})()`), true, 'the cited text remains visible after initial PDF loading');
+  await run('pdf.pdfViewer._setCurrentPageNumber(2);');
+  assert.equal(await evaluate('reader.study.position().page'), 1, 'an adjacent native page update without scrolling keeps the cited page');
+  assert.equal(await evaluate('document.querySelector(".guanyi-pdf-page-number").value'), '1', 'the toolbar agrees with the citation page and follow-up scope');
+  assert.equal(await evaluate('document.querySelector(".guanyi-pdf-previous").disabled'), true, 'navigation buttons use the citation page');
+  await run(`const input=document.querySelector('.guanyi-pdf-page-number');input.value='2';input.dispatchEvent(new Event('change',{bubbles:true}));`);
+  assert.equal(await evaluate('reader.study.position().page'), 2, 'explicitly committing even the native current page releases the citation page');
+  await run(`await reader.study.locate((await reader.study.page(1)).blocks.at(-1));pdf.pdfViewer._setCurrentPageNumber(2);document.querySelector('[aria-label="下一页"]').click();`);
+  assert.equal(await evaluate('reader.study.position().page'), 2, 'next starts at the indicated citation page even when the native page is already the target');
+  await run('await reader.study.restore(initialCitation.previousPosition);pdf.pdfViewer.currentPageNumber=1;');
   await until(() => evaluate(`child.document.querySelectorAll('.page[data-page-number="1"] .textLayer span').length>=3`), 'native text layer');
   assert.equal(await evaluate('reader.study.info.sourceHash'), sourceHash);
   const page = await evaluate('reader.study.page(1)');
-  assert.equal(page.blocks.length, 3);
+  assert.equal(page.blocks.length, 4);
   assert.equal(page.label, 'i');
   assert.equal(page.blocks[0].text, page.blocks[1].text);
   assert.notEqual(page.blocks[0].id, page.blocks[1].id);

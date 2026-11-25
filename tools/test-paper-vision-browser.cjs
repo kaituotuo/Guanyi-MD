@@ -32,7 +32,9 @@ function modelResponse(payload) {
   const evidenceIds = selected.length ? selected : visuals.length ? [visuals[0]] : [ids[0]];
   if (/answer/.test(payload.stage)) return { answer: reply, evidenceIds, insufficient: false };
   return { reading: { title: 'Original visual evidence', documentType: 'Visual research fixture', summary: { body: reply, evidenceIds },
-    sections: [{ kind: 'results', title: 'Read the actual chart and table', body: reply, basis: 'source', evidenceIds }], terms: [], quotes: [], related: [] },
+    sections: [{ kind: 'results', title: 'Read the actual chart and table', body: reply, basis: 'source', evidenceIds }],
+    wrapUp: { body: 'The chart, vector table and scan support the reported measurements on their original pages.', basis: 'source', evidenceIds },
+    terms: [], quotes: [], related: [] },
     questions: [{ question: 'What do the original chart and table show?', evidenceIds }], cards: [] };
 }
 
@@ -243,6 +245,6 @@ const watchdog = setTimeout(() => { console.error(`Paper vision browser exceeded
   await fs.rm(path.join(output, 'failure.png'), { force: true }); console.log('PASS actual chart/table/scanned pixels, complete image batches, lazy sources, cancellation, unsupported-model boundary, persistence/export and layouts');
 })().catch(async error => {
   console.error(`Paper vision browser failed during ${phase}:`, error); await fs.mkdir(output, { recursive: true }); await fs.writeFile(path.join(output, 'failure.txt'), error.stack || String(error));
-  if (page && !page.isClosed()) { await page.screenshot({ path: path.join(output, 'failure.png') }).catch(() => {}); await fs.writeFile(path.join(output, 'state.json'), JSON.stringify(await record().catch(() => null), null, 2)); }
+  if (page && !page.isClosed()) { await page.screenshot({ path: path.join(output, 'failure.png') }).catch(() => {}); await fs.writeFile(path.join(output, 'state.json'), JSON.stringify(await record().catch(() => null) ?? null, null, 2)); }
   process.exitCode = 1;
 }).finally(async () => { clearTimeout(watchdog); await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });

@@ -47,8 +47,8 @@
 }
 .app-home-view,
 .app-home-chat { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; min-width: 0; }
-.app-home-search-row {
-  display: flex;
+.app-home-navigation {
+  display: none;
   align-items: center;
   gap: 12px;
   flex: 0 0 49px;
@@ -59,6 +59,8 @@
 }
 .app-home-search {
   margin-left: auto;
+  flex: 0 1 340px;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -171,7 +173,6 @@
 .app-home-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .app-home-section-heading > div { display: flex; align-items: baseline; gap: 10px; }
 .app-home-section-heading h2 { margin: 0; font: 600 18px/1.5 var(--ui-font-family, sans-serif); }
-.app-home-section-heading > span,
 .app-home-section-heading [data-home-recent-count] { color: var(--ui-color-text-tertiary); font-size: 11px; white-space: nowrap; }
 .app-home-filters { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 40px; border-bottom: 1px solid var(--ui-color-line-regular); }
 .app-home-type-tabs { display: flex; align-items: center; gap: 16px; min-width: 0; overflow-x: auto; }
@@ -346,9 +347,9 @@
   .app-home-recent-row { grid-template-columns: minmax(180px, 1fr) 110px 90px 30px; gap: 8px; }
 }
 @media (max-width: 760px) {
-  .app-home-search-row { min-height: 47px; flex-basis: 47px; padding: 0 16px; }
+  .app-home-navigation { display: flex; min-height: 47px; flex-basis: 47px; padding: 0 16px; }
   .app-home-workspace .home-folder-toggle { display: inline-flex; }
-  .app-home-search { width: min(340px, calc(100% - 44px)); height: 34px; }
+  .app-home-search { flex-basis: 100%; width: 100%; margin-left: 0; }
   .app-home-search kbd { display: none; }
   .app-home-content { padding: 24px 20px; }
   .app-home-ai-heading { margin: 8px 0 20px; }
@@ -357,9 +358,8 @@
   .app-home-chat-composer textarea { font-size: 16px; }
   .app-home-quick { gap: 4px 16px; margin-bottom: 32px; }
   .app-home-quick button { font-size: 11px; }
-  .app-home-section-heading { gap: 8px; margin-bottom: 12px; }
+  .app-home-section-heading { flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
   .app-home-section-heading h2 { font-size: 17px; }
-  .app-home-section-heading > span { font-size: 10px; }
   .app-home-filters { align-items: flex-end; flex-wrap: wrap; gap: 0 8px; }
   .app-home-type-tabs { gap: 14px; }
   .app-home-type-tab { font-size: 11px !important; }
@@ -401,7 +401,6 @@
 }
 @media (max-width: 420px) {
   .app-home-content { padding: 22px 16px; }
-  .app-home-section-heading > span { display: none; }
   .app-home-folder-filter { margin-left: 0; }
   .app-home-filters { align-items: center; }
   .app-home-type-tabs { width: 100%; }

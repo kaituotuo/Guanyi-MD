@@ -72,8 +72,8 @@ try {
   assert.deepEqual(await page.locator('.app-home-recent-row .app-home-document-open').evaluateAll(nodes => nodes.map(node => node.dataset.homeOpen)), ['paper', 'text', 'unsafe', 'note']);
   assert.equal(await page.locator('#home img').count(), 0);
   assert.match(await page.locator('[data-home-recent-list]').textContent(), /<img src=x/);
-  assert.equal(await page.locator('.app-home-search-row').evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
-  assert.equal(await page.locator('.app-home-search-row').evaluate(node => getComputedStyle(node).borderBottomWidth), '0px');
+  assert.equal(await page.locator('.app-home-section-heading').evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
+  assert.equal(await page.locator('.app-home-section-heading').evaluate(node => getComputedStyle(node).borderBottomWidth), '0px');
   await screenshot('home-desktop.png');
   await page.locator('[data-home-search]').fill('研究');
   assert.equal(await page.locator('.app-home-recent-row').count(), 1);
@@ -86,7 +86,7 @@ try {
   await page.locator('[data-home-folder]').selectOption('研究资料');
   assert.equal(await page.locator('.app-home-recent-row').count(), 1);
   await page.locator('[data-home-folder]').selectOption('all');
-  pass('Recent documents use open time, filter safely, and retain a standalone search field');
+  pass('Recent documents use open time, filter safely, and keep search beside the recent list');
 
   await page.evaluate(() => {
     fixture.answer = JSON.stringify({ answer: '原文说明了可核对的信息。[E1]', citations: ['E1'], insufficient: false });

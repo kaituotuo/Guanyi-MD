@@ -86,8 +86,8 @@ assert.equal(searchRows.length, 23, '搜索矩阵必须包含 SE-01 到 SE-23');
 searchRows.forEach((line) => assert.equal(parseMarkdownRow(line).length, 4, `${parseMarkdownRow(line)[0]} 必须保持四列表格结构`));
 
 const workspaceRows = checklist.split(/\r?\n/).filter((line) => /^\|\s*HS-\d{2}\s*\|/.test(line));
-const workspaceIds = Array.from({ length: 26 }, (_, index) => `HS-${String(index + 1).padStart(2, '0')}`);
-assert.deepEqual(workspaceRows.map((line) => parseMarkdownRow(line)[0]), workspaceIds, '主页与研读矩阵必须从 HS-01 到 HS-26 连续且不重复');
+const workspaceIds = Array.from({ length: 27 }, (_, index) => `HS-${String(index + 1).padStart(2, '0')}`);
+assert.deepEqual(workspaceRows.map((line) => parseMarkdownRow(line)[0]), workspaceIds, '主页与研读矩阵必须从 HS-01 到 HS-27 连续且不重复');
 workspaceRows.forEach((line) => {
   const cells = parseMarkdownRow(line);
   assert.equal(cells.length, 5, `${cells[0]} 必须保持五列表格结构`);
@@ -198,4 +198,4 @@ assert.match(css, /\.app-collab-drawer\s*\{[^}]*top:\s*var\(--guanyi-workspace-t
 assert.match(css, /\.app-shell\.collab-open \.app-body\s*{\s*margin-right:\s*0;/, '侧栏展开时不得压缩顶部工具栏');
 assert.match(css, /\.app-shell\.collab-open \.app-main \.editor-container\s*{\s*margin-right:\s*372px;/, '侧栏展开时只为正文画布预留空间');
 
-process.stdout.write('regression catalog passed: RX42, SE23, HS26, 12 sections and isolated workspace execution gates verified\n');
+process.stdout.write('regression catalog passed: RX42, SE23, HS27, 12 sections and isolated workspace execution gates verified\n');
