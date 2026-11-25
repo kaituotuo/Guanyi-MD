@@ -19,11 +19,21 @@ PDF / EPUB 首版编辑范围为高亮、批注和笔记。不提供 PDF 正文�
 
 Web 版与 Mac 客户端使用同一份界面源码。双击「启动观译Web.command」可在本机使用 Web 版。Web 服务与 CC Switch 同步方式见 [Web 版对齐记录](docs/Web版对齐与CC-Switch.md)。
 
-## 当前 Mac 本地体验包 1.0.47
+## 当前 Mac 本地体验包 1.0.48
+
+修复 Mac 客户端的更新入口误显示 Web 提示的问题。顶栏「…」或「关于观译阅读器」中的「更新方式」会显示 DMG 覆盖步骤。
+
+[下载 Apple Silicon Mac 安装包](release/current/Guanyi-Reader-1.0.48-mac-arm64.dmg)，共 267,541,139 字节。SHA-256 为 `cc431dc7b81dda0ef4714321603dd5ceeef327ef19d23f9dbc653b0f544e9d78`。
+
+保存内容并按 `⌘Q` 退出旧版，把 DMG 中的「观译阅读器」拖进「应用程序」，选择「替换」。已实测从 1.0.47 同名覆盖并保留资料。此包采用本地 ad-hoc 签名，未公证、未远端发布。[覆盖安装和验收记录](docs/桌面端1.0.48安装与验收.md)
+
+Git 同步包含源码和验收摘要。DMG 和完整日志保存在本机构建目录；另一台 Apple 芯片 Mac 可在配置好构建依赖后运行 `npm run build:mac`。
+
+## 1.0.47 本地体验包历史
 
 Markdown/TXT 编辑及阅读、PDF 和 EPUB 的工具栏整排居中。窄窗口可横向滚动，打开目录、审阅或研读仍按工具栏本身对齐。关闭侧栏后会把已滚出视野的触发按钮带回可见范围。
 
-[下载 Apple Silicon Mac 安装包](release/current/Guanyi-Reader-1.0.47-mac-arm64.dmg)，共 267,541,389 字节。SHA-256 为 `ef92947fb8c2ed7949ec65f7e6845c82368b975270e8d4203e3506b1b1916538`。
+[1.0.47 归档安装包](release/archive/1.0.47/Guanyi-Reader-1.0.47-mac-arm64.dmg)，共 267,541,389 字节。SHA-256 为 `ef92947fb8c2ed7949ec65f7e6845c82368b975270e8d4203e3506b1b1916538`。
 
 保存内容并按 `⌘Q` 退出旧版，把 DMG 中的「观译阅读器」拖进「应用程序」，选择「替换」。应用路径、标识和资料目录沿用旧版。此包采用本地 ad-hoc 签名，未公证、未远端发布。详见 [覆盖安装和验收矩阵](docs/桌面端1.0.47安装与验收.md)。
 

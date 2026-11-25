@@ -2728,7 +2728,11 @@ html[data-theme="dark"] .app-document-tab__type {
 .app-about-body > p { line-height: 1.7; }
 .app-about-version { display: inline-flex; gap: 5px; padding: 5px 8px; border-radius: 5px; color: var(--ui-color-text-secondary); background: var(--ui-color-fill-light); font-size: 11px; }
 .app-about-links { display: flex; gap: 8px; margin: 18px 0; }
-.app-about-body > small { display: block; color: var(--ui-color-text-tertiary); line-height: 1.6; }
+.app-about-body > .app-about-update-note {
+  margin: 0;
+  color: var(--ui-color-text-secondary);
+  font-size: 12px;
+}
 
 html { --guanyi-editor-font-size: 15px; --guanyi-editor-line-height: 1.75; }
 .editor-source,

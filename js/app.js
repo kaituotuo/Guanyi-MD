@@ -8177,18 +8177,35 @@
   }
 
   function closeSettingsModal() { setModalOpen(els.settingsModal, false); els.btnAppMenu?.focus(); }
-  async function openAboutModal() {
+  function setAboutUpdateExpanded(expanded) {
+    $('btn-about-update').setAttribute('aria-expanded', String(expanded));
+    $('about-update-note').hidden = !expanded;
+  }
+
+  async function openAboutModal({ showUpdate = false } = {}) {
+    const desktop = window.guanyiDesktop;
+    const readVersion = typeof desktop?.app?.getVersion === 'function';
     const version = $('about-version');
-    if (version) version.textContent = 'Web 预览版';
+    version.textContent = desktop ? (readVersion ? '读取中…' : '暂无法读取') : 'Web 预览版';
+    $('about-update-note').textContent = desktop?.platform === 'darwin'
+      ? '保存内容并退出观译阅读器。打开新版 DMG，将「观译阅读器」拖入「应用程序」，选择「替换」。'
+      : desktop
+        ? '保存内容并退出观译阅读器。在原安装位置运行新版安装包以覆盖更新。'
+        : '刷新页面即可加载服务端已部署的 Web 版本。';
+    setAboutUpdateExpanded(showUpdate);
     setModalOpen(els.aboutModal, true);
+    requestAnimationFrame(() => {
+      if (!els.aboutModal.hidden) $(showUpdate ? 'btn-about-update' : 'btn-about-close').focus();
+    });
+    if (!readVersion) return;
+
+    let appVersion;
     try {
-      const desktopApp = window.guanyiDesktop?.app;
-      const appVersion = typeof desktopApp?.getVersion === 'function' ? await desktopApp.getVersion() : '';
-      if (version && appVersion && !els.aboutModal.hidden) version.textContent = appVersion;
+      appVersion = (await desktop.app.getVersion())?.trim();
     } catch (_error) {
-      // Web 预览和旧版客户端保留可理解的版本回退文案。
+      // The desktop update instructions remain available if version IPC fails.
     }
-    requestAnimationFrame(() => $('btn-about-close')?.focus());
+    if (!els.aboutModal.hidden) version.textContent = appVersion || '暂无法读取';
   }
   function closeAboutModal() { setModalOpen(els.aboutModal, false); els.btnAppMenu?.focus(); }
 
@@ -8231,7 +8248,7 @@
       else if (command === 'model-settings') openModelSettings();
       else if (command === 'conversation-history') homeWorkspace?.openHistory?.();
       else if (command === 'about') openAboutModal();
-      else if (command === 'update') tip('Web 预览版已使用当前代码；客户端更新将在打包阶段接入');
+      else if (command === 'update') openAboutModal({ showUpdate: true });
       else if (command === 'help') tip('帮助：使用页签切换文档，保存按钮右侧可另存或移动');
     });
     document.addEventListener('click', (event) => {
@@ -8251,7 +8268,7 @@
     els.settingsModal?.addEventListener('click', (event) => { if (event.target === els.settingsModal) closeSettingsModal(); });
     $('btn-about-close')?.addEventListener('click', closeAboutModal);
     els.aboutModal?.addEventListener('click', (event) => { if (event.target === els.aboutModal) closeAboutModal(); });
-    $('btn-about-update')?.addEventListener('click', () => tip('当前是 Web 预览版，客户端更新将在发布阶段检查'));
+    $('btn-about-update')?.addEventListener('click', () => setAboutUpdateExpanded($('about-update-note').hidden));
     $('btn-about-help')?.addEventListener('click', () => tip('文档管理、编辑、搜索和批注均保存在本机'));
     document.addEventListener('keydown', (event) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;

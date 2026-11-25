@@ -287,8 +287,23 @@ async function openGlobalModelSettings(label) {
   }
   await menu.locator('[data-app-command="about"]').click();
   await page.locator('#about-modal').waitFor({ state: 'visible' });
-  assert.equal((await page.locator('#about-version').textContent()).trim(), expectedVersion);
+  await page.waitForFunction(version => document.getElementById('about-version').textContent === version, expectedVersion);
   assert.equal((await page.locator('#about-modal .app-modal__header p').textContent()).trim(), '俯仰观物，译述我心');
+  const update = page.getByRole('button', { name: '更新方式', exact: true });
+  const updateNote = page.locator('#about-update-note');
+  assert.equal(await updateNote.isVisible(), false);
+  await update.click();
+  assert.equal(await update.getAttribute('aria-expanded'), 'true');
+  assert.equal(await updateNote.isVisible(), true);
+  assert.match(await updateNote.innerText(), /DMG.*应用程序.*替换/);
+  assert.doesNotMatch(await page.locator('#about-modal').innerText(), /Web/);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#about-modal').isVisible(), false);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'btn-app-menu');
+  await page.locator('#btn-app-menu').click();
+  await menu.getByRole('menuitem', { name: '更新方式', exact: true }).click();
+  await updateNote.waitFor({ state: 'visible' });
+  assert.match(await updateNote.innerText(), /DMG.*替换/);
   await page.locator('#btn-about-close').click();
   await page.locator('#btn-app-menu').click();
   await menu.locator('[data-app-command="model-settings"]').click();

@@ -76,15 +76,24 @@ const watchdog=setTimeout(()=>{console.error('Home/study integration exceeded 18
       await page.locator(`#app-menu [data-app-command="${command}"]`).click();
       assert.equal(await page.locator('#app-menu').isVisible(),false,`${label}: ${command} closes menu`);
       assert.equal(await page.locator('#btn-app-menu').getAttribute('aria-expanded'),'false');
-      const modal={settings:['#settings-modal','#btn-settings-close'],'model-settings':['#model-modal','#btn-model-close'],about:['#about-modal','#btn-about-close']}[command];
+      const modal={settings:['#settings-modal','#btn-settings-close'],'model-settings':['#model-modal','#btn-model-close'],about:['#about-modal','#btn-about-close'],update:['#about-modal','#btn-about-close']}[command];
       if(modal) {
         assert.equal(await page.locator(modal[0]).isVisible(),true,`${label}: ${command} opens dialog`);
-        if(command==='about') assert.equal(await page.locator('#about-modal .app-modal__header p').textContent(),'俯仰观物，译述我心');
+        if(command==='about' || command==='update') {
+          assert.equal(await page.locator('#about-modal .app-modal__header p').textContent(),'俯仰观物，译述我心');
+          assert.equal(await page.locator('#about-version').textContent(),'Web 预览版');
+          const note=page.locator('#about-update-note');
+          const update=page.getByRole('button',{name:'更新方式',exact:true});
+          assert.equal(await note.isVisible(),command==='update');
+          if(command==='about') await update.click();
+          assert.equal(await update.getAttribute('aria-expanded'),'true');
+          assert.match(await note.innerText(),/刷新页面.*Web/);
+        }
         await page.locator(modal[1]).click();
         assert.equal(await page.locator(modal[0]).isVisible(),false);
       } else {
         assert.equal(await page.locator('#tip').isVisible(),true);
-        assert.match(await page.locator('#tip').textContent(),command==='help'?/帮助/:/更新|版本/);
+        assert.match(await page.locator('#tip').textContent(),/帮助/);
       }
     }
   }
