@@ -4302,6 +4302,16 @@ html[data-theme="dark"] .app-home-chat-composer {
 .app-home-empty-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .app-home-inline-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; color: var(--ui-color-text-secondary); font-size: 12px; line-height: 1.6; }
 .app-home-chat { width: 100%; max-width: none; margin: 0; padding: 0 0 16px; }
+html:not(.is-desktop-client) .app-home-chat {
+  --chat-reading-width: 880px;
+  --chat-line-height: 1.6;
+  --chat-paragraph-gap: .6em;
+  --chat-message-gap: 24px;
+  --chat-question-gap: 18px;
+}
+html:not(.is-desktop-client, [data-theme="dark"]) .app-home-chat {
+  background: color-mix(in srgb, var(--ui-color-background-top) 70%, var(--ui-color-background-base));
+}
 .app-home-chat-heading { flex: 0 0 54px; min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 24px; }
 .app-home-chat-heading > div:first-child { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .app-home-chat-title { display: flex; align-items: center; min-width: 0; }
@@ -4309,19 +4319,19 @@ html[data-theme="dark"] .app-home-chat-composer {
 .app-home-chat-heading [data-home-action="toggle-conversations"] { display: none; }
 .app-home-chat-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex: 0 0 auto; }
 .app-home-chat-messages { flex: 1 1 0; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable both-edges; }
-.app-home-chat-thread { width: 100%; max-width: 808px; padding: 28px 24px 32px; margin: 0 auto; }
-.app-home-message { min-width: 0; margin: 0 0 36px; padding: 0; border: 0; background: transparent; overflow-wrap: anywhere; }
-.app-home-message.is-user { width: fit-content; max-width: 85%; margin-left: auto; margin-bottom: 28px; padding: 10px 18px; border-radius: 20px; background: var(--ui-color-background-container); }
-.app-home-answer-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.85; }
+.app-home-chat-thread { width: 100%; max-width: calc(var(--chat-reading-width, 760px) + 48px); padding: 28px 24px 32px; margin: 0 auto; }
+.app-home-message { min-width: 0; margin: 0 0 var(--chat-message-gap, 36px); padding: 0; border: 0; background: transparent; overflow-wrap: anywhere; }
+.app-home-message.is-user { width: fit-content; max-width: 85%; margin-left: auto; margin-bottom: var(--chat-question-gap, 28px); padding: 10px 18px; border-radius: 20px; background: var(--ui-color-background-container); }
+.app-home-answer-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: var(--chat-line-height, 1.85); }
 .app-home-answer-text.is-markdown { white-space: normal; }
 .app-home-answer-text.is-markdown > :first-child { margin-top: 0; }
 .app-home-answer-text.is-markdown > :last-child { margin-bottom: 0; }
-.app-home-answer-text.is-markdown p { margin: 0 0 1em; }
+.app-home-answer-text.is-markdown p { margin: 0 0 var(--chat-paragraph-gap, 1em); }
 .app-home-answer-text.is-markdown :is(h1,h2,h3,h4,h5,h6) { margin: 1.6em 0 .7em; font-family: var(--ui-font-family, sans-serif); line-height: 1.5; font-weight: 600; }
 .app-home-answer-text.is-markdown h1 { font-size: 1.4em; }
 .app-home-answer-text.is-markdown h2 { font-size: 1.25em; }
 .app-home-answer-text.is-markdown :is(h3,h4,h5,h6) { font-size: 1.1em; }
-.app-home-answer-text.is-markdown :is(ul,ol) { margin: .7em 0 1em; padding-left: 1.6em; }
+.app-home-answer-text.is-markdown :is(ul,ol) { margin: .7em 0 var(--chat-paragraph-gap, 1em); padding-left: 1.6em; }
 .app-home-answer-text.is-markdown li { margin: .4em 0; }
 .app-home-answer-text.is-markdown li > p { margin-bottom: .5em; }
 .app-home-answer-text.is-markdown code { padding: .15em .35em; border-radius: 4px; background: var(--ui-color-background-container); font: .88em/1.7 "SF Mono", Menlo, Consolas, monospace; }
@@ -4355,7 +4365,7 @@ html[data-theme="dark"] .app-home-chat-composer {
 .app-home-loading { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--ui-color-text-secondary); font-size: 13px; }
 .app-home-loading::before { content: ""; width: 12px; height: 12px; border: 2px solid var(--ui-color-line-regular); border-top-color: var(--ui-color-text-brand); border-radius: 50%; animation: app-home-loading .8s linear infinite; }
 .app-home-chat-empty { text-align: center; color: var(--ui-color-text-primary); padding: clamp(40px, 12dvh, 140px) 16px 40px; font-size: 24px; font-weight: 500; letter-spacing: -.025em; }
-.app-home-chat-composer { flex: 0 0 auto; width: calc(100% - 48px); max-width: 760px; align-self: center; }
+.app-home-chat-composer { flex: 0 0 auto; width: calc(100% - 48px); max-width: var(--chat-reading-width, 760px); align-self: center; }
 .app-home-composer-hint { flex: 0 0 auto; margin: 8px 24px 0; text-align: center; color: var(--ui-color-text-tertiary); font-size: 11px; }
 .app-home-source-dialog { width: min(620px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; padding: 24px; border: 1px solid var(--ui-color-line-regular); border-radius: 10px; color: var(--ui-color-text-primary); background: var(--ui-color-background-top); box-shadow: var(--ui-shadow-raised); }
 .app-home-source-dialog[open] { display: flex; flex-direction: column; }
@@ -4489,8 +4499,8 @@ html[data-theme="dark"] .app-home-chat-composer {
   .app-home-chat-heading [data-home-action="toggle-conversations"] { display: inline-flex; }
   .app-home-chat-actions { gap: 6px; }
   .app-home-chat-thread { padding: 20px 20px 24px; }
-  .app-home-message { margin-bottom: 28px; }
-  .app-home-message.is-user { max-width: 90%; padding: 10px 16px; margin-bottom: 24px; }
+  .app-home-message { margin-bottom: var(--chat-message-gap, 28px); }
+  .app-home-message.is-user { max-width: 90%; padding: 10px 16px; margin-bottom: var(--chat-question-gap, 24px); }
   .app-home-answer-text { font-size: 15px; }
   .app-home-chat-composer { width: calc(100% - 24px); padding: 10px; }
   .app-home-prompt-composer { padding: 10px; }
