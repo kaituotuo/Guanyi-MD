@@ -7522,7 +7522,7 @@ window.GuanyiPaperReaderSkill = "---\nname: paper-reader-skill\ndescription: >\n
         '<div class="app-home-main"><div class="app-home-content">' +
           '<section class="app-home-ai" aria-labelledby="app-home-ai-title"><div class="app-home-ai-heading"><h1 id="app-home-ai-title">你想读懂什么，或写点什么？</h1></div>' +
             '<div class="app-home-prompt-composer"><textarea data-home-prompt maxlength="12000" rows="1" aria-label="向 AI 提问" placeholder="尽管问，或添加文档一起读…"></textarea>' +
-            '<div class="app-home-composer-bottom"><button type="button" class="app-home-source-button" data-home-action="sources" aria-label="选择文档作为来源" title="添加文档来源">' + icon('plus') + '<span class="app-home-sr-only" data-home-source-label>选择文档作为来源</span></button><span class="app-home-scope" data-home-scope hidden></span><button type="button" class="app-home-send" data-home-action="send" aria-label="发送问题" title="发送问题（Enter）">' + icon('send') + '</button></div>' +
+            '<div class="app-home-composer-bottom"><button type="button" class="app-home-source-button" data-home-action="sources" title="添加文档来源">' + icon('plus') + '<span class="app-home-sr-only" data-home-source-label>选择文档作为来源</span></button><span class="app-home-scope" data-home-scope hidden></span><button type="button" class="app-home-send" data-home-action="send" aria-label="发送问题" title="发送问题（Enter）">' + icon('send') + '</button></div>' +
             '<div class="app-home-inline-status" data-home-status role="status" hidden></div></div></section>' +
           '<div class="app-home-quick" aria-label="快速开始"><button type="button" data-home-prompt-action="read">读懂一份文档 ' + icon('arrow') + '</button><button type="button" data-home-action="study">智能研读 ' + icon('arrow') + '</button><button type="button" data-home-prompt-action="outline">构思一篇笔记 ' + icon('arrow') + '</button><button type="button" data-home-action="new-markdown">从空白 Markdown 开始 ' + icon('plus') + '</button><button type="button" data-home-action="resume" hidden>继续上次对话 ' + icon('arrow') + '</button></div>' +
           '<section class="app-home-recent" aria-labelledby="app-home-recent-title"><div class="app-home-section-heading"><div><h2 id="app-home-recent-title">最近打开</h2><span data-home-recent-count></span></div><label class="app-home-search">' + icon('search') + '<input type="search" data-home-search placeholder="搜索最近打开的文档…" aria-label="搜索最近打开的文档" autocomplete="off"><kbd>⌘ K</kbd></label></div>' +
@@ -7532,7 +7532,7 @@ window.GuanyiPaperReaderSkill = "---\nname: paper-reader-skill\ndescription: >\n
       '<section class="app-home-chat" data-home-view="chat" aria-label="AI 对话" hidden><header class="app-home-chat-heading"><div class="app-home-chat-title"><button type="button" class="app-home-icon-button" data-home-action="toggle-conversations" aria-label="打开对话列表" aria-controls="app-sidebar" aria-expanded="false" title="对话列表">' + icon('panel') + '</button><h1>AI 对话</h1></div><div class="app-home-chat-actions"><button type="button" class="app-home-icon-button" data-home-action="export" aria-label="整理为 Markdown" title="整理为 Markdown">' + icon('file') + '</button></div></header>' +
         '<div class="app-home-chat-messages" data-chat-messages aria-live="polite" aria-relevant="additions text"><div class="app-home-chat-thread" data-chat-thread></div></div>' +
         '<form class="app-home-chat-composer" data-chat-form><label class="app-home-sr-only" for="app-home-chat-input">向 AI 发送消息</label><textarea id="app-home-chat-input" data-chat-input maxlength="12000" placeholder="发送消息…" rows="1" aria-describedby="app-home-composer-hint"></textarea>' +
-          '<div class="app-home-composer-bottom"><button type="button" class="app-home-source-button" data-home-action="sources" aria-label="选择文档作为来源" title="添加文档来源">' + icon('plus') + '<span class="app-home-sr-only" data-chat-source-label>选择文档作为来源</span></button>' +
+          '<div class="app-home-composer-bottom"><button type="button" class="app-home-source-button" data-home-action="sources" title="添加文档来源">' + icon('plus') + '<span class="app-home-sr-only" data-chat-source-label>选择文档作为来源</span></button>' +
           '<span class="app-home-scope" data-chat-footer-scope hidden></span>' +
           '<button type="button" class="app-home-model-switch app-model-switch-button" data-chat-model-switch aria-label="切换模型" aria-haspopup="menu" aria-expanded="false" aria-controls="model-switch-menu"><span class="app-model-switch-button__label">选择模型</span><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><use href="#gicon-chevron-down"/></svg></span></button>' +
           '<button type="button" class="app-home-send" data-home-action="stop" aria-label="停止生成" title="停止生成" hidden>' + icon('stop') + '</button><button type="submit" class="app-home-send" data-chat-send aria-label="发送问题" title="发送问题（Enter）">' + icon('send') + '</button></div>' +
@@ -7620,16 +7620,25 @@ window.GuanyiPaperReaderSkill = "---\nname: paper-reader-skill\ndescription: >\n
     }
     function resizeInputs() { resizeInput(homeInput); resizeInput(chatInput); }
     function renderScope() {
-      const selected = currentIds();
       for (const [label, scope, sourceIds] of [
         ['[data-home-source-label]', '[data-home-scope]', state.sourceIds],
-        ['[data-chat-source-label]', '[data-chat-footer-scope]', selected]
+        ['[data-chat-source-label]', '[data-chat-footer-scope]', activeChat()?.sourceIds || []]
       ]) {
-        const text = sourceIds.length ? sourceIds.length + ' 份文档' : '';
-        const node = find(scope); node.textContent = text; node.hidden = !sourceIds.length;
-        node.title = sourceIds.length ? '仅基于：' + scopeName(sourceIds) : '';
-        find(label).textContent = text || '选择文档作为来源';
-        find(label).parentElement.title = sourceIds.length ? '修改文档来源：' + scopeName(sourceIds) : '添加文档来源';
+        const documents = sourceIds.map(docById).filter(Boolean);
+        const names = documents.map(doc => doc.name).join('、');
+        const text = documents.length ? `已添加 ${documents.length} 份文档` : '';
+        const status = find(scope);
+        status.textContent = text;
+        status.hidden = !text;
+        status.title = names;
+        const sourceLabel = find(label);
+        if (documents.length !== sourceIds.length) {
+          sourceLabel.textContent = '部分来源文档已移除，请重新选择来源';
+          sourceLabel.parentElement.title = sourceLabel.textContent;
+        } else {
+          sourceLabel.textContent = text ? `修改文档来源，${text}` : '选择文档作为来源';
+          sourceLabel.parentElement.title = text ? `修改文档来源：${names}` : '添加文档来源';
+        }
       }
       find('[data-home-action="resume"]').hidden = !activeChat();
     }
@@ -7930,8 +7939,12 @@ window.GuanyiPaperReaderSkill = "---\nname: paper-reader-skill\ndescription: >\n
     function commitSources(free) {
       const selected = free ? [] : selectedSourceInputs().map(input => input.value);
       if (selected.length > MAX_SOURCE_DOCUMENTS) return;
-      if (dialogTarget === 'chat' && activeChat()) activeChat().sourceIds = selected;
-      state.sourceIds = selected; closeSources(); renderScope(); saveSoon(true);
+      if (dialogTarget === 'chat') {
+        const chat = activeChat();
+        if (chat) chat.sourceIds = selected;
+        else if (selected.length) { newConversation('', selected); renderChat(); }
+      } else state.sourceIds = selected;
+      closeSources(); renderScope(); saveSoon(true);
       if (pendingPrompt) { homeInput.value = pendingPrompt; state.draft = pendingPrompt; pendingPrompt = ''; homeInput.focus(); updateSend(); }
     }
     function setView(next) {
