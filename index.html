@@ -480,7 +480,6 @@ html[data-theme="dark"] .app-conflict-bar { border-color: rgba(255,194,78,.45); 
 }
 .fmt-group { display: flex; align-items: center; gap: 2px; position: relative; }
 .fmt-group--heading { width: 56px; flex-shrink: 0; }
-.app-fmtbar .ui-segmented-controller { height: 28px; padding: 1px; }
 .fmt-divider { width: 1px; height: 18px; background: var(--ui-color-line-regular, rgba(13,13,13,0.12)); margin: 0 4px; flex-shrink: 0; }
 .fmt-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -1709,25 +1708,103 @@ select:focus-visible,
   height: var(--guanyi-formatbar-height);
   min-height: var(--guanyi-formatbar-height);
   flex: 0 0 var(--guanyi-formatbar-height);
+  justify-content: center;
+  min-width: 0;
   padding: 8px 14px;
-  gap: 12px;
+  gap: 8px;
   border-bottom-color: var(--ui-color-line-light);
   background: var(--ui-color-background-top);
   box-shadow: 0 1px 3px rgba(60, 40, 20, .03);
 }
-.app-main > :is(.app-fmtbar, .app-document-toolbar, .app-reader-toolbar) {
+.app-main > :is(.app-document-toolbar, .app-reader-toolbar) {
   overflow-x: auto;
   scrollbar-width: none;
+  justify-content: safe center;
 }
-.app-main > :is(.app-document-toolbar, .app-reader-toolbar) { justify-content: safe center; }
-:is(.app-fmtbar__editing, .app-fmtbar__utilities) {
+.app-fmtbar__scroll,
+.app-fmtbar__editing,
+.app-fmtbar__views,
+.app-view-buttons {
   display: flex;
-  flex: 0 0 auto;
   align-items: center;
   gap: 3px;
 }
-.app-fmtbar__editing { margin-inline-start: auto; }
-.app-fmtbar__utilities { margin-inline-end: auto; }
+.app-fmtbar__scroll {
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.app-fmtbar__editing { flex: none; }
+.app-fmtbar :is(.app-fmtbar__views, .app-fmtbar__files, .app-fmtbar__theme) {
+  flex: none;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--ui-color-line-light);
+}
+.app-fmtbar__views { gap: 8px; }
+#view-seg .fmt-btn {
+  width: 32px;
+  padding: 0;
+}
+#view-seg .fmt-btn[aria-checked="true"] {
+  color: var(--ui-color-text-brand);
+  background: var(--ui-color-state-pressed-brand);
+}
+.app-fmtbar__views #document-return-reading {
+  position: relative;
+  margin-inline-start: 8px;
+}
+.app-fmtbar__views #document-return-reading::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -9px;
+  width: 1px;
+  background: var(--ui-color-line-light);
+  content: "";
+}
+.app-view-compact {
+  display: none;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 32px;
+  gap: 3px;
+  border-radius: 7px;
+  color: var(--ui-color-text-brand);
+  background: var(--ui-color-state-pressed-brand);
+}
+.app-view-compact__chevron { display: inline-flex; }
+.app-view-compact__chevron .ui-icon,
+.app-view-compact__chevron .ui-icon > svg { width: 12px; height: 12px; }
+.app-view-compact select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  font-size: 16px;
+  opacity: 0;
+  cursor: pointer;
+}
+.app-fmtbar .fmt-btn:focus-visible,
+.app-view-compact:has(select:focus-visible) {
+  outline: 2px solid var(--ui-color-line-public);
+  outline-offset: -2px;
+}
+@media (max-width: 520px) {
+  .app-fmtbar { gap: 5px; }
+  .app-fmtbar :is(.app-fmtbar__views, .app-fmtbar__theme) { padding-inline-start: 5px; }
+  .app-fmtbar__views { gap: 5px; }
+  .app-fmtbar__views #document-return-reading { margin-inline-start: 5px; }
+  .app-fmtbar__views #document-return-reading::before { inset-inline-start: -6px; }
+  #view-seg { display: none; }
+  .app-view-compact { display: inline-flex; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-fmtbar .fmt-btn { transition: none; }
+  .app-fmtbar .fmt-btn:active { transform: none; }
+}
 .app-fmtbar :is(#heading-menu, #save-menu) {
   position: fixed;
   inset: 0 auto auto 0;
@@ -1754,7 +1831,6 @@ select:focus-visible,
 .fmt-btn--export:hover .ui-icon,
 .fmt-btn--export[aria-expanded="true"] .ui-icon { color: var(--ui-color-text-brand); }
 .fmt-group--heading { width: 62px; }
-.app-fmtbar .ui-segmented-controller { height: 32px; }
 .fmt-menu,
 .app-link-menu {
   border-radius: 8px;
@@ -3284,8 +3360,21 @@ body[data-workspace-view="chat"] #directory-conflict-bar { display: none !import
 .app-document-outline { display: block; flex: 0 0 220px; width: 220px; min-height: 0; max-height: none; padding: 12px 14px; overflow: auto; border: 0; border-right: 1px solid var(--ui-color-line-light); background: var(--ui-color-background-container); }
 .app-document-outline .app-outline__title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .app-document-outline-mask { display: none; position: absolute; inset: 0; z-index: 44; border: 0; border-radius: 0; background: rgba(13,13,13,.38); transform: none; }
+#btn-toggle-outline {
+  position: absolute;
+  z-index: 46;
+  inset-block-start: 12px;
+  inset-inline-start: 12px;
+  background: var(--ui-color-background-top);
+}
+#btn-toggle-outline:hover { background: var(--ui-color-fill-light); }
 #btn-toggle-outline[hidden] { display: none; }
 #btn-toggle-outline.is-active { color: var(--ui-color-text-brand); background: var(--ui-color-state-pressed-brand); }
+body[data-document-mode="editing"] .app-document-outline { display: flex; flex-direction: column; overflow: hidden; }
+body[data-document-mode="editing"] .app-document-outline .app-outline__title { padding-inline-start: 38px; }
+body[data-document-mode="editing"] .app-document-outline .app-outline__list { min-height: 0; padding: 2px; overflow-y: auto; }
+body[data-document-mode="editing"] .app-preview-pane > .editor-preview-wrap { scroll-padding-block-start: 48px; }
+body[data-document-mode="editing"] .app-preview-pane .editor-preview { padding-block-start: 48px; }
 body[data-document-mode="reading"] #fmtbar { display: none; }
 body[data-workspace-view="document"][data-document-mode="reading"] .editor-container { margin: 0; border: 0; border-radius: 0; background: var(--ui-color-background-base); }
 body[data-document-mode="reading"] .editor-container .editor-source,
@@ -3370,6 +3459,9 @@ body[data-document-mode="reading"] .editor-preview { width: min(100%, 900px); mi
       <symbol id="gicon-book-open" viewBox="0 0 16 16"><path class="gicon__ink" d="M8 4.6C6.1 3 3.7 2.8 1.8 3.5v8.6c2-.6 4.3-.4 6.2 1.1 1.9-1.5 4.2-1.7 6.2-1.1V3.5C12.3 2.8 9.9 3 8 4.6Zm0 0v8.6"/><path class="gicon__accent" d="m4.1 6.2 1.8.5"/></symbol>
       <symbol id="gicon-document-question" viewBox="0 0 16 16"><path class="gicon__ink" d="M3 2h6l4 4v7.1c0 .5-.4.9-.9.9H3.9c-.5 0-.9-.4-.9-.9V2Zm6 0v4h4"/><path class="gicon__accent" d="M6.2 7.2a1.6 1.6 0 0 1 1.6-1c.9 0 1.6.6 1.6 1.3 0 .6-.4 1-1 1.4-.5.3-.7.6-.7 1"/><circle class="gicon__accent-fill" cx="7.7" cy="11.8" r=".65"/></symbol>
       <symbol id="gicon-edit-document" viewBox="0 0 16 16"><path class="gicon__ink" d="M11.2 6.2V3.4A1.4 1.4 0 0 0 9.8 2H3.7a1.4 1.4 0 0 0-1.4 1.4v9.2A1.4 1.4 0 0 0 3.7 14H6M4.7 5h4M4.7 7.8h3"/><path class="gicon__accent" d="m8 11.7 4.6-4.6 1.7 1.7-4.6 4.6-2.4.7.7-2.4Z"/></symbol>
+      <symbol id="gicon-view-source" viewBox="0 0 16 16"><path class="gicon__ink" d="M3 2h10v12H3z"/><path class="gicon__accent" d="m6.8 6.3-1.6 1.7 1.6 1.7m2.4-3.4 1.6 1.7-1.6 1.7"/></symbol>
+      <symbol id="gicon-view-preview" viewBox="0 0 16 16"><path class="gicon__ink" d="M3 2h10v12H3zM5.6 8h4.8m-4.8 3h4.8"/><path class="gicon__accent" d="M5.6 5h3.2"/></symbol>
+      <symbol id="gicon-view-split" viewBox="0 0 16 16"><rect class="gicon__ink" x="1.5" y="2.6" width="13" height="10.8" rx="1.5"/><path class="gicon__accent" d="M8 2.6v10.8"/></symbol>
       <symbol id="gicon-document-outline" viewBox="0 0 16 16"><rect class="gicon__ink" x="1.75" y="2.3" width="12.5" height="11.4" rx="1.3"/><path class="gicon__ink" d="M6 2.5v11M8.3 5.8h3.6M8.3 9.9h3.6"/><path class="gicon__accent" d="M3.7 5.4h.3m-.3 2.6h.3m-.3 2.6h.3"/></symbol>
       <symbol id="gicon-page-width" viewBox="0 0 16 16"><path class="gicon__ink" d="M2.2 3v10m11.6-10v10M5.2 3.1h5.6m-5.6 9.8h5.6"/><path class="gicon__accent" d="M4.5 8h7M6.3 6.2 4.5 8l1.8 1.8m3.4-3.6L11.5 8 9.7 9.8"/></symbol>
       <symbol id="gicon-pdf-save-copy" viewBox="0 0 16 16"><path class="gicon__ink" d="M9.8 7.1V4.9L7.3 2.4H2.4v9.4h3.9M7.3 2.4v2.5h2.5M4.4 7.2h2.5M14 9.2v4.4H8.4"/><path class="gicon__accent" d="M8 10.2h5.6M11.6 8.2l2 2-2 2"/></symbol>
@@ -3562,150 +3654,138 @@ body[data-document-mode="reading"] .editor-preview { width: min(100%, 900px); mi
       <!-- 主区 -->
       <main class="app-main">
         <!-- 格式工具栏（含视图切换 / 导出 / 主题入口） -->
-        <div class="app-fmtbar" id="fmtbar">
-          <div class="app-fmtbar__editing">
-            <!-- 撤销 / 恢复 -->
-            <div class="fmt-group">
-              <button type="button" class="fmt-btn" id="btn-undo" title="撤销 (Ctrl/Cmd+Z)" aria-label="撤销" disabled>
-                <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-undo"/></svg></span>
-              </button>
-              <button type="button" class="fmt-btn" id="btn-redo" title="恢复 (Ctrl/Cmd+Shift+Z)" aria-label="恢复" disabled>
-                <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-redo"/></svg></span>
-              </button>
-            </div>
-
-            <span class="fmt-divider"></span>
-
-            <!-- 标题组：下拉菜单 -->
-            <div class="fmt-group fmt-group--heading">
-              <button type="button" class="fmt-btn fmt-btn--heading" id="btn-heading" title="标题" aria-haspopup="menu" aria-expanded="false" aria-controls="heading-menu">
-                <span class="fmt-btn__label">正文</span>
-                <span class="ui-icon gicon fmt-btn__caret" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-chevron-down"/></svg></span>
-              </button>
-              <div class="fmt-menu" id="heading-menu" role="menu" aria-label="标题级别" hidden>
-                <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="0">正文</button>
-                <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="1">H1 大标题</button>
-                <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="2">H2 标题</button>
-                <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="3">H3 小标题</button>
-                <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="4">H4</button>
-                <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="5">H5</button>
-                <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="6">H6</button>
-              </div>
-            </div>
-
-            <span class="fmt-divider"></span>
-
-            <!-- 行内格式 -->
-            <div class="fmt-group">
-              <button type="button" class="fmt-btn" data-fmt="bold" title="粗体 (Ctrl+B)" aria-label="粗体"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="B" d="M4 3H8.00586C8.79883 3 9.389 3.03418 9.77637 3.10254C10.1683 3.16634 10.5169 3.30306 10.8223 3.5127C11.1322 3.72233 11.3896 4.0026 11.5947 4.35352C11.7998 4.69987 11.9023 5.08952 11.9023 5.52246C11.9023 5.99186 11.7747 6.42253 11.5195 6.81445C11.2689 7.20638 10.9271 7.50033 10.4941 7.69629C11.1048 7.87402 11.5742 8.17708 11.9023 8.60547C12.2305 9.03385 12.3945 9.53744 12.3945 10.1162C12.3945 10.5719 12.2874 11.0163 12.0732 11.4492C11.8636 11.8776 11.5742 12.2217 11.2051 12.4814C10.8405 12.7367 10.3893 12.8939 9.85156 12.9531C9.51432 12.9896 8.70085 13.0124 7.41113 13.0215H4V3ZM6.02344 4.66797V6.98535H7.34961C8.13802 6.98535 8.62793 6.97396 8.81934 6.95117C9.16569 6.91016 9.43685 6.79167 9.63281 6.5957C9.83333 6.39518 9.93359 6.13314 9.93359 5.80957C9.93359 5.49967 9.84701 5.24902 9.67383 5.05762C9.50521 4.86165 9.25228 4.74316 8.91504 4.70215C8.71452 4.67936 8.13802 4.66797 7.18555 4.66797H6.02344ZM6.02344 8.65332V11.333H7.89648C8.62565 11.333 9.08822 11.3125 9.28418 11.2715C9.58496 11.2168 9.82878 11.0846 10.0156 10.875C10.207 10.6608 10.3027 10.376 10.3027 10.0205C10.3027 9.71973 10.2298 9.46452 10.084 9.25488C9.93815 9.04525 9.72624 8.89258 9.44824 8.79688C9.1748 8.70117 8.5778 8.65332 7.65723 8.65332H6.02344Z" stroke="none"/></g></svg></span></button>
-              <button type="button" class="fmt-btn" data-fmt="italic" title="斜体 (Ctrl+I)" aria-label="斜体"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-bold"><path id="group-0_2" d="M7.5 2.6001H9M10.5 2.6001H9M4.5 13.4001H6M7.5 13.4001H6M9 2.6001L6 13.4001" stroke-linecap="round" stroke-linejoin="bevel" fill="none" vector-effect="non-scaling-stroke"/></g></svg></span></button>
-              <button type="button" class="fmt-btn" data-fmt="strike" title="删除线" aria-label="删除线"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-1" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M1 9.40039H15" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-bold"><path id="line_2" d="M2.3985 6.79177C3.5952 5.94347 4.98188 5.94618 5.66269 6.44278C6.38697 6.97109 6.50161 7.79437 6.50161 8.85078C6.50161 9.69591 6.50161 11.4643 6.50161 12.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_3" d="M6.46021 9.00684C5.07284 9.36141 2.50801 9.07317 2.03645 10.5715C1.6371 11.8403 2.68931 12.7242 3.56247 12.7242C4.42012 12.7242 5.73564 12.1649 6.47974 10.1514" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_4" d="M8.5 3.5V12.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_5" d="M13.4992 9.6C13.4992 11.4377 12.4675 12.7 11.0881 12.7C9.58691 12.7 8.69922 11.36 8.69922 9.6C8.69922 7.80021 9.65433 6.5 11.0881 6.5C12.4494 6.5 13.4992 7.71199 13.4992 9.6Z" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g></svg></span></button>
-              <button type="button" class="fmt-btn" data-fmt="link" title="链接 (Ctrl+K)" aria-label="链接"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="Vector" d="M8.66985 3.31093L9.33972 2.64107C10.6346 1.34621 12.734 1.34621 14.0288 2.64107C15.3237 3.93593 15.3237 6.03532 14.0288 7.33018L11.3493 10.0097C10.0545 11.3045 7.95509 11.3045 6.66023 10.0097C6.0128 9.36224 5.68908 8.51367 5.68909 7.66511M10.3109 8.33498C10.3109 7.48642 9.98717 6.63786 9.33975 5.99043C8.04488 4.69557 5.9455 4.69557 4.65064 5.99043L1.97115 8.66992C0.676286 9.96478 0.676283 12.0642 1.97115 13.359C3.26601 14.6539 5.36539 14.6539 6.66025 13.359L7.33012 12.6892" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span></button>
-              <button type="button" class="fmt-btn" data-fmt="codeblock" title="代码块（围栏代码）" aria-label="代码块"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M5.5 1.5H3.5C2.94772 1.5 2.5 1.94772 2.5 2.5V6.29289C2.5 6.4255 2.44732 6.55268 2.35355 6.64645L1.00707 7.99293C1.00317 7.99683 1.00317 8.00317 1.00707 8.00707L2.35355 9.35355C2.44732 9.44732 2.5 9.5745 2.5 9.70711V13.5C2.5 14.0523 2.94772 14.5 3.5 14.5H5.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_2" d="M10.5 1.5H12.5C13.0523 1.5 13.5 1.94772 13.5 2.5V6.29289C13.5 6.4255 13.5527 6.55268 13.6464 6.64645L14.9929 7.99293C14.9968 7.99683 14.9968 8.00317 14.9929 8.00707L13.6464 9.35355C13.5527 9.44732 13.5 9.5745 13.5 9.70711V13.5C13.5 14.0523 13.0523 14.5 12.5 14.5H10.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span></button>
-              <button type="button" class="fmt-btn" data-fmt="inlinecode" title="行内代码" aria-label="行内代码"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M9.5 2.5L6.5 13.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_2" d="M11.5 4L14.275 7.70001C14.4083 7.87779 14.4083 8.12224 14.275 8.30001L11.5 12" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_3" d="M4.5 4L1.725 7.70001C1.59167 7.87779 1.59167 8.12224 1.725 8.30001L4.5 12" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g></svg></span></button>
-            </div>
-
-            <span class="fmt-divider"></span>
-
-            <!-- 列表 -->
-            <div class="fmt-group">
-              <button type="button" class="fmt-btn" data-fmt="ul" title="无序列表" aria-label="无序列表"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-1" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="Rectangle 34624403" d="M1.5 1.51018C1.5 1.50466 1.50448 1.50019 1.51 1.50018L3.99 1.5C3.99552 1.5 4 1.50448 4 1.51V3.99C4 3.99552 3.99552 4 3.99 4L1.51 4.00018C1.50448 4.00019 1.5 3.99571 1.5 3.99018V1.51018Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="Rectangle 34624403_2" d="M1.5 6.51018C1.5 6.50466 1.50448 6.50019 1.51 6.50018L3.99 6.5C3.99552 6.5 4 6.50448 4 6.51V8.99C4 8.99552 3.99552 9 3.99 9L1.51 9.00018C1.50448 9.00019 1.5 8.99571 1.5 8.99018V6.51018Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="Rectangle 34624404" d="M1.5 11.5102C1.5 11.5047 1.50448 11.5002 1.51 11.5002L3.99 11.5C3.99552 11.5 4 11.5045 4 11.51V13.99C4 13.9955 3.99552 14 3.99 14L1.51 14.0002C1.50448 14.0002 1.5 13.9957 1.5 13.9902V11.5102Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M6.5 2.5H14.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_2" d="M6.5 7.5H14.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_3" d="M6.5 12.5H14.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g></svg></span></button>
-              <button type="button" class="fmt-btn" data-fmt="ol" title="有序列表" aria-label="有序列表"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g class="ui-dir-ltr"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M7.5 2.5L14.5 2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_2" d="M7.5 7.5L14.5 7.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_3" d="M7.5 12.5H14.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g><g id="group-1" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line_4" d="M2 2.5L3.5 1.5V5.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_5" d="M4.75 13.5006H2C2.43805 12.3694 3.3549 12.3459 4.08333 11.7499C5 10.9998 4.5 9.50016 3.37642 9.5C2.73459 9.49991 2.16786 9.91443 2 10.4999" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g></g><g class="ui-dir-rtl"><g transform="translate(16,0) scale(-1,1)"><g id="group-0-rtl" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line-rtl" d="M7.5 2.5L14.5 2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_2-rtl" d="M7.5 7.5L14.5 7.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_3-rtl" d="M7.5 12.5H14.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g><g id="group-1-rtl" class="ui-color-icon-primary ui-stroke-width-icon-regular"><g transform="matrix(-1,0,0,1,6.75,0)"><path id="line_4-rtl" d="M2 2.5L3.5 1.5V5.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_5-rtl" d="M4.75 13.5006H2C2.43805 12.3694 3.3549 12.3459 4.08333 11.7499C5 10.9998 4.5 9.50016 3.37642 9.5C2.73459 9.49991 2.16786 9.91443 2 10.4999" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g></g></g></g></svg></span></button>
-              <button type="button" class="fmt-btn" data-fmt="task" title="任务列表" aria-label="任务列表"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M1.5 2C1.5 1.72386 1.72386 1.5 2 1.5H14C14.2761 1.5 14.5 1.72386 14.5 2V14C14.5 14.2761 14.2761 14.5 14 14.5H2C1.72386 14.5 1.5 14.2761 1.5 14V2Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_2" d="M4.5 7.5L6.99293 9.99293C6.99683 9.99683 7.00317 9.99683 7.00707 9.99293L11.5 5.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span></button>
-            </div>
-
-            <span class="fmt-divider"></span>
-
-            <!-- 块级 -->
-            <div class="fmt-group">
-              <button type="button" class="fmt-btn" id="btn-table" title="插入表格" aria-label="插入表格" aria-haspopup="dialog" aria-expanded="false" aria-controls="table-picker"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-1" class="ui-color-icon-green-primary ui-stroke-width-icon-regular"><path id="line" d="M1.5 6.5H14.5" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_2" d="M6.5 14.5V1.5" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line_3" d="M14 1.5H2C1.72386 1.5 1.5 1.72386 1.5 2V14C1.5 14.2761 1.72386 14.5 2 14.5H14C14.2761 14.5 14.5 14.2761 14.5 14V2C14.5 1.72386 14.2761 1.5 14 1.5Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span></button>
-              <div class="ui-popover-content table-picker" id="table-picker" role="dialog" aria-label="选择表格大小" hidden>
-                <div class="table-picker__heading"><div class="table-picker__status" id="table-picker-status" aria-live="polite">选择表格大小</div><button type="button" class="app-modal__close" id="btn-table-picker-close" aria-label="关闭表格选择" title="关闭表格选择"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-close"/></svg></span></button></div>
-                <div class="table-picker__grid" id="table-picker-grid" role="grid" aria-label="表格大小，最多 8 行 10 列"></div>
-                <div class="table-picker__hint">最少插入 2 行（含表头）</div>
-              </div>
-              <button type="button" class="fmt-btn" id="btn-image" title="插入图片" aria-label="插入图片" aria-haspopup="menu" aria-expanded="false" aria-controls="image-menu"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-image"/></svg></span></button>
-              <div class="fmt-menu image-menu" id="image-menu" role="menu" aria-label="插入图片方式" hidden>
-                <button type="button" class="fmt-menu__item image-menu__item" id="btn-image-file" role="menuitem">
-                  <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-image"/></svg></span>
-                  <span><strong>选择本地图片</strong><small>可多选，每行最多 6 张</small></span>
+        <div class="app-fmtbar" id="fmtbar" aria-label="文档工具栏">
+          <div class="app-fmtbar__scroll">
+            <div class="app-fmtbar__editing">
+              <div class="fmt-group" role="group" aria-label="编辑历史">
+                <button type="button" class="fmt-btn" id="btn-undo" title="撤销 (Ctrl/Cmd+Z)" aria-label="撤销" disabled>
+                  <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-undo"/></svg></span>
                 </button>
-                <button type="button" class="fmt-menu__item image-menu__item" id="btn-image-url" role="menuitem">
-                  <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-link"/></svg></span>
-                  <span><strong>输入图片网址</strong><small>支持 HTTP 和 HTTPS</small></span>
+                <button type="button" class="fmt-btn" id="btn-redo" title="恢复 (Ctrl/Cmd+Shift+Z)" aria-label="恢复" disabled>
+                  <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-redo"/></svg></span>
                 </button>
               </div>
-              <button type="button" class="fmt-btn" data-fmt="quote" title="引用" aria-label="引用"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="area1" d="M6.61162 3.95356C6.87315 3.74142 6.97044 3.50254 6.86792 3.2447C6.73942 2.92106 6.35731 2.95639 6.14044 3.04696C6.0148 3.09944 5.60419 3.35413 5.39242 3.49778C5.18065 3.64144 4.4577 4.16458 3.47237 5.14868C2.31254 6.30705 1.15992 7.95599 1.24355 10.124L1.24657 10.1215L1.24657 10.1265C1.34998 11.7405 2.53498 13.0007 4.1243 13.0007C5.71363 13.0007 7.00204 11.7139 7.00204 10.1265C7.00204 8.70849 5.9738 7.53031 4.62136 7.29512L4.62631 7.29097L4.57506 7.28377C4.31168 7.24729 4.09915 7.21786 4.18057 6.82032C4.2551 6.45638 4.90109 5.37735 5.78753 4.62304C5.94498 4.48905 6.15105 4.32375 6.34936 4.16467C6.44022 4.09179 6.52945 4.02021 6.61162 3.95356Z" stroke="none"/><path id="area1_2" d="M14.3714 3.95369C14.6329 3.7416 14.7302 3.50263 14.6277 3.24484C14.4992 2.92126 14.1171 2.95655 13.9002 3.0471C13.7746 3.09957 13.364 3.3543 13.1522 3.49792C12.9404 3.64154 12.2175 4.16489 11.2321 5.14879C10.0723 6.30693 8.91969 7.95647 9.00331 10.1241L9.00634 10.1215L9.00634 10.1266C9.10974 11.7402 10.2947 13.0007 11.8841 13.0007C13.4734 13.0007 14.7618 11.7136 14.7618 10.1266C14.7618 8.70882 13.7336 7.53034 12.3811 7.2952L12.3861 7.29106L12.3348 7.28385C12.0714 7.24738 11.8589 7.21787 11.9403 6.82041C12.0149 6.45654 12.6609 5.37732 13.5473 4.62316C13.7047 4.4892 13.9108 4.32384 14.1091 4.1648C14.2 4.09193 14.2892 4.02033 14.3714 3.95369Z" stroke="none"/></g></svg></span></button>
-              <button type="button" class="fmt-btn" data-fmt="hr" title="分割线" aria-label="分割线"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M1.5 7.5H14.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_2" d="M1.5 2.5H4.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_3" d="M6.5 2.5H9.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_4" d="M11.5 2.5H14.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_5" d="M1.5 12.5H4.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_6" d="M6.5 12.5H9.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_7" d="M11.5 12.5H14.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span></button>
-            </div>
-
-            <span class="fmt-divider"></span>
-            <button type="button" class="fmt-btn" id="btn-find-replace" title="查找和替换 (Ctrl/Cmd+F)" aria-label="查找和替换" aria-haspopup="dialog" aria-expanded="false" aria-controls="content-find-modal">
-              <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-search"/></svg></span>
-            </button>
-            <button type="button" class="fmt-btn app-comment-tool" id="btn-comments" title="智能审阅（批注与 AI 辅助阅读）" aria-label="打开智能审阅：批注与 AI 辅助阅读" aria-expanded="false">
-              <span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g transform="translate(2.5 3) scale(.75)"><path d="M2 1.5H14C14.2761 1.5 14.5 1.72386 14.5 2V12C14.5 12.2761 14.2761 12.5 14 12.5L4 12.5001L1.51625 14.4871C1.5097 14.4924 1.5 14.4877 1.5 14.4793V2C1.5 1.72386 1.72386 1.5 2 1.5Z" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path d="M4.5 5.5H11.5M4.5 8.5H8.5" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g><g transform="translate(.5 .25) scale(.27)"><path d="M5.5 5.5L7.99126 1.01573C7.99507 1.00888 8.00493 1.00888 8.00874 1.01573L10.5 5.5L14.9822 6.49605C14.9899 6.49776 14.9927 6.5073 14.9871 6.51288L11.5 10L12.4957 14.4806C12.4975 14.4887 12.4894 14.4953 12.4819 14.4919L8 12.5L3.51813 14.4919C3.51062 14.4953 3.50252 14.4887 3.5043 14.4806L4.5 10L1.01288 6.51288C1.0073 6.5073 1.01008 6.49776 1.01778 6.49605L5.5 5.5Z" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g><g transform="translate(4.5 1.75) scale(.11)"><path d="M5.5 5.5L7.99126 1.01573C7.99507 1.00888 8.00493 1.00888 8.00874 1.01573L10.5 5.5L14.9822 6.49605C14.9899 6.49776 14.9927 6.5073 14.9871 6.51288L11.5 10L12.4957 14.4806C12.4975 14.4887 12.4894 14.4953 12.4819 14.4919L8 12.5L3.51813 14.4919C3.51062 14.4953 3.50252 14.4887 3.5043 14.4806L4.5 10L1.01288 6.51288C1.0073 6.5073 1.01008 6.49776 1.01778 6.49605L5.5 5.5Z" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span>
-              <span class="app-comment-badge" id="comment-count" hidden>0</span>
-            </button>
-          </div>
-
-          <!-- 右侧：视图切换 / 导出 / 主题 -->
-          <div class="app-fmtbar__utilities">
-
-            <div class="ui-segmented-controller ui-segmented-controller--s" id="view-seg">
-              <div class="ui-segmented-item" data-view="source">
-                <button type="button" class="ui-button ui-button-light ui-button-sm">源码</button>
-              </div>
-              <div class="ui-segmented-item" data-view="preview">
-                <button type="button" class="ui-button ui-button-light ui-button-sm">预览</button>
-              </div>
-              <div class="ui-segmented-item is-active" data-view="split">
-                <button type="button" class="ui-button ui-button-secondary ui-button-sm">分栏</button>
-              </div>
-            </div>
-
-            <span class="fmt-divider"></span>
-
-            <div class="fmt-group">
-              <div class="app-save-split">
-                <button type="button" class="fmt-btn app-save-split__main" id="btn-save" title="保存到本地文档 (Ctrl/Cmd+S)" aria-label="保存到本地文档">
-                  <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-save"/></svg></span>
-                </button>
-                <button type="button" class="fmt-btn app-save-split__more" id="btn-save-more" title="更多保存操作" aria-label="更多保存操作" aria-haspopup="menu" aria-expanded="false" aria-controls="save-menu"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-chevron-down"/></svg></span></button>
-                <div class="fmt-menu app-save-menu" id="save-menu" role="menu" aria-label="保存操作" hidden>
-                  <button type="button" class="fmt-menu__item" data-file-command="save" role="menuitem"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-save"/></svg></span><span><strong>保存</strong><small>Command/Ctrl+S</small></span></button>
-                  <button type="button" class="fmt-menu__item" data-file-command="save-as" role="menuitem"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-save-as"/></svg></span><span><strong>另存为…</strong><small>保留原文件</small></span></button>
-                  <button type="button" class="fmt-menu__item" data-file-command="move" role="menuitem"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-move"/></svg></span><span><strong>移动到…</strong><small>迁移正文与伴随内容</small></span></button>
-                  <button type="button" class="fmt-menu__item" data-file-command="open-location" role="menuitem"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-folder"/></svg></span><span><strong>打开文件位置</strong><small>客户端可在 Finder 中显示</small></span></button>
+              <span class="fmt-divider" aria-hidden="true"></span>
+              <div class="fmt-group" role="group" aria-label="文字与段落">
+                <div class="fmt-group fmt-group--heading">
+                  <button type="button" class="fmt-btn fmt-btn--heading" id="btn-heading" title="标题" aria-haspopup="menu" aria-expanded="false" aria-controls="heading-menu">
+                    <span class="fmt-btn__label">正文</span>
+                    <span class="ui-icon gicon fmt-btn__caret" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-chevron-down"/></svg></span>
+                  </button>
+                  <div class="fmt-menu" id="heading-menu" role="menu" aria-label="标题级别" hidden>
+                    <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="0">正文</button>
+                    <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="1">H1 大标题</button>
+                    <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="2">H2 标题</button>
+                    <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="3">H3 小标题</button>
+                    <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="4">H4</button>
+                    <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="5">H5</button>
+                    <button type="button" class="fmt-menu__item" role="menuitem" data-fmt="heading" data-level="6">H6</button>
+                  </div>
                 </div>
+                <button type="button" class="fmt-btn" data-fmt="bold" title="粗体 (Ctrl+B)" aria-label="粗体"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="B" d="M4 3H8.00586C8.79883 3 9.389 3.03418 9.77637 3.10254C10.1683 3.16634 10.5169 3.30306 10.8223 3.5127C11.1322 3.72233 11.3896 4.0026 11.5947 4.35352C11.7998 4.69987 11.9023 5.08952 11.9023 5.52246C11.9023 5.99186 11.7747 6.42253 11.5195 6.81445C11.2689 7.20638 10.9271 7.50033 10.4941 7.69629C11.1048 7.87402 11.5742 8.17708 11.9023 8.60547C12.2305 9.03385 12.3945 9.53744 12.3945 10.1162C12.3945 10.5719 12.2874 11.0163 12.0732 11.4492C11.8636 11.8776 11.5742 12.2217 11.2051 12.4814C10.8405 12.7367 10.3893 12.8939 9.85156 12.9531C9.51432 12.9896 8.70085 13.0124 7.41113 13.0215H4V3ZM6.02344 4.66797V6.98535H7.34961C8.13802 6.98535 8.62793 6.97396 8.81934 6.95117C9.16569 6.91016 9.43685 6.79167 9.63281 6.5957C9.83333 6.39518 9.93359 6.13314 9.93359 5.80957C9.93359 5.49967 9.84701 5.24902 9.67383 5.05762C9.50521 4.86165 9.25228 4.74316 8.91504 4.70215C8.71452 4.67936 8.13802 4.66797 7.18555 4.66797H6.02344ZM6.02344 8.65332V11.333H7.89648C8.62565 11.333 9.08822 11.3125 9.28418 11.2715C9.58496 11.2168 9.82878 11.0846 10.0156 10.875C10.207 10.6608 10.3027 10.376 10.3027 10.0205C10.3027 9.71973 10.2298 9.46452 10.084 9.25488C9.93815 9.04525 9.72624 8.89258 9.44824 8.79688C9.1748 8.70117 8.5778 8.65332 7.65723 8.65332H6.02344Z" stroke="none"/></g></svg></span></button>
+                <button type="button" class="fmt-btn" data-fmt="italic" title="斜体 (Ctrl+I)" aria-label="斜体"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-bold"><path id="group-0_2" d="M7.5 2.6001H9M10.5 2.6001H9M4.5 13.4001H6M7.5 13.4001H6M9 2.6001L6 13.4001" stroke-linecap="round" stroke-linejoin="bevel" fill="none" vector-effect="non-scaling-stroke"/></g></svg></span></button>
+                <button type="button" class="fmt-btn" data-fmt="strike" title="删除线" aria-label="删除线"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-1" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M1 9.40039H15" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-bold"><path id="line_2" d="M2.3985 6.79177C3.5952 5.94347 4.98188 5.94618 5.66269 6.44278C6.38697 6.97109 6.50161 7.79437 6.50161 8.85078C6.50161 9.69591 6.50161 11.4643 6.50161 12.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_3" d="M6.46021 9.00684C5.07284 9.36141 2.50801 9.07317 2.03645 10.5715C1.6371 11.8403 2.68931 12.7242 3.56247 12.7242C4.42012 12.7242 5.73564 12.1649 6.47974 10.1514" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_4" d="M8.5 3.5V12.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_5" d="M13.4992 9.6C13.4992 11.4377 12.4675 12.7 11.0881 12.7C9.58691 12.7 8.69922 11.36 8.69922 9.6C8.69922 7.80021 9.65433 6.5 11.0881 6.5C12.4494 6.5 13.4992 7.71199 13.4992 9.6Z" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g></svg></span></button>
+                <button type="button" class="fmt-btn" data-fmt="inlinecode" title="行内代码" aria-label="行内代码"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M9.5 2.5L6.5 13.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_2" d="M11.5 4L14.275 7.70001C14.4083 7.87779 14.4083 8.12224 14.275 8.30001L11.5 12" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_3" d="M4.5 4L1.725 7.70001C1.59167 7.87779 1.59167 8.12224 1.725 8.30001L4.5 12" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g></svg></span></button>
+                <button type="button" class="fmt-btn" data-fmt="ul" title="无序列表" aria-label="无序列表"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-1" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="Rectangle 34624403" d="M1.5 1.51018C1.5 1.50466 1.50448 1.50019 1.51 1.50018L3.99 1.5C3.99552 1.5 4 1.50448 4 1.51V3.99C4 3.99552 3.99552 4 3.99 4L1.51 4.00018C1.50448 4.00019 1.5 3.99571 1.5 3.99018V1.51018Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="Rectangle 34624403_2" d="M1.5 6.51018C1.5 6.50466 1.50448 6.50019 1.51 6.50018L3.99 6.5C3.99552 6.5 4 6.50448 4 6.51V8.99C4 8.99552 3.99552 9 3.99 9L1.51 9.00018C1.50448 9.00019 1.5 8.99571 1.5 8.99018V6.51018Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="Rectangle 34624404" d="M1.5 11.5102C1.5 11.5047 1.50448 11.5002 1.51 11.5002L3.99 11.5C3.99552 11.5 4 11.5045 4 11.51V13.99C4 13.9955 3.99552 14 3.99 14L1.51 14.0002C1.50448 14.0002 1.5 13.9957 1.5 13.9902V11.5102Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M6.5 2.5H14.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_2" d="M6.5 7.5H14.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_3" d="M6.5 12.5H14.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g></svg></span></button>
+                <button type="button" class="fmt-btn" data-fmt="ol" title="有序列表" aria-label="有序列表"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g class="ui-dir-ltr"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M7.5 2.5L14.5 2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_2" d="M7.5 7.5L14.5 7.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_3" d="M7.5 12.5H14.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g><g id="group-1" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line_4" d="M2 2.5L3.5 1.5V5.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_5" d="M4.75 13.5006H2C2.43805 12.3694 3.3549 12.3459 4.08333 11.7499C5 10.9998 4.5 9.50016 3.37642 9.5C2.73459 9.49991 2.16786 9.91443 2 10.4999" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g></g><g class="ui-dir-rtl"><g transform="translate(16,0) scale(-1,1)"><g id="group-0-rtl" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line-rtl" d="M7.5 2.5L14.5 2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_2-rtl" d="M7.5 7.5L14.5 7.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_3-rtl" d="M7.5 12.5H14.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g><g id="group-1-rtl" class="ui-color-icon-primary ui-stroke-width-icon-regular"><g transform="matrix(-1,0,0,1,6.75,0)"><path id="line_4-rtl" d="M2 2.5L3.5 1.5V5.5" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/><path id="line_5-rtl" d="M4.75 13.5006H2C2.43805 12.3694 3.3549 12.3459 4.08333 11.7499C5 10.9998 4.5 9.50016 3.37642 9.5C2.73459 9.49991 2.16786 9.91443 2 10.4999" stroke-linecap="round" stroke-linejoin="round" fill="none" vector-effect="non-scaling-stroke"/></g></g></g></g></svg></span></button>
+                <button type="button" class="fmt-btn" data-fmt="task" title="任务列表" aria-label="任务列表"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M1.5 2C1.5 1.72386 1.72386 1.5 2 1.5H14C14.2761 1.5 14.5 1.72386 14.5 2V14C14.5 14.2761 14.2761 14.5 14 14.5H2C1.72386 14.5 1.5 14.2761 1.5 14V2Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_2" d="M4.5 7.5L6.99293 9.99293C6.99683 9.99683 7.00317 9.99683 7.00707 9.99293L11.5 5.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span></button>
+                <button type="button" class="fmt-btn" data-fmt="quote" title="引用" aria-label="引用"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="area1" d="M6.61162 3.95356C6.87315 3.74142 6.97044 3.50254 6.86792 3.2447C6.73942 2.92106 6.35731 2.95639 6.14044 3.04696C6.0148 3.09944 5.60419 3.35413 5.39242 3.49778C5.18065 3.64144 4.4577 4.16458 3.47237 5.14868C2.31254 6.30705 1.15992 7.95599 1.24355 10.124L1.24657 10.1215L1.24657 10.1265C1.34998 11.7405 2.53498 13.0007 4.1243 13.0007C5.71363 13.0007 7.00204 11.7139 7.00204 10.1265C7.00204 8.70849 5.9738 7.53031 4.62136 7.29512L4.62631 7.29097L4.57506 7.28377C4.31168 7.24729 4.09915 7.21786 4.18057 6.82032C4.2551 6.45638 4.90109 5.37735 5.78753 4.62304C5.94498 4.48905 6.15105 4.32375 6.34936 4.16467C6.44022 4.09179 6.52945 4.02021 6.61162 3.95356Z" stroke="none"/><path id="area1_2" d="M14.3714 3.95369C14.6329 3.7416 14.7302 3.50263 14.6277 3.24484C14.4992 2.92126 14.1171 2.95655 13.9002 3.0471C13.7746 3.09957 13.364 3.3543 13.1522 3.49792C12.9404 3.64154 12.2175 4.16489 11.2321 5.14879C10.0723 6.30693 8.91969 7.95647 9.00331 10.1241L9.00634 10.1215L9.00634 10.1266C9.10974 11.7402 10.2947 13.0007 11.8841 13.0007C13.4734 13.0007 14.7618 11.7136 14.7618 10.1266C14.7618 8.70882 13.7336 7.53034 12.3811 7.2952L12.3861 7.29106L12.3348 7.28385C12.0714 7.24738 11.8589 7.21787 11.9403 6.82041C12.0149 6.45654 12.6609 5.37732 13.5473 4.62316C13.7047 4.4892 13.9108 4.32384 14.1091 4.1648C14.2 4.09193 14.2892 4.02033 14.3714 3.95369Z" stroke="none"/></g></svg></span></button>
               </div>
-              <button type="button" class="fmt-btn fmt-btn--export" id="btn-export" title="导出" aria-label="选择导出格式" aria-haspopup="menu" aria-expanded="false" aria-controls="export-menu">
-                <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-export"/></svg></span>
-              </button>
-              <div class="fmt-menu export-menu" id="export-menu" role="menu" aria-label="导出格式" hidden>
-                <button type="button" class="fmt-menu__item export-menu__item" id="btn-md" role="menuitem">
-                  <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-markdown"/></svg></span>
-                  <span class="export-menu__copy"><strong>Markdown</strong><small>.md 原文</small></span>
+              <span class="fmt-divider" aria-hidden="true"></span>
+              <div class="fmt-group" role="group" aria-label="插入">
+                <button type="button" class="fmt-btn" data-fmt="link" title="链接 (Ctrl+K)" aria-label="链接"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="Vector" d="M8.66985 3.31093L9.33972 2.64107C10.6346 1.34621 12.734 1.34621 14.0288 2.64107C15.3237 3.93593 15.3237 6.03532 14.0288 7.33018L11.3493 10.0097C10.0545 11.3045 7.95509 11.3045 6.66023 10.0097C6.0128 9.36224 5.68908 8.51367 5.68909 7.66511M10.3109 8.33498C10.3109 7.48642 9.98717 6.63786 9.33975 5.99043C8.04488 4.69557 5.9455 4.69557 4.65064 5.99043L1.97115 8.66992C0.676286 9.96478 0.676283 12.0642 1.97115 13.359C3.26601 14.6539 5.36539 14.6539 6.66025 13.359L7.33012 12.6892" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span></button>
+                <button type="button" class="fmt-btn" data-fmt="codeblock" title="代码块（围栏代码）" aria-label="代码块"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M5.5 1.5H3.5C2.94772 1.5 2.5 1.94772 2.5 2.5V6.29289C2.5 6.4255 2.44732 6.55268 2.35355 6.64645L1.00707 7.99293C1.00317 7.99683 1.00317 8.00317 1.00707 8.00707L2.35355 9.35355C2.44732 9.44732 2.5 9.5745 2.5 9.70711V13.5C2.5 14.0523 2.94772 14.5 3.5 14.5H5.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_2" d="M10.5 1.5H12.5C13.0523 1.5 13.5 1.94772 13.5 2.5V6.29289C13.5 6.4255 13.5527 6.55268 13.6464 6.64645L14.9929 7.99293C14.9968 7.99683 14.9968 8.00317 14.9929 8.00707L13.6464 9.35355C13.5527 9.44732 13.5 9.5745 13.5 9.70711V13.5C13.5 14.0523 13.0523 14.5 12.5 14.5H10.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span></button>
+                <button type="button" class="fmt-btn" id="btn-table" title="插入表格" aria-label="插入表格" aria-haspopup="dialog" aria-expanded="false" aria-controls="table-picker"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-1" class="ui-color-icon-green-primary ui-stroke-width-icon-regular"><path id="line" d="M1.5 6.5H14.5" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_2" d="M6.5 14.5V1.5" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line_3" d="M14 1.5H2C1.72386 1.5 1.5 1.72386 1.5 2V14C1.5 14.2761 1.72386 14.5 2 14.5H14C14.2761 14.5 14.5 14.2761 14.5 14V2C14.5 1.72386 14.2761 1.5 14 1.5Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span></button>
+                <div class="ui-popover-content table-picker" id="table-picker" role="dialog" aria-label="选择表格大小" hidden>
+                  <div class="table-picker__heading"><div class="table-picker__status" id="table-picker-status" aria-live="polite">选择表格大小</div><button type="button" class="app-modal__close" id="btn-table-picker-close" aria-label="关闭表格选择" title="关闭表格选择"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-close"/></svg></span></button></div>
+                  <div class="table-picker__grid" id="table-picker-grid" role="grid" aria-label="表格大小，最多 8 行 10 列"></div>
+                  <div class="table-picker__hint">最少插入 2 行（含表头）</div>
+                </div>
+                <button type="button" class="fmt-btn" id="btn-image" title="插入图片" aria-label="插入图片" aria-haspopup="menu" aria-expanded="false" aria-controls="image-menu"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-image"/></svg></span></button>
+                <div class="fmt-menu image-menu" id="image-menu" role="menu" aria-label="插入图片方式" hidden>
+                  <button type="button" class="fmt-menu__item image-menu__item" id="btn-image-file" role="menuitem">
+                    <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-image"/></svg></span>
+                    <span><strong>选择本地图片</strong><small>可多选，每行最多 6 张</small></span>
+                  </button>
+                  <button type="button" class="fmt-menu__item image-menu__item" id="btn-image-url" role="menuitem">
+                    <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-link"/></svg></span>
+                    <span><strong>输入图片网址</strong><small>支持 HTTP 和 HTTPS</small></span>
+                  </button>
+                </div>
+                <button type="button" class="fmt-btn" data-fmt="hr" title="分割线" aria-label="分割线"><span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M1.5 7.5H14.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_2" d="M1.5 2.5H4.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_3" d="M6.5 2.5H9.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_4" d="M11.5 2.5H14.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_5" d="M1.5 12.5H4.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_6" d="M6.5 12.5H9.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="line_7" d="M11.5 12.5H14.5" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span></button>
+              </div>
+              <span class="fmt-divider" aria-hidden="true"></span>
+              <div class="fmt-group" role="group" aria-label="查找与审阅">
+                <button type="button" class="fmt-btn" id="btn-find-replace" title="查找和替换 (Ctrl/Cmd+F)" aria-label="查找和替换" aria-haspopup="dialog" aria-expanded="false" aria-controls="content-find-modal">
+                  <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-search"/></svg></span>
                 </button>
-                <button type="button" class="fmt-menu__item export-menu__item" id="btn-pdf" role="menuitem">
-                  <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-pdf"/></svg></span>
-                  <span class="export-menu__copy"><strong>PDF</strong><small>.pdf 阅读版</small></span>
-                </button>
-                <button type="button" class="fmt-menu__item export-menu__item" id="btn-img" role="menuitem">
-                  <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-image"/></svg></span>
-                  <span class="export-menu__copy"><strong>长图</strong><small>.png 完整内容</small></span>
+                <button type="button" class="fmt-btn app-comment-tool" id="btn-comments" title="智能审阅（批注与 AI 辅助阅读）" aria-label="打开智能审阅：批注与 AI 辅助阅读" aria-expanded="false">
+                  <span class="ui-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g transform="translate(2.5 3) scale(.75)"><path d="M2 1.5H14C14.2761 1.5 14.5 1.72386 14.5 2V12C14.5 12.2761 14.2761 12.5 14 12.5L4 12.5001L1.51625 14.4871C1.5097 14.4924 1.5 14.4877 1.5 14.4793V2C1.5 1.72386 1.72386 1.5 2 1.5Z" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path d="M4.5 5.5H11.5M4.5 8.5H8.5" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g><g transform="translate(.5 .25) scale(.27)"><path d="M5.5 5.5L7.99126 1.01573C7.99507 1.00888 8.00493 1.00888 8.00874 1.01573L10.5 5.5L14.9822 6.49605C14.9899 6.49776 14.9927 6.5073 14.9871 6.51288L11.5 10L12.4957 14.4806C12.4975 14.4887 12.4894 14.4953 12.4819 14.4919L8 12.5L3.51813 14.4919C3.51062 14.4953 3.50252 14.4887 3.5043 14.4806L4.5 10L1.01288 6.51288C1.0073 6.5073 1.01008 6.49776 1.01778 6.49605L5.5 5.5Z" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g><g transform="translate(4.5 1.75) scale(.11)"><path d="M5.5 5.5L7.99126 1.01573C7.99507 1.00888 8.00493 1.00888 8.00874 1.01573L10.5 5.5L14.9822 6.49605C14.9899 6.49776 14.9927 6.5073 14.9871 6.51288L11.5 10L12.4957 14.4806C12.4975 14.4887 12.4894 14.4953 12.4819 14.4919L8 12.5L3.51813 14.4919C3.51062 14.4953 3.50252 14.4887 3.5043 14.4806L4.5 10L1.01288 6.51288C1.0073 6.5073 1.01008 6.49776 1.01778 6.49605L5.5 5.5Z" stroke="currentColor" fill="none" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></g></svg></span>
+                  <span class="app-comment-badge" id="comment-count" hidden>0</span>
                 </button>
               </div>
             </div>
-
-            <span class="fmt-divider"></span>
-
-            <div class="fmt-group">
-              <button type="button" class="fmt-btn" id="btn-theme" title="切换主题" aria-label="切换到暗色主题">
-                <span class="ui-icon theme-icon theme-icon--moon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M14.4307 8.95212C14.4319 8.94416 14.4237 8.93809 14.4164 8.94163C13.6871 9.29893 12.867 9.49952 12 9.49952C8.96243 9.49952 6.5 7.03709 6.5 3.99952C6.5 3.13271 6.70052 2.31273 7.05771 1.58345C7.06125 1.57622 7.05519 1.56798 7.04722 1.56915C3.90904 2.0301 1.5 4.73363 1.5 7.99982C1.5 11.5897 4.41015 14.4998 8 14.4998C11.2664 14.4998 13.97 12.0905 14.4307 8.95212Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span>
-                <span class="ui-icon theme-icon theme-icon--sun" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="Ellipse 396" d="M11 7.5C11 9.433 9.433 11 7.5 11C5.567 11 4 9.433 4 7.5C4 5.567 5.567 4 7.5 4C9.433 4 11 5.567 11 7.5Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="0 deg" d="M7.5 2V1" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="45 deg" d="M3.50012 3.50012L2.79302 2.79302" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="90 deg" d="M2 7.5H1" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="135 deg" d="M3.5 11.5L2.79289 12.2071" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="180 deg" d="M7.5 13V14" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="225 deg" d="M11.5 11.5L12.2071 12.2071" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="270 deg" d="M13 7.5H14" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="315 deg" d="M11.5 3.5L12.2071 2.79289" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span>
+          </div>
+          <div class="app-fmtbar__views" role="group" aria-label="视图与阅读">
+            <div class="app-view-buttons" id="view-seg" role="radiogroup" aria-label="文档视图">
+              <div data-view="source">
+                <button type="button" class="fmt-btn" role="radio" aria-checked="false" aria-label="源码" title="源码" tabindex="-1"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><use href="#gicon-view-source"/></svg></span></button>
+              </div>
+              <div data-view="preview">
+                <button type="button" class="fmt-btn" role="radio" aria-checked="false" aria-label="可视编辑" title="可视编辑" tabindex="-1"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><use href="#gicon-view-preview"/></svg></span></button>
+              </div>
+              <div data-view="split">
+                <button type="button" class="fmt-btn" role="radio" aria-checked="true" aria-label="双栏" title="双栏" tabindex="0"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><use href="#gicon-view-split"/></svg></span></button>
+              </div>
+            </div>
+            <label class="app-view-compact" id="view-compact">
+              <span id="view-compact-icon" class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><use href="#gicon-view-split"/></svg></span>
+              <span class="app-view-compact__chevron">
+                <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><use href="#gicon-chevron-down"/></svg></span>
+              </span>
+              <select id="view-select" aria-label="文档视图" title="当前视图：双栏">
+                <option value="source">源码</option>
+                <option value="preview">可视编辑</option>
+                <option value="split" selected>双栏</option>
+              </select>
+            </label>
+          </div>
+          <div class="fmt-group app-fmtbar__files" role="group" aria-label="文件">
+            <div class="app-save-split">
+              <button type="button" class="fmt-btn app-save-split__main" id="btn-save" title="保存到本地文档 (Ctrl/Cmd+S)" aria-label="保存到本地文档">
+                <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-save"/></svg></span>
+              </button>
+              <button type="button" class="fmt-btn app-save-split__more" id="btn-save-more" title="更多保存操作" aria-label="更多保存操作" aria-haspopup="menu" aria-expanded="false" aria-controls="save-menu"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-chevron-down"/></svg></span></button>
+              <div class="fmt-menu app-save-menu" id="save-menu" role="menu" aria-label="保存操作" hidden>
+                <button type="button" class="fmt-menu__item" data-file-command="save" role="menuitem"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-save"/></svg></span><span><strong>保存</strong><small>Command/Ctrl+S</small></span></button>
+                <button type="button" class="fmt-menu__item" data-file-command="save-as" role="menuitem"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-save-as"/></svg></span><span><strong>另存为…</strong><small>保留原文件</small></span></button>
+                <button type="button" class="fmt-menu__item" data-file-command="move" role="menuitem"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-move"/></svg></span><span><strong>移动到…</strong><small>迁移正文与伴随内容</small></span></button>
+                <button type="button" class="fmt-menu__item" data-file-command="open-location" role="menuitem"><span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-folder"/></svg></span><span><strong>打开文件位置</strong><small>客户端可在 Finder 中显示</small></span></button>
+              </div>
+            </div>
+            <button type="button" class="fmt-btn fmt-btn--export" id="btn-export" title="导出" aria-label="选择导出格式" aria-haspopup="menu" aria-expanded="false" aria-controls="export-menu">
+              <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-export"/></svg></span>
+            </button>
+            <div class="fmt-menu export-menu" id="export-menu" role="menu" aria-label="导出格式" hidden>
+              <button type="button" class="fmt-menu__item export-menu__item" id="btn-md" role="menuitem">
+                <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-markdown"/></svg></span>
+                <span class="export-menu__copy"><strong>Markdown</strong><small>.md 原文</small></span>
+              </button>
+              <button type="button" class="fmt-menu__item export-menu__item" id="btn-pdf" role="menuitem">
+                <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-pdf"/></svg></span>
+                <span class="export-menu__copy"><strong>PDF</strong><small>.pdf 阅读版</small></span>
+              </button>
+              <button type="button" class="fmt-menu__item export-menu__item" id="btn-img" role="menuitem">
+                <span class="ui-icon gicon" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#gicon-image"/></svg></span>
+                <span class="export-menu__copy"><strong>长图</strong><small>.png 完整内容</small></span>
               </button>
             </div>
+          </div>
+          <div class="fmt-group app-fmtbar__theme" role="group" aria-label="主题">
+            <button type="button" class="fmt-btn" id="btn-theme" title="切换主题" aria-label="切换到暗色主题">
+              <span class="ui-icon theme-icon theme-icon--moon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="line" d="M14.4307 8.95212C14.4319 8.94416 14.4237 8.93809 14.4164 8.94163C13.6871 9.29893 12.867 9.49952 12 9.49952C8.96243 9.49952 6.5 7.03709 6.5 3.99952C6.5 3.13271 6.70052 2.31273 7.05771 1.58345C7.06125 1.57622 7.05519 1.56798 7.04722 1.56915C3.90904 2.0301 1.5 4.73363 1.5 7.99982C1.5 11.5897 4.41015 14.4998 8 14.4998C11.2664 14.4998 13.97 12.0905 14.4307 8.95212Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span>
+              <span class="ui-icon theme-icon theme-icon--sun" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><g id="group-0" class="ui-color-icon-primary ui-stroke-width-icon-regular"><path id="Ellipse 396" d="M11 7.5C11 9.433 9.433 11 7.5 11C5.567 11 4 9.433 4 7.5C4 5.567 5.567 4 7.5 4C9.433 4 11 5.567 11 7.5Z" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="0 deg" d="M7.5 2V1" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="45 deg" d="M3.50012 3.50012L2.79302 2.79302" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="90 deg" d="M2 7.5H1" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="135 deg" d="M3.5 11.5L2.79289 12.2071" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="180 deg" d="M7.5 13V14" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="225 deg" d="M11.5 11.5L12.2071 12.2071" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="270 deg" d="M13 7.5H14" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><path id="315 deg" d="M11.5 3.5L12.2071 2.79289" stroke-linecap="round" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></g></svg></span>
+            </button>
           </div>
         </div>
 
@@ -11573,6 +11653,7 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
   const MODEL_PERSISTENT_KEY = 'md-editor-model-persistent-key-v1';
   const COLLAB_TAB_ORDER_KEY = 'md-editor-collab-tab-order-v1';
   const COLLAB_TAB_IDS = ['chat', 'comments', 'reading', 'works'];
+  const DOCUMENT_VIEW_LABELS = { source: '源码', preview: '可视编辑', split: '双栏' };
   const READING_CHAT_SOURCE_LIMIT = 18000;
   const REVIEW_SYNC_DEBOUNCE = 350;
   const AI_CONNECTION_TIMEOUT = 15000;
@@ -11684,6 +11765,7 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
   const contentFindState = { query: '', replacement: '', matches: [], index: -1 };
   let removeSemanticProgressListener = null;
   const tabSessions = new Map();
+  let textViewPosition = null;
   let draggedDocumentTabId = null;
   let pendingTabCloseId = null;
   let appMenuPreviousFocus = null;
@@ -11702,6 +11784,8 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
     els.docList = $('doc-list');
     els.outlineList = $('outline-list');
     els.viewSeg = $('view-seg');
+    els.viewSelect = $('view-select');
+    els.viewCompactIcon = $('view-compact-icon');
     els.themeBtn = $('btn-theme');
     els.editorContainer = $('editor-container');
     els.sourceEditor = $('source-editor');
@@ -12700,7 +12784,7 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
       button?.setAttribute('aria-expanded', String(outlineVisible));
       button?.classList.toggle('is-active', outlineVisible);
     }
-    if (els.editOutlineToggle) els.editOutlineToggle.hidden = !previewVisible;
+    if (els.editOutlineToggle) els.editOutlineToggle.hidden = !previewVisible || state.documentMode !== 'editing';
     if (els.documentEditToggle) {
       const label = isPlainTextDocument(currentDoc()) ? '编辑文本' : '编辑 Markdown';
       els.documentEditToggle.title = label;
@@ -12867,7 +12951,7 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
   function focusDocumentToolbarControl(button) {
     if (!button?.getClientRects().length) return;
     button.focus({ preventScroll: true });
-    const toolbar = button.closest('.app-fmtbar, .app-document-toolbar, .app-reader-toolbar');
+    const toolbar = button.closest('.app-fmtbar__scroll, .app-fmtbar, .app-document-toolbar, .app-reader-toolbar');
     if (toolbar && toolbar.scrollWidth > toolbar.clientWidth) button.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
@@ -12926,8 +13010,13 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
       };
       close.addEventListener('click', hideOutline);
       els.documentOutlineMask.addEventListener('click', hideOutline);
-      els.documentOutline.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && !event.defaultPrevented) { event.preventDefault(); event.stopPropagation(); hideOutline(); }
+      els.previewPane.addEventListener('keydown', event => {
+        const inOutline = event.target === els.editOutlineToggle || els.documentOutline.contains(event.target);
+        if (event.key === 'Escape' && !event.defaultPrevented && documentOutlineOpen && inOutline) {
+          event.preventDefault();
+          event.stopPropagation();
+          hideOutline();
+        }
       });
     }
     els.documentOutlineToggle.setAttribute('aria-controls', 'document-outline');
@@ -12940,7 +13029,7 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
     els.editOutlineToggle.setAttribute('aria-label', '切换文档大纲');
     els.editOutlineToggle.setAttribute('aria-controls', 'document-outline');
     els.editOutlineToggle.innerHTML = iconTemplate('document-outline');
-    els.viewSeg.before(els.editOutlineToggle);
+    els.previewPane?.prepend(els.editOutlineToggle);
     for (const button of [els.documentOutlineToggle, els.editOutlineToggle]) {
       button.addEventListener('click', () => { documentOutlineOpen = !documentOutlineOpen; syncWorkspaceView(); });
     }
@@ -15352,7 +15441,11 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
         }
         const ph = document.getElementById(pid);
         if (ph && view !== 'source') ph.scrollIntoView({ block: 'start', behavior: 'smooth' });
-        if (els.previewPane?.clientWidth <= 560) { documentOutlineOpen = false; syncWorkspaceView(); }
+        if (els.previewPane?.clientWidth <= 560) {
+          documentOutlineOpen = false;
+          syncWorkspaceView();
+          if (view === 'preview') focusDocumentToolbarControl(state.documentMode === 'reading' ? els.documentOutlineToggle : els.editOutlineToggle);
+        }
       });
       els.outlineList.appendChild(btn);
     });
@@ -15372,14 +15465,14 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
     const md = getCurrentMarkdown();
     const lines = md ? md.split('\n').length : 0;
     const chars = md.length;
-    const viewMap = { source: '源码', preview: '预览', split: '分栏' };
+    const viewLabel = state.documentMode === 'reading' ? '只读阅读' : DOCUMENT_VIEW_LABELS[state.viewMode] || DOCUMENT_VIEW_LABELS.split;
     const dirtyLabel = isDocDirty(doc) ? ' · 未保存到文件' : '';
     const detachedFileLabel = doc?.openedWithoutHandle ? ' · 下载副本，未关联原文件' : '';
     const directory = directoryForDoc(doc);
     const sourceLabel = directory ? ` · ${directory.name}` : '';
     const syncLabels = { conflict: ' · 磁盘版本冲突', missing: ' · 原文件缺失', 'permission-required': ' · 需要目录授权', updated: ' · 磁盘版本已更新' };
     const syncLabel = doc ? (syncLabels[doc.syncState] || '') : '';
-    els.statusText.textContent = `${doc?.name || '未命名文档'}${sourceLabel} · ${lines} 行 · ${chars} 字符 · 视图：${viewMap[state.viewMode] || '分栏'}${dirtyLabel}${detachedFileLabel}${syncLabel}`;
+    els.statusText.textContent = `${doc?.name || '未命名文档'}${sourceLabel} · ${lines} 行 · ${chars} 字符 · 视图：${viewLabel}${dirtyLabel}${detachedFileLabel}${syncLabel}`;
     updateEditChrome();
     updateConflictBar();
   }
@@ -19890,6 +19983,7 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
   }
 
   function bindFmtbar() {
+    const toolRail = els.fmtbar.querySelector('.app-fmtbar__scroll');
     els.fmtbar.querySelectorAll('.fmt-btn[data-fmt]').forEach((btn) => {
       btn.addEventListener('click', () => formatFromActiveEditor(btn.dataset.fmt));
     });
@@ -19910,15 +20004,15 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
       item.addEventListener('click', () => { formatFromActiveEditor('heading', item.dataset.level); closeHeadingMenu(); });
     });
     const alignToolbarMenus = () => {
-      const toolbar = els.fmtbar.getBoundingClientRect();
+      const toolbar = toolRail.getBoundingClientRect();
       for (const [button, menu, alignEnd] of [[els.headingBtn, els.headingMenu, false], [els.btnSaveMore, els.saveMenu, true]]) {
         if (menu.hidden) continue;
         const anchor = button.getBoundingClientRect();
-        if (anchor.right <= toolbar.left || anchor.left >= toolbar.right) closePopupMenu(button, menu, false);
+        if (toolRail.contains(button) && (anchor.right <= toolbar.left || anchor.left >= toolbar.right)) closePopupMenu(button, menu, false);
         else positionToolbarMenu(button, menu, alignEnd);
       }
     };
-    els.fmtbar.addEventListener('scroll', alignToolbarMenus, { passive: true });
+    toolRail.addEventListener('scroll', alignToolbarMenus, { passive: true });
     window.addEventListener('resize', alignToolbarMenus);
     if (els.btnUndo) els.btnUndo.addEventListener('click', () => applyHistory(-1));
     if (els.btnRedo) els.btnRedo.addEventListener('click', () => applyHistory(1));
@@ -19927,31 +20021,90 @@ Use Open Document to choose Markdown, TXT, PDF, or EPUB. Edit Markdown and TXT d
     bindExportMenu();
   }
 
+  function captureTextViewPosition() {
+    if (textViewPosition?.docId !== state.currentDocId) textViewPosition = { docId: state.currentDocId };
+    if (els.sourceEditor.clientHeight) textViewPosition.sourceTop = els.sourceEditor.scrollTop;
+    if (els.previewWrap.clientHeight) {
+      const top = els.previewWrap.getBoundingClientRect().top;
+      const block = els.previewWrap.scrollTop > 0
+        ? [...els.previewEditor.children].find(node => node.getBoundingClientRect().bottom > top + 1) : null;
+      textViewPosition.previewTop = els.previewWrap.scrollTop;
+      textViewPosition.block = block;
+      textViewPosition.offset = block ? block.getBoundingClientRect().top - top : 0;
+    }
+    return textViewPosition;
+  }
+
   function setViewMode(mode) {
-    if (isReaderDocument()) return;
-    if (mode !== state.viewMode) flushPendingPreviewCommit();
+    if (isReaderDocument() || !Object.hasOwn(DOCUMENT_VIEW_LABELS, mode)) return;
+    const changing = mode !== state.viewMode;
+    if (changing) flushPendingPreviewCommit();
+    const position = changing && state.workspaceView === 'document' && state.documentMode === 'editing'
+      ? captureTextViewPosition() : null;
     draftCommentAnchor = null;
     selectedPreviewBlock = null;
     state.viewMode = mode;
     els.editorContainer.dataset.view = mode;
-    els.viewSeg.querySelectorAll('.ui-segmented-item').forEach((item) => {
+    els.viewSeg.querySelectorAll('[data-view]').forEach((item) => {
       const active = item.dataset.view === mode;
-      item.classList.toggle('is-active', active);
-      const btn = item.querySelector('.ui-button');
-      if (btn) btn.className = 'ui-button ui-button-sm ' + (active ? 'ui-button-secondary' : 'ui-button-light');
+      const button = item.querySelector('button');
+      button.setAttribute('aria-checked', String(active));
+      button.tabIndex = active ? 0 : -1;
     });
+    els.viewSelect.value = mode;
+    els.viewSelect.title = `当前视图：${DOCUMENT_VIEW_LABELS[mode]}`;
+    els.viewCompactIcon.querySelector('use').setAttribute('href', `#gicon-view-${mode}`);
     updatePreviewEditableState(mode);
     syncWorkspaceView();
-    if (mode === 'split') requestAnimationFrame(() => renderSplitRatio(state.splitRatio));
+    if (mode === 'split') renderSplitRatio(state.splitRatio);
+    if (position && mode === 'split') {
+      syncScrollLock = true;
+      requestAnimationFrame(() => { syncScrollLock = false; });
+    }
+    if (position && mode !== 'preview' && Number.isFinite(position.sourceTop)) els.sourceEditor.scrollTop = position.sourceTop;
+    if (position && mode !== 'source' && Number.isFinite(position.previewTop)) {
+      els.previewWrap.scrollTop = position.previewTop;
+      if (position.block && els.previewEditor.contains(position.block)) {
+        const top = els.previewWrap.getBoundingClientRect().top;
+        els.previewWrap.scrollTop += position.block.getBoundingClientRect().top - top - position.offset;
+      }
+    }
     scheduleSave();
     updateStatus();
     syncDesktopMenuState();
   }
 
   function bindViewSeg() {
-    els.viewSeg.querySelectorAll('.ui-segmented-item').forEach((item) => {
+    const items = [...els.viewSeg.querySelectorAll('[data-view]')];
+    items.forEach((item) => {
       item.addEventListener('click', () => setViewMode(item.dataset.view));
     });
+    els.viewSeg.addEventListener('keydown', event => {
+      const keys = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'Home', 'End'];
+      if (!keys.includes(event.key) || event.altKey || event.ctrlKey || event.metaKey) return;
+      event.preventDefault();
+      const current = items.findIndex(item => item.dataset.view === state.viewMode);
+      const step = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1;
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (current + step + items.length) % items.length;
+      setViewMode(items[next].dataset.view);
+      items[next].querySelector('button').focus({ preventScroll: true });
+    });
+    els.viewSelect.addEventListener('change', () => setViewMode(els.viewSelect.value));
+
+    const compactRail = matchMedia('(max-width: 1120px)');
+    const toolRail = els.fmtbar.querySelector('.app-fmtbar__scroll');
+    const files = els.fmtbar.querySelector('.app-fmtbar__files');
+    const theme = els.fmtbar.querySelector('.app-fmtbar__theme');
+    const arrangeFileTools = () => {
+      const active = files.contains(document.activeElement) ? document.activeElement : null;
+      if (compactRail.matches) toolRail.append(files);
+      else theme.before(files);
+      if (active) focusDocumentToolbarControl(active);
+      positionToolbarMenu(els.btnSaveMore, els.saveMenu, true);
+      positionExportMenu();
+    };
+    compactRail.addEventListener('change', arrangeFileTools);
+    arrangeFileTools();
   }
 
   function splitRatioBounds() {
